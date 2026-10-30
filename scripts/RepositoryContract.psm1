@@ -100,7 +100,7 @@ function Test-EzDarkFactoryRepositoryContract {
         throw 'EDF development notes must not claim hosted physical WHPX qualification.'
     }
 
-    $forbiddenDirectory = '(?i)(^|/)(runtime|\.ezdarkfactory|cache|artifacts|TestResults|coverage)(/|$)'
+    $forbiddenDirectory = '(?i)(^|/)(runtime|\.ezdarkfactory|\.ezvm|cache|artifacts|TestResults|coverage)(/|$)'
     $forbiddenExtension = '(?i)\.(qcow2?|img|iso|vhdx?|vmdk|vdi|raw|ova|ovf|dmg|exe|msi|msix|msp|dll|so(?:\.[0-9.]+)?|dylib|bin|zip|7z|rar|tar|tgz|gz|bz2|xz|zst|pem|key|p12|pfx|ppk|token|pid|sock)$'
     $forbiddenName = '(?i)(^|/)(\.env(?:\..*)?|id_(rsa|dsa|ecdsa|ed25519)|ssh_host_[^/]+_key)$'
     $privateKeyContent = '(?m)^\s*-{4,5}\s*BEGIN (?:(?:RSA|DSA|EC|OPENSSH|ENCRYPTED) )?PRIVATE KEY\s*-{4,5}|^PuTTY-User-Key-File-[23]:'

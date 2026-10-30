@@ -47,6 +47,10 @@ class ActiveImportTests(unittest.TestCase):
                 original = self.repo.file(record["source_commit"], record["source_path"])
                 self.assertEqual(hashlib.sha256(original).hexdigest(), record["source_sha256"])
                 self.assertTrue((self.root / destination).is_file(), destination)
+                blob = p.run_git(self.root, "rev-parse", "HEAD:" + destination).decode("ascii").strip()
+                self.assertEqual(blob, record["destination_blob"])
+                self.assertEqual(p.run_git(self.root, "cat-file", "blob", blob),
+                                 (self.root / destination).read_bytes())
 
     def test_identity_and_default_rebrand_are_byte_reproducible_without_code_execution(self):
         for record in self.active["records"]:

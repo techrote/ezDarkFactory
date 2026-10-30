@@ -17,7 +17,8 @@
       "destination": ".gitattributes",
       "classification": "unchanged-import",
       "transform": "identity",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "cd533ca92d39e520d29c1355532b3a907d69f52b"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -29,7 +30,8 @@
       "destination": ".github/workflows/ci.yml",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "4e7cd2cff8b2c47e113dcefd7fca669c57db434e"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -41,7 +43,8 @@
       "destination": ".gitignore",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "1b9a1c1706fafa26b597676fb655fb39d93bf185"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -53,7 +56,8 @@
       "destination": "config/defaults.json",
       "classification": "unchanged-import",
       "transform": "identity",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "a9a50af9e31cd45775e7192a5d7b7fa44a286611"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -65,7 +69,8 @@
       "destination": "docs/CODING-GUEST.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF."
+      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF.",
+      "destination_blob": "626b12377a9d53d4ef30f033e8995d2c2c7555c8"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -77,7 +82,8 @@
       "destination": "docs/GETTING-STARTED.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF."
+      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF.",
+      "destination_blob": "9cf409622b61e355a1e17ecc075be3a83ba4b135"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -89,7 +95,8 @@
       "destination": "docs/PORTABILITY.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF."
+      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF.",
+      "destination_blob": "2f306d3bd996d7f652c191de327c478ee4248106"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -101,7 +108,8 @@
       "destination": "docs/TROUBLESHOOTING.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF."
+      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF.",
+      "destination_blob": "3ba0f63d942cc768fb8fea69a1dd791b8165b500"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -113,7 +121,8 @@
       "destination": "docs/WHPX-QUALIFICATION.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF."
+      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF.",
+      "destination_blob": "5cc09b7da95344284f3896b05020e59955aae863"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -125,7 +134,8 @@
       "destination": "ezdarkfactory.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "46357444e46417539210c960157ed49ce2f283bf"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -137,7 +147,8 @@
       "destination": "guest/base-cloud-init/baseline.json",
       "classification": "unchanged-import",
       "transform": "identity",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "1ace71fda4c84fa0bd3056e1c206f1f89209a995"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -149,7 +160,8 @@
       "destination": "guest/base-cloud-init/meta-data.yaml",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "000db7710c14f53395edadd320ce2ab39f85b079"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -161,7 +173,8 @@
       "destination": "guest/base-cloud-init/user-data.yaml",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "7c2aa04a046e888ce153ff2a5c26b85a6b272f32"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -173,7 +186,8 @@
       "destination": "guest/profiles/coding-default/v1/profile.json",
       "classification": "unchanged-import",
       "transform": "identity",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "c0c02d7cfddb47626950a915d0340ee4b6aa6c34"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -185,7 +199,8 @@
       "destination": "guest/profiles/coding-default/v1/provision.sh",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "e7d00174827b0fb5097eeb386f1ccaef906a4690"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -197,7 +212,8 @@
       "destination": "manifests/qemu-windows.json",
       "classification": "unchanged-import",
       "transform": "identity",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "5c5ef93c34a25246ed312bed1040880c9c49b90f"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -209,7 +225,8 @@
       "destination": "manifests/ubuntu-noble-amd64.json",
       "classification": "unchanged-import",
       "transform": "identity",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "890cee952d94611e41ca0ef539db5a4d47a7f722"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -221,7 +238,8 @@
       "destination": "README.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "7e6aba3cb65c13b6f8d4ed44ce0cfc5460b4969a"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -233,7 +251,8 @@
       "destination": "scripts/Install-TestPowerShell.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "75d3162931a00782a63d93c46058130726648705"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -245,7 +264,8 @@
       "destination": "scripts/Invoke-CiCheck.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "748e39fdbbc0b9be908d3b4797165a0488e88e9a"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -257,7 +277,8 @@
       "destination": "scripts/Invoke-EzDarkFactory005RealQemuImg.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "389e1ab242654c6d6325c81af38e9f03c0911d58"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -269,7 +290,8 @@
       "destination": "scripts/Invoke-EzDarkFactory006RealQmp.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "a189a485578931574cd866100aa389648b0a4f41"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -281,7 +303,8 @@
       "destination": "scripts/Invoke-EzDarkFactory007RealSsh.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "e666cdf02e085b1fda4a58ab70242b2f14f5c53b"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -293,7 +316,8 @@
       "destination": "scripts/Invoke-EzDarkFactory009RealProfile.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "d19c94dfdbe4810462af23509db902b69f09f5d7"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -305,7 +329,8 @@
       "destination": "scripts/Invoke-EzDarkFactory010RealPortability.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "b2a950e9e1c2ed69722574def930cbc3ee425e89"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -317,7 +342,8 @@
       "destination": "scripts/New-EzDarkFactoryReleasePackage.ps1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "6ac6fac7a518e457f76d151dd33d3aa281cf7133"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -329,7 +355,8 @@
       "destination": "scripts/Publish-EzDarkFactoryGitHubRelease.ps1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "d90a04baa15242f4392d0ed43a14c56213e706be"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -341,7 +368,8 @@
       "destination": "scripts/RepositoryContract.psm1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "adbee003af47170409eae99c500708ece29c2aec"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -353,7 +381,8 @@
       "destination": "scripts/Test-Repository.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "feb8b6b3c4c741a589bf5a3e1f2c93328500d833"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -365,7 +394,8 @@
       "destination": "src/EzDarkFactory/BaseBuilder.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "0e6fe6dde6abead1de3626aa1432ce3b6de1e1e4"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -377,7 +407,8 @@
       "destination": "src/EzDarkFactory/BaseRecipe.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "96e95e0be26960bd87224de71205b96b86bfad5b"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -389,7 +420,8 @@
       "destination": "src/EzDarkFactory/Cli.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "bfed5079cd05373793c253c2079d32902a5aa8db"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -401,7 +433,8 @@
       "destination": "src/EzDarkFactory/Configuration.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "9ae1c80b3c390951022d947a059d4a8049309080"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -413,7 +446,8 @@
       "destination": "src/EzDarkFactory/Doctor.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "79fd5df1607035653e2d4499cdbdd66378a25c84"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -425,7 +459,8 @@
       "destination": "src/EzDarkFactory/Download.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "ae580d325c81c311b701fd1be66c8436c699b5ad"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -437,7 +472,8 @@
       "destination": "src/EzDarkFactory/EzDarkFactory.psd1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "3100e80a58ccbaa20d7eefc89dfeac3ae180b9be"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -449,7 +485,8 @@
       "destination": "src/EzDarkFactory/EzDarkFactory.psm1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "c47498af7ff3913216c82cc9ab6b590e939b2dc8"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -461,7 +498,8 @@
       "destination": "src/EzDarkFactory/Json.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "8432dc6e6a4b4307859f9caf3e0586c1b7bed392"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -473,7 +511,8 @@
       "destination": "src/EzDarkFactory/Keys.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "706c82af8c97a3aa41305d9d1bf8ab480d54d0b4"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -485,7 +524,8 @@
       "destination": "src/EzDarkFactory/Paths.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "d56faec8569a126369bfb780519f53247ac22297"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -497,7 +537,8 @@
       "destination": "src/EzDarkFactory/Portability.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "44363b4dd56d8e1f08de18f7d15157d10700eca1"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -509,7 +550,8 @@
       "destination": "src/EzDarkFactory/Process.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "94ed9442f8fbb3a6e5e0f8fb61ded7cd4d676b11"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -521,7 +563,8 @@
       "destination": "src/EzDarkFactory/Profiles.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "3496fedcfb41e27ea99ca6fb6f984686c23b323c"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -533,7 +576,8 @@
       "destination": "src/EzDarkFactory/Qemu.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "9fbf621d1ffaa96d3f5b8451943c5ca4d5f0f729"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -545,7 +589,8 @@
       "destination": "src/EzDarkFactory/QemuIntegrity.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "88190e5931c865d5271b0e90e9936d69e7314238"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -557,7 +602,8 @@
       "destination": "src/EzDarkFactory/Recovery.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "80528782c1bd9e9a1b1a4469c58d7738f079a3c3"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -569,7 +615,8 @@
       "destination": "src/EzDarkFactory/Registry.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "67d714bd5a7a52dde6a10d8a53c5fe8ae3027f81"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -581,7 +628,8 @@
       "destination": "src/EzDarkFactory/Runtime.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "48ea4514ee2197deec4c03513a463a39d0b2f20c"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -593,7 +641,8 @@
       "destination": "src/EzDarkFactory/Security.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "0331486e7fcf4b14f8a5d5571a0f226229ad5615"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -605,7 +654,8 @@
       "destination": "src/EzDarkFactory/SeedServer.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "28678ec39a58cb77a8f4c9c063e88c4576ae7a7a"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -617,7 +667,8 @@
       "destination": "src/EzDarkFactory/Snapshots.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "97b8a29d72e253483f55945af2dac76b17992c89"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -629,7 +680,8 @@
       "destination": "src/EzDarkFactory/SourceImage.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "cf3420ffac6410e32f2790828e967519313b7605"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -641,7 +693,8 @@
       "destination": "src/EzDarkFactory/Ssh.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "002bb460bdbafb0f78194f33829d43d33cbdb6fd"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -653,7 +706,8 @@
       "destination": "src/EzDarkFactory/Storage.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "089dfa05afeee9bb7e90fc1e7a3dd9c21b526468"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -665,7 +719,8 @@
       "destination": "tests/BaseBuilder.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "4e4df67d1e28759fa4c98a219114cd959335ac4e"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -677,7 +732,8 @@
       "destination": "tests/BaseRecipe.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "0cb71fd40d9e42a57dac29bbb81adc142ec47c14"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -689,7 +745,8 @@
       "destination": "tests/Cli.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain all CLI positive/negative tests, update expected public version from upstream 0.1.0 to EDF 0.0.0-dev."
+      "review_note": "Retain all CLI positive/negative tests, update expected public version from upstream 0.1.0 to EDF 0.0.0-dev.",
+      "destination_blob": "9636fbca05cb2cc3be74b30c468e4a2d0b267078"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -701,7 +758,8 @@
       "destination": "tests/CodingReadiness.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "2170fb8e4762eb7f2cec14776f70466ba0327f05"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -713,7 +771,8 @@
       "destination": "tests/Configuration.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "a5f03bb6266e3cf8b93d13fad1c88b2a8ea2f029"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -725,7 +784,8 @@
       "destination": "tests/Doctor.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "dc51381267506318e42043880634d0213dae537d"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -737,7 +797,8 @@
       "destination": "tests/Download.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "bc63dc92bdc6901f2794f2dc1fb4c69128e82e84"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -749,7 +810,8 @@
       "destination": "tests/fixtures/NativeArguments.cs",
       "classification": "unchanged-import",
       "transform": "identity",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "4697ee593153a4fdd53383c0d53cdfb34d3772bd"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -761,7 +823,8 @@
       "destination": "tests/fixtures/ProcessFixture.ps1",
       "classification": "unchanged-import",
       "transform": "identity",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "72bb1eb0ff37553706fce51cd72e80e0ba557026"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -773,7 +836,8 @@
       "destination": "tests/Json.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "9eb07dcf0c7c5c8df77a6f04a76ef9288d7290c5"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -785,7 +849,8 @@
       "destination": "tests/Paths.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "5c33cb8e030b50221867e915373314d45db2aad7"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -797,7 +862,8 @@
       "destination": "tests/Portability.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "c7fee6988bc9de3942cca2ce016e42a06600a2de"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -809,7 +875,8 @@
       "destination": "tests/PortabilityCli.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "220867ec212429fbb0dab051442abe05a38a399a"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -821,7 +888,8 @@
       "destination": "tests/PortabilityIdentity.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "da45bb2f9f176d26e61569dfccb3aca429f2694b"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -833,7 +901,8 @@
       "destination": "tests/Process.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "700dac1eb812720f7acf4fd84066e5fb22649a3d"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -845,7 +914,8 @@
       "destination": "tests/Profiles.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "5927d06695f1a632553bd30b4e0b09f716e2a683"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -857,7 +927,8 @@
       "destination": "tests/Qemu.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "83ece398662d07342fb45c2769be772a7362861c"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -869,7 +940,8 @@
       "destination": "tests/README.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF."
+      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF.",
+      "destination_blob": "7ab271400573b5fbc8e682f61396b14521498baf"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -881,7 +953,8 @@
       "destination": "tests/Recovery.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "70d7c43e6920f2a8529fc252fb807b4cd2916a99"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -893,7 +966,8 @@
       "destination": "tests/Registry.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "6760f81f9ff4ce271377cee44d35fdb90dd69a1c"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -905,7 +979,8 @@
       "destination": "tests/Release.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "b3d5a33b29715c6d8c62405383a06b2c4158c03b"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -917,7 +992,8 @@
       "destination": "tests/Repository.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules."
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
+      "destination_blob": "9ce90a75a0301963bf058e50f40196a5b11eef7d"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -929,7 +1005,8 @@
       "destination": "tests/Run-Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "9323c152209b3b43a63641bcfc6e11814c8f42b7"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -941,7 +1018,8 @@
       "destination": "tests/Runtime.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "d298a546c1428b0c6d7d56c44d892eaf7b4eb43b"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -953,7 +1031,8 @@
       "destination": "tests/Security.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "e1cd37d0de98c32b0c3a1bfaa3bb14815340131b"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -965,7 +1044,8 @@
       "destination": "tests/SeedServer.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "12d9f7c5f86e066c6bfaa98144dd49cc36eebaec"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -977,7 +1057,8 @@
       "destination": "tests/Snapshots.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "b3698c18ccc8b1dbad1befba159b7e33b012562f"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -989,7 +1070,8 @@
       "destination": "tests/SourceImage.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "c16e10d19c8d78de83f357747188fd6886b29526"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -1001,7 +1083,8 @@
       "destination": "tests/Ssh.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "b6f223d32536cf822df2daec4740f6e20175d3ed"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -1013,7 +1096,8 @@
       "destination": "tests/Storage.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "fcf5f17556b18bf63c0a9b0d777a02848d63b0b6"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -1025,7 +1109,8 @@
       "destination": "tests/TestHarness.ps1",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "176206b64be1a4415a9e1406b32ea0b40d3d1854"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -1037,7 +1122,8 @@
       "destination": "tests/tooling.json",
       "classification": "adapt-rebrand",
       "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes.",
+      "destination_blob": "54c99159756269291bab457e05d625b5fef3d7a9"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -1049,7 +1135,8 @@
       "destination": "THIRD-PARTY-NOTICES.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF."
+      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF.",
+      "destination_blob": "cd468fa842c8dba54ee27d296f410eb0abcedf69"
     }
   ]
 }
