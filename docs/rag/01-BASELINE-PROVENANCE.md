@@ -7,72 +7,104 @@ status: authority
 
 ## Why this document exists
 
-ezDarkFactory intentionally begins from the VM environment that surrounded the end of TUIsynth implementation, but the new project must not accidentally inherit TUIsynth as its active workload.
+ezDarkFactory is intended to reproduce the **development VM environment** used for the original TUIsynth/TRIO work near the point that work was paused, then turn that environment into a clean general-purpose factory for fresh projects.
 
-The cutoff is evidence-based and fixed.
+The historical TUIsynth repository state and the VM source are related but are not the same identity. In particular, later comparison repositories must not be substituted for the original local Git history.
 
-## TUIsynth implementation cutoff
+## What GitHub can and cannot show
 
-Current repository history was inspected on 30 October 2026.
+The original `techrote/tuisynth` repository reached:
 
-The last implementation commit in the active implementation fork is:
+- commit `e7060f6788421029ea9a1cb7cbee86a994c5b4d5`;
+- subject: `[TRIO] Run programme locally with qualified Titan models (#20)`;
+- a workflow contract in which agents clone/develop/test/review and squash-merge **locally inside the development VM**, without GitHub credentials or pushes.
 
-- repository: `techrote/tuisynth-codex`
-- commit: `357215781ba0b82694e62dd4d7ba1c3697ac3159`
-- timestamp: **2026-10-18 09:25:55 UTC**
-- subject: `TRIO-016: synchronize headless input completion (#34)`
+Therefore GitHub commit history after that point is not a complete record of original TUIsynth implementation progress.
 
-Immediately before it, TRIO-016's modulation/FX implementation landed at `a3cb0b2a0ad9d8098234c1d00a6ef16ead0717de`.
+The repositories `techrote/tuisynth-codex` and `techrote/tuisynth-claude` are comparison work. Their commit sequences are useful comparative evidence only. They are **not** the original TUIsynth implementation line and must not be used to select the ezDarkFactory baseline.
 
-The next planned item, **TRIO-017 Packaging, launchers, documentation and v0.1 software release qualification**, remained open. No later synth implementation commit was found in `tuisynth`, `tuisynth-codex` or `tuisynth-claude` through the inspection date.
+## Surviving original local-development evidence
 
-Therefore ezDarkFactory treats TRIO-016 completion as the point at which synth development ceased. It does **not** absorb TRIO-017 as pending work.
+The EzVM TRIO field-study was extracted on 16 October 2026 after the original local development run had been paused. Its retained evidence records the following:
 
-## Matching EzVM checkpoint
+- **TRIO-FR-02:** accepted local main ended at `whole001..007`; the historical canonical checkout and a later partial pause checkpoint were different commits and roots.
+- **TRIO-FR-05:** pause wrap-up preserved complete histories plus 89 incoming provenance rows and 151 original report blobs.
+- **TRIO-FR-17:** pause wrap-up reconciled a concise handoff, component manifest, source hashes and ordered restart queue.
+- The evidence index describes local-only source records E01 (pause handoff), E04 (component refs/source-test hashes/restart identity) and E17 (ordered restart queue/review gates/source identity).
 
-The last EzVM commit before the synth implementation burst and before the above cutoff is:
+Those raw local-only records are not currently available through the connected public repository evidence used to bootstrap ezDarkFactory. Consequently:
+
+- the accepted **logical** cutoff `whole/TRIO-001..007` is established by the field-study;
+- a later **partial** checkpoint is established to have existed;
+- the exact local Git SHA/tree for either is **not established here**;
+- no higher TRIO issue number may be inferred as accepted from a comparison repository;
+- EDF-001 must record any newly recovered local checkpoint exactly if it becomes available, but implementation must remain possible without fabricating it.
+
+## Development-VM source baseline
+
+The same field-study's EzVM dashboard design explicitly records:
+
+> Inspected local EzVM source: `b6abdf8`, with the owner's existing Keys.ps1 and Runtime.ps1 patches.
+
+The full source identity is:
 
 - repository: `techrote/ezvm`
-- commit: `7b829f8352a9fa30c965e57386965767c5969e0d`
-- timestamp: **2026-10-17 17:32:34 UTC**
-- subject: `Fix standard-user private DACL handling and defer hosted TCG for CI-PoC (#48)`
+- commit: `b6abdf8c3edd61695db30894da991f275b39a699`
+- subject: `EZVM-012: qualify and package ezvm v0.1.0 (#26)`
 
-The next EzVM commits are after synth development ceased, beginning with `62038cf8db68e8b863054c112d79b727e8776031` at **2026-10-18 12:00:05 UTC**. Those later CI-PoC changes are not part of the historical baseline unless a later ezDarkFactory issue explicitly evaluates and imports them.
+This is the **historical source baseline for the VM reconstruction**.
 
-The baseline already contains the EzVM v0.1 control plane and the read-only dashboard prototype. It also contains TRIO field-research documentation. Importing a checkpoint does not make all checkpoint documents/product assumptions current ezDarkFactory policy.
+It is not sufficient by itself to reproduce the observed development VM because two owner-local amendments existed:
 
-## TUIsynth reference pins
+1. `src/EzVm/Keys.ps1` — associated by later evidence with standard-user private-key/DACL handling.
+2. `src/EzVm/Runtime.ps1` — associated by later evidence with the captured-start/QEMU lifetime problem.
 
-Two different historical references serve different purposes:
+The exact historical patch bytes are not assumed to be recoverable. ezDarkFactory must reconstruct their *required behavior*, not invent their contents.
 
-- `techrote/tuisynth@e7060f6788421029ea9a1cb7cbee86a994c5b4d5`: programme/local-workflow documentation showing the development-VM execution model.
-- `techrote/tuisynth-codex@357215781ba0b82694e62dd4d7ba1c3697ac3159`: implemented synth state through TRIO-016, suitable as the optional runnable demo/reference.
+## Later repair evidence: candidate inputs, not historical baseline
 
-Do not merge their histories or pretend the main TUIsynth repository contains the implementation-fork state.
+Later EzVM work is useful for replacing the two private amendments with reviewable public source:
 
-## Import policy
+- `7b829f8352a9fa30c965e57386965767c5969e0d` later changed `src/EzVm/Keys.ps1` and added standard-user DACL qualification.
+- DASH-08 / EzVM issue #34 and its software child/PR later developed explicit native process handles, direct logs, exact process handoff and bounded lifecycle/readiness behavior for the start-pipe class of problem. The recorded software qualification passed its stated PowerShell lanes, while the parent physical standard-user/WHPX gate remained open.
+
+These are **repair candidates to audit and selectively port**. Importing them wholesale would move the historical baseline forward and conflate later EzVM development with the requested reconstruction.
+
+EDF-001/EDF-004 must produce a source/behavior matrix with four columns:
+
+| Concern | Historical b6abdf8 source | Observed owner-local amendment | Later public repair evidence | ezDarkFactory disposition |
+|---|---|---|---|---|
+| private-key/DACL | inspect exact source | bytes may be unavailable | inspect `7b829f...` | port/reimplement only after regression evidence |
+| QEMU start/output lifetime | inspect exact source | bytes may be unavailable | inspect DASH-08 candidate | port/reimplement only after regression evidence |
+
+No historical owner patch may be described as byte-recovered unless its actual bytes and hash are obtained.
+
+## Fresh-project import policy
 
 EDF-001 must create a reviewed source manifest before adaptation.
 
 The import must:
 
-1. fetch the exact EzVM baseline commit;
-2. record source repository, commit, tree identifier when available, retrieval time and per-file hashes for imported first-party files;
-3. copy only source/config/docs/tests needed to reproduce the VM control plane and its accepted acquisition/build/lifecycle behavior;
-4. exclude generated `runtime/` state, VM disks, installers, QEMU payloads, private keys, tokens, credentials and caches;
-5. explicitly classify historical dashboard/TRIO-specific material as either adapted source, retained reference or excluded material;
-6. keep an auditable path mapping when namespaces/paths are renamed;
-7. add a regression that prevents accidental reintroduction of TUIsynth as the default workspace.
+1. fetch exact EzVM source at `b6abdf8c3edd61695db30894da991f275b39a699`;
+2. record repository, commit, tree identifier, retrieval time and per-file hashes for imported first-party files;
+3. classify every imported file as unchanged baseline, adapted baseline, later repair, new ezDarkFactory source, historical reference or excluded;
+4. exclude generated `runtime/` state, VM disks, installers, QEMU payloads, private keys, tokens, credentials, caches and the historical authenticated overlay;
+5. retain only the VM/control-plane source needed to rebuild a clean environment;
+6. preserve a path/namespace mapping for renamed EzVM source;
+7. prevent TUIsynth from becoming the active/default project workspace;
+8. keep TUIsynth reference/demo material isolated and opt-in;
+9. record the unresolved exact local TUIsynth checkpoint instead of substituting comparison-fork bytes.
 
-No runtime behavior may be claimed merely because the historical source had documentation for it. ezDarkFactory must requalify applicable automated/runtime behavior under its own exact source.
+The historical VM is a **recipe and evidence source**, not a redistributable golden image.
 
 ## Provenance truth rule
 
-Keep these distinct in every issue and PR:
+Keep these categories distinct in every issue and PR:
 
-- **historical source evidence**: what a pinned upstream source says or contains;
-- **current source evidence**: what ezDarkFactory currently implements;
-- **automated runtime evidence**: what was actually executed in CI or a recorded harness;
-- **physical/human evidence**: WHPX/UI/usability checks performed on the stated machine.
+- **historical source evidence** — bytes in a pinned upstream Git source;
+- **historical field evidence** — recorded observations/hashes from the original local VM;
+- **current source evidence** — what ezDarkFactory currently implements;
+- **automated runtime evidence** — what was actually executed in CI or a retained harness;
+- **physical/human evidence** — WHPX/GUI/Windows Terminal/usability checks performed on the stated machine.
 
 Never promote one category into another.
