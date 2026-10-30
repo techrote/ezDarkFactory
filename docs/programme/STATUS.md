@@ -7,8 +7,8 @@ This is a compact navigation ledger. Current GitHub issue/PR state and exact `ma
 | EDF-001 | [#1](https://github.com/techrote/ezDarkFactory/issues/1) | done | [PR #13](https://github.com/techrote/ezDarkFactory/pull/13) | accepted `538c8243be4d121a8834bdce99137dd33c7b41df`; post-merge green |
 | EDF-002 | [#2](https://github.com/techrote/ezDarkFactory/issues/2) | done | [PR #15](https://github.com/techrote/ezDarkFactory/pull/15) | accepted `978288496aa5d328f0d79712c74e69cf769689e4`; five exact-main jobs green |
 | EDF-003 | [#3](https://github.com/techrote/ezDarkFactory/issues/3) | done | [PR #18](https://github.com/techrote/ezDarkFactory/pull/18) | accepted `d7b7debbaf66d5b50136342d26634ff05ea34d3f`; nine exact-main checks PASS |
-| EDF-004 | [#4](https://github.com/techrote/ezDarkFactory/issues/4) | todo | | EDF-002 accepted; dependency-ready |
-| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | todo | | EDF-003 + EDF-004 |
+| EDF-004 | [#4](https://github.com/techrote/ezDarkFactory/issues/4) | done | [PR #23](https://github.com/techrote/ezDarkFactory/pull/23) | accepted `a983c957fb65acfd781ac131733512658b3e9927`; eleven exact-main checks PASS |
+| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | todo | | EDF-003 + EDF-004 accepted; dependency-ready, unstarted |
 | EDF-006 | [#6](https://github.com/techrote/ezDarkFactory/issues/6) | todo | | EDF-003 + EDF-004 + EDF-005 |
 | EDF-007 | [#7](https://github.com/techrote/ezDarkFactory/issues/7) | todo | | EDF-006 |
 | EDF-008 | [#8](https://github.com/techrote/ezDarkFactory/issues/8) | todo | | EDF-004 + EDF-005 + EDF-007 |
@@ -72,8 +72,8 @@ See [the durable issue acceptance trail](https://github.com/techrote/ezDarkFacto
 
 This is **SOURCE / FAST-CI** acceptance only. The owner-local `Keys.ps1`/`Runtime.ps1` **software repair classes**
 were subsequently selected and qualified in EDF-003, described below.
-The fresh, clean project guest contract is EDF-004, still **dependency-ready
-but unstarted**. The multi-factory TUI, real QEMU/TCG/WHPX, physical
+The clean fresh-project guest contract has subsequently been accepted
+under EDF-004, documented in its handoff below. The multi-factory TUI, real QEMU/TCG/WHPX, physical
 Windows Terminal, human usability, and final release remain later gates;
 no such PASS is implied.
 
@@ -110,5 +110,58 @@ software behavior. Neither owner-local historical patch byte sequence
 was recovered or claimed equivalent. The upstream DASH-08 full real TCG
 release failure remains failed evidence; physical supported-host WHPX,
 Windows Terminal and human use remain UNMEASURED/HUMAN-PENDING and
-require EDF-011. EDF-004 remains **open and dependency-ready**.
-EDF-005 requires both EDF-003 **and** EDF-004 to be accepted.
+require EDF-011. EDF-004 is subsequently **accepted at SOURCE/FAST-CI**.
+EDF-005 now has both EDF-003 and EDF-004 accepted prerequisites.
+
+## EDF-004 accepted handoff
+
+On 30 October 2026, [EDF-004 PR #23](https://github.com/techrote/ezDarkFactory/pull/23)
+was guarded-squash merged as
+`a983c957fb65acfd781ac131733512658b3e9927`, Git tree
+`b9bdfeb9c1760f0d8bea0028dafae71104fa92a6`. This tree exactly
+matches the reviewed final PR head
+`a4fa6f5f6a27f570340a966a9c10bfe6e23fece2`. The final head reconciled
+both preceding maintenance fixes: merged CI-PROV-001 #17 and
+CI-RUNTIME-001 #20, preserving their exact immutable provenance layers
+and preimage/supersession safety checks.
+
+The two [PR-head runs](https://github.com/techrote/ezDarkFactory/actions/runs/41136392760)
+and [focused guest qualification](https://github.com/techrote/ezDarkFactory/actions/runs/41136392863)
+passed all **11 required exact-head jobs**. Both corresponding actual
+`main` runs [full nine-job merge gate](https://github.com/techrote/ezDarkFactory/actions/runs/41137100823)
+and [focused EDF-004 guest gates](https://github.com/techrote/ezDarkFactory/actions/runs/41137100701)
+completed **SUCCESS on attempt 1**, 11/11 checks tied to the literal
+merged commit. Full Windows PowerShell 5.1 and pinned PS7.6.6 suites
+passed **381/381** with zero skips; each dedicated EDF-004 profile lane
+passed **8/8**. Native process and real disposable standard-user DACL lanes
+from EDF-003 remained green.
+
+The EDF-owned `fresh-project/v1` profile is selected for new managed
+instances based on validated schema-1 clean prepared bases; historical
+`coding-default/v1` remains for schema-2 derived/imported bases and
+existing durable intents. Fresh first-READY requires empty writable
+coder-owned workspace; validated general build tools; locked passwords,
+public-key SSH and sudo policy; no known historical TUIsynth/TRIO,
+provider/model/credential or autostart state; and exact base, profile
+name/version/digest, instance and durable generation identity. Reset,
+fresh-clone and stale READY refusals are covered. No user workspace is
+silently deleted or recursively chowned. Base machine/SSH/cloud identity
+scrubbing and controller-key separation remain.
+
+The [EDF-004 import provenance map](../provenance/edf004-fresh-profile.json)
+binds original EzVM/EDF-002 accepted source bytes and the seven EDF-004
+source adaptations to exact destination Git blobs. The
+[guest qualification report](../provenance/EDF-004-FRESH-GUEST.md) and
+[issue #4 durable acceptance record](https://github.com/techrote/ezDarkFactory/issues/4)
+record source identities, negative controls and retained artifacts.
+
+**Evidence boundary: SOURCE / FAST-CI only.** The focused guest lanes
+explicitly report `realGuestExecuted=false`, with actual QEMU/TCG/WHPX,
+physical Windows Terminal and human usability **UNMEASURED**; these
+are later EDF-011/runtime/release gates under the governing test contract,
+not unperformed EDF-004 passes.
+
+EDF-001 through EDF-004 are accepted. EDF-005 #5 is now
+**dependency-ready but unstarted**, with both required EDF-003/EDF-004
+prerequisites satisfied. EDF-006 and later manager/TUI milestones retain
+their separate dependencies.
