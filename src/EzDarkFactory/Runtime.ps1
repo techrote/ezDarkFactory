@@ -738,41 +738,79 @@ function New-EzDarkFactoryRuntimeQemuArguments {
     return $arguments.ToArray()
 }
 
+function Get-EzDarkFactoryRuntimeProcessType {
+    # Bind an in-memory native helper to its actual source, including after module
+    # reimport from another checkout. No installed binary or global service.
+    $sourcePath = Join-Path $PSScriptRoot 'RuntimeProcess.cs'
+    $source = (Read-EzDarkFactoryBoundedText -Path $sourcePath -MaximumBytes 65536).Replace("`r`n", "`n")
+    $hash = [Security.Cryptography.SHA256]::Create()
+    try { $digest = ([BitConverter]::ToString($hash.ComputeHash([Text.Encoding]::UTF8.GetBytes($source)))).Replace('-', '').ToLowerInvariant() }
+    finally { $hash.Dispose() }
+    $namespace = 'EzDarkFactory.Dash08.V' + $digest
+    $typeName = $namespace + '.RuntimeProcess'
+    $type = $typeName -as [type]
+    if ($null -ne $type) { return $type }
+    $mutex = New-Object Threading.Mutex($false, ('Local\ezdarkfactory-runtime-native-' + $PID))
+    $taken = $false
+    try {
+        try { $taken = $mutex.WaitOne(5000) }
+        catch [Threading.AbandonedMutexException] { $taken = $true }
+        if (-not $taken) { throw 'Timed out preparing the native runtime launcher; no process was launched.' }
+        $type = $typeName -as [type]
+        if ($null -eq $type) {
+            Add-Type -TypeDefinition ($source.Replace('namespace EzDarkFactory.Dash08 {', ('namespace ' + $namespace + ' {'))) -Language CSharp -ErrorAction Stop
+            $type = $typeName -as [type]
+        }
+        if ($null -eq $type) { throw 'Could not load the source-bound native runtime launcher.' }
+        return $type
+    }
+    finally {
+        if ($taken) { $mutex.ReleaseMutex() }
+        $mutex.Dispose()
+    }
+}
+
 function Start-EzDarkFactoryRuntimeProcess {
     param(
         [Parameter(Mandatory = $true)][string]$FilePath,
-        [Parameter(Mandatory = $true)][string[]]$ArgumentList,
-        [Parameter(Mandatory = $true)][string]$WorkingDirectory
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][AllowEmptyString()][string[]]$ArgumentList,
+        [Parameter(Mandatory = $true)][string]$WorkingDirectory,
+        [Parameter(Mandatory = $true)][string]$StandardOutputPath,
+        [Parameter(Mandatory = $true)][string]$StandardErrorPath
     )
 
-    $start = New-Object Diagnostics.ProcessStartInfo
-    $start.FileName = Resolve-EzDarkFactoryProcessFileSystemPath -Path $FilePath
-    $start.WorkingDirectory = Resolve-EzDarkFactoryProcessFileSystemPath -Path $WorkingDirectory
-    $start.UseShellExecute = $false
-    $start.CreateNoWindow = $true
-    if ($null -ne $start.PSObject.Properties['ArgumentList']) {
-        foreach ($argument in $ArgumentList) { $start.ArgumentList.Add($argument) }
+    if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) {
+        throw 'QEMU runtime launch requires Windows; use explicit process fixtures elsewhere.'
     }
-    else {
-        $escaped = New-Object 'System.Collections.Generic.List[string]'
-        foreach ($argument in $ArgumentList) { $escaped.Add((ConvertTo-EzDarkFactoryWindowsArgument -Argument $argument)) }
-        $start.Arguments = [string]::Join(' ', $escaped.ToArray())
+    $executable = Assert-EzDarkFactorySafePath -Path (Resolve-EzDarkFactoryProcessFileSystemPath -Path $FilePath) -Description 'Runtime executable'
+    $directory = Assert-EzDarkFactorySafePath -Path (Resolve-EzDarkFactoryProcessFileSystemPath -Path $WorkingDirectory) -Description 'Runtime working directory'
+    $stdout = Assert-EzDarkFactorySafePath -Path (Resolve-EzDarkFactoryProcessFileSystemPath -Path $StandardOutputPath) -Description 'Runtime stdout log'
+    $stderr = Assert-EzDarkFactorySafePath -Path (Resolve-EzDarkFactoryProcessFileSystemPath -Path $StandardErrorPath) -Description 'Runtime stderr log'
+    if (-not [IO.File]::Exists($executable)) { throw "Runtime executable '$executable' does not exist; bootstrap the reviewed QEMU runtime." }
+    if (-not [IO.Directory]::Exists($directory)) { throw "Runtime working directory '$directory' does not exist." }
+    foreach ($log in @($stdout, $stderr)) {
+        if (-not [IO.Directory]::Exists([IO.Path]::GetDirectoryName($log))) { throw "Runtime log parent does not exist: '$log'." }
+        if (Test-Path -LiteralPath $log) { throw "Runtime log already exists: '$log'. Existing diagnostics are never replaced." }
     }
-    $process = New-Object Diagnostics.Process
-    $process.StartInfo = $start
-    try {
-        if (-not $process.Start()) { throw 'The operating system did not create the QEMU process.' }
-        $startTime = $process.StartTime.ToUniversalTime()
-        return [pscustomobject]@{
-            Process = $process
-            Pid = $process.Id
-            StartTimeUtc = $startTime.ToString('o')
-        }
+    if (Test-EzDarkFactoryStorageSamePath -Left $stdout -Right $stderr) { throw 'Runtime stdout and stderr require distinct new files.' }
+    $escaped = New-Object 'System.Collections.Generic.List[string]'
+    $escaped.Add((ConvertTo-EzDarkFactoryWindowsArgument -Argument $executable))
+    foreach ($argument in $ArgumentList) {
+        if ($null -eq $argument -or $argument.IndexOf([char]0) -ge 0) { throw 'Runtime arguments must be NUL-free strings.' }
+        $escaped.Add((ConvertTo-EzDarkFactoryWindowsArgument -Argument $argument))
     }
-    catch {
-        $process.Dispose()
-        throw
-    }
+    $commandLine = [string]::Join(' ', $escaped.ToArray())
+    $type = Get-EzDarkFactoryRuntimeProcessType
+    # Direct file handles outlive this caller; no parent-owned draining thread,
+    # inherited capture pipe, stdin preamble, shell, job breakaway or elevation.
+    return $type::Start($executable, $commandLine, $directory, $stdout, $stderr)
+}
+
+function Get-EzDarkFactoryRuntimeRemainingMilliseconds {
+    param([Diagnostics.Stopwatch]$Clock, [int]$BudgetMilliseconds, [string]$Stage)
+    $remaining = [long]$BudgetMilliseconds - $Clock.ElapsedMilliseconds
+    if ($remaining -le 0) { throw [TimeoutException]::new("$Stage exceeded its $BudgetMilliseconds ms total deadline.") }
+    return [int]$remaining
 }
 
 function Read-EzDarkFactoryQmpJsonLine {
@@ -819,41 +857,53 @@ function Invoke-EzDarkFactoryQmpCommand {
         [Parameter(Mandatory = $true)][string]$HostAddress,
         [Parameter(Mandatory = $true)][ValidateRange(1024, 65535)][int]$Port,
         [Parameter(Mandatory = $true)][string]$Command,
-        [ValidateRange(100, 30000)][int]$TimeoutMilliseconds = 3000
+        [ValidateRange(1, 30000)][int]$TimeoutMilliseconds = 3000
     )
 
     if ($HostAddress -cne '127.0.0.1') { throw 'QMP management must connect only to 127.0.0.1.' }
     if ($Command -notin @('query-status', 'system_powerdown')) { throw "QMP command '$Command' is not permitted by this control path." }
 
+    $clock = [Diagnostics.Stopwatch]::StartNew()
     $client = New-Object Net.Sockets.TcpClient([Net.Sockets.AddressFamily]::InterNetwork)
     $reader = $null
     $writer = $null
     try {
         $connect = $client.ConnectAsync($HostAddress, $Port)
-        if (-not $connect.Wait($TimeoutMilliseconds)) { throw ('Timed out connecting to QMP at ' + $HostAddress + ':' + $Port + '.') }
+        $remaining = Get-EzDarkFactoryRuntimeRemainingMilliseconds $clock $TimeoutMilliseconds 'QMP connect'
+        if (-not $connect.Wait($remaining)) { throw [TimeoutException]::new('Timed out connecting to QMP at ' + $HostAddress + ':' + $Port + '.') }
         if (-not $client.Connected) { throw ('Could not connect to QMP at ' + $HostAddress + ':' + $Port + '.') }
         $stream = $client.GetStream()
         $reader = New-Object IO.StreamReader($stream, (New-Object Text.UTF8Encoding($false)), $false, 4096, $true)
         $writer = New-Object IO.StreamWriter($stream, (New-Object Text.UTF8Encoding($false)), 4096, $true)
         $writer.NewLine = [Environment]::NewLine
         $writer.AutoFlush = $true
-
-        $greeting = Read-EzDarkFactoryQmpJsonLine -Reader $reader -TimeoutMilliseconds $TimeoutMilliseconds
+        $remaining = Get-EzDarkFactoryRuntimeRemainingMilliseconds $clock $TimeoutMilliseconds 'QMP greeting'
+        $greeting = Read-EzDarkFactoryQmpJsonLine -Reader $reader -TimeoutMilliseconds $remaining
         if ($null -eq (Get-EzDarkFactoryRuntimeProperty $greeting 'QMP')) { throw 'QMP management endpoint did not provide a valid server greeting.' }
 
         $capId = 'ezdarkfactory-capabilities'
-        $writer.WriteLine(([pscustomobject][ordered]@{ execute = 'qmp_capabilities'; id = $capId } | ConvertTo-Json -Compress))
-        $null = Wait-EzDarkFactoryQmpResponse -Reader $reader -Id $capId -TimeoutMilliseconds $TimeoutMilliseconds
+        $remaining = Get-EzDarkFactoryRuntimeRemainingMilliseconds $clock $TimeoutMilliseconds 'QMP capabilities write'
+        $write = $writer.WriteLineAsync(([pscustomobject][ordered]@{ execute = 'qmp_capabilities'; id = $capId } | ConvertTo-Json -Compress))
+        if (-not $write.Wait($remaining)) { throw [TimeoutException]::new('Timed out writing QMP capabilities.') }
+        $remaining = Get-EzDarkFactoryRuntimeRemainingMilliseconds $clock $TimeoutMilliseconds 'QMP capabilities response'
+        $null = Wait-EzDarkFactoryQmpResponse -Reader $reader -Id $capId -TimeoutMilliseconds $remaining
 
         $id = 'ezdarkfactory-' + $Command + '-' + [Guid]::NewGuid().ToString('N')
-        $writer.WriteLine(([pscustomobject][ordered]@{ execute = $Command; id = $id } | ConvertTo-Json -Compress))
-        $response = Wait-EzDarkFactoryQmpResponse -Reader $reader -Id $id -TimeoutMilliseconds $TimeoutMilliseconds
+        $remaining = Get-EzDarkFactoryRuntimeRemainingMilliseconds $clock $TimeoutMilliseconds 'QMP command write'
+        $write = $writer.WriteLineAsync(([pscustomobject][ordered]@{ execute = $Command; id = $id } | ConvertTo-Json -Compress))
+        if (-not $write.Wait($remaining)) { throw [TimeoutException]::new('Timed out writing QMP command.') }
+        $remaining = Get-EzDarkFactoryRuntimeRemainingMilliseconds $clock $TimeoutMilliseconds 'QMP command response'
+        $response = Wait-EzDarkFactoryQmpResponse -Reader $reader -Id $id -TimeoutMilliseconds $remaining
+        $null = Get-EzDarkFactoryRuntimeRemainingMilliseconds $clock $TimeoutMilliseconds 'QMP result'
         return Get-EzDarkFactoryRuntimeProperty $response 'return'
     }
     finally {
-        if ($null -ne $writer) { $writer.Dispose() }
-        if ($null -ne $reader) { $reader.Dispose() }
+        # Close the transport first, including timed-out reads/writes. Disposing a
+        # writer first could flush to a stalled peer outside the operation budget.
         $client.Dispose()
+        if ($null -ne $writer) { try { $writer.Dispose() } catch { } }
+        if ($null -ne $reader) { try { $reader.Dispose() } catch { } }
+        $clock.Stop()
     }
 }
 
@@ -922,11 +972,13 @@ function Start-EzDarkFactoryInstance {
         $arguments = New-EzDarkFactoryRuntimeQemuArguments -InstanceName $InstanceName -Intent $intent -Disk $storage.OverlayPath -FirmwareCode $firmware.Code -FirmwareVariables $firmware.Variables -SerialLog $serialLog -QemuLog $qemuLog -QmpPort $qmpPort -Accelerator $Accelerator -SshPort $SshPort -SeedHostPort $SeedHostPort -SeedGuestAddress $SeedGuestAddress -SeedGuestPort $SeedGuestPort
         $fingerprint = Get-EzDarkFactoryArgumentFingerprint -ArgumentList $arguments
 
+        $startupClock = [Diagnostics.Stopwatch]::StartNew()
+        $startupBudget = $StartupTimeoutSeconds * 1000
         if ($null -ne $ProcessLauncher) {
             $launch = & $ProcessLauncher $managed.QemuSystem $arguments $paths.Qemu
         }
         else {
-            $launch = Start-EzDarkFactoryRuntimeProcess -FilePath $managed.QemuSystem -ArgumentList $arguments -WorkingDirectory $paths.Qemu
+            $launch = Start-EzDarkFactoryRuntimeProcess -FilePath $managed.QemuSystem -ArgumentList $arguments -WorkingDirectory $paths.Qemu -StandardOutputPath ($qemuLog + '.stdout.log') -StandardErrorPath ($qemuLog + '.stderr.log')
         }
         if ($null -eq $launch -or $null -eq $launch.Pid -or $null -eq $launch.StartTimeUtc) {
             throw 'QEMU process launcher did not return PID and start-time evidence.'
@@ -954,20 +1006,24 @@ function Start-EzDarkFactoryInstance {
         Write-EzDarkFactoryRuntimeStateFile -Root $Root -InstanceName $InstanceName -Runtime $runtime
         $runtimePublished = $true
 
-        $deadline = [DateTime]::UtcNow.AddSeconds($StartupTimeoutSeconds)
         $lastError = $null
-        while ([DateTime]::UtcNow -lt $deadline) {
+        while ($startupClock.ElapsedMilliseconds -lt $startupBudget) {
             $identity = Get-EzDarkFactoryRuntimeIdentityResult -Runtime $runtime -ProcessProvider $ProcessProvider
             if (-not $identity.Match) {
                 throw "QEMU exited or changed identity before startup completed: $($identity.Reason)"
             }
             try {
-                $qmpStatus = Invoke-EzDarkFactoryRuntimeQmp -HostAddress $qmpHost -Port $qmpPort -Command 'query-status' -TimeoutMilliseconds 750 -QmpInvoker $QmpInvoker
+                $remaining = Get-EzDarkFactoryRuntimeRemainingMilliseconds $startupClock $startupBudget 'QEMU startup'
+                $qmpStatus = Invoke-EzDarkFactoryRuntimeQmp -HostAddress $qmpHost -Port $qmpPort -Command 'query-status' -TimeoutMilliseconds ([Math]::Min(750, $remaining)) -QmpInvoker $QmpInvoker
+                $null = Get-EzDarkFactoryRuntimeRemainingMilliseconds $startupClock $startupBudget 'QEMU startup result'
                 $qmpRunning = Get-EzDarkFactoryRuntimeProperty $qmpStatus 'running'
                 $qmpState = [string](Get-EzDarkFactoryRuntimeProperty $qmpStatus 'status')
                 if ($qmpRunning -ne $true -or $qmpState -cne 'running') {
                     throw "QMP is reachable but reports status '$qmpState' (running=$qmpRunning)."
                 }
+                $after = Get-EzDarkFactoryRuntimeIdentityResult -Runtime $runtime -ProcessProvider $ProcessProvider
+                if (-not $after.Match) { throw "QEMU identity changed during startup observation: $($after.Reason)" }
+                $null = Get-EzDarkFactoryRuntimeRemainingMilliseconds $startupClock $startupBudget 'QEMU startup publication'
                 $runtime.state = 'RUNNING'
                 $runtime.lastObservedAt = [DateTime]::UtcNow.ToString('o')
                 Write-EzDarkFactoryRuntimeStateFile -Root $Root -InstanceName $InstanceName -Runtime $runtime
@@ -989,7 +1045,8 @@ function Start-EzDarkFactoryInstance {
             }
             catch {
                 $lastError = $_.Exception.Message
-                Start-Sleep -Milliseconds 100
+                $remaining = [Math]::Max(0, $startupBudget - $startupClock.ElapsedMilliseconds)
+                if ($remaining -gt 0) { Start-Sleep -Milliseconds ([Math]::Min(100, $remaining)) }
             }
         }
         throw "Instance '$InstanceName' exceeded its $StartupTimeoutSeconds second startup timeout while QEMU still owns the disk. runtime.json remains STARTING; do not mutate storage until status is reconciled. Last QMP error: $lastError"
@@ -1040,11 +1097,11 @@ function Stop-EzDarkFactoryInstance {
         $runtime.state = 'STOPPING'
         $runtime.lastObservedAt = [DateTime]::UtcNow.ToString('o')
         Write-EzDarkFactoryRuntimeStateFile -Root $Root -InstanceName $InstanceName -Runtime $runtime
-        $null = Invoke-EzDarkFactoryRuntimeQmp -HostAddress $runtime.qmpHost -Port ([int]$runtime.qmpPort) -Command 'system_powerdown' -TimeoutMilliseconds 3000 -QmpInvoker $QmpInvoker
-
-        $deadline = [DateTime]::UtcNow.AddSeconds($ShutdownTimeoutSeconds)
+        $shutdownClock = [Diagnostics.Stopwatch]::StartNew()
+        $shutdownBudget = $ShutdownTimeoutSeconds * 1000
+        $null = Invoke-EzDarkFactoryRuntimeQmp -HostAddress $runtime.qmpHost -Port ([int]$runtime.qmpPort) -Command 'system_powerdown' -TimeoutMilliseconds ([Math]::Min(3000, $shutdownBudget)) -QmpInvoker $QmpInvoker
         $lastIdentityObservationError = $null
-        while ([DateTime]::UtcNow -lt $deadline) {
+        while ($shutdownClock.ElapsedMilliseconds -lt $shutdownBudget) {
             try {
                 $observed = @(Get-EzDarkFactoryObservedQemuProcesses -ProcessId ([int]$runtime.pid) -ProcessProvider $ProcessProvider)
                 $current = $null
@@ -1054,6 +1111,7 @@ function Stop-EzDarkFactoryInstance {
                     # share the same bounded retry for unreadable terminating PIDs.
                     $current = Get-EzDarkFactoryRuntimeIdentityResult -Runtime $runtime -ProcessProvider $ProcessProvider
                 }
+                $null = Get-EzDarkFactoryRuntimeRemainingMilliseconds $shutdownClock $shutdownBudget 'Graceful shutdown observation'
                 $lastIdentityObservationError = $null
             }
             catch {
@@ -1064,7 +1122,8 @@ function Stop-EzDarkFactoryInstance {
                 # deadline and require either a proven reused identity or
                 # an empty PID observation before releasing storage ownership.
                 $lastIdentityObservationError = $_.Exception.Message
-                Start-Sleep -Milliseconds 100
+                $remaining = [Math]::Max(0, $shutdownBudget - $shutdownClock.ElapsedMilliseconds)
+                if ($remaining -gt 0) { Start-Sleep -Milliseconds ([Math]::Min(100, $remaining)) }
                 continue
             }
 
@@ -1090,7 +1149,8 @@ function Stop-EzDarkFactoryInstance {
             else {
                 throw 'QEMU process identity became ambiguous during graceful shutdown.'
             }
-            Start-Sleep -Milliseconds 100
+            $remaining = [Math]::Max(0, $shutdownBudget - $shutdownClock.ElapsedMilliseconds)
+            if ($remaining -gt 0) { Start-Sleep -Milliseconds ([Math]::Min(100, $remaining)) }
         }
         $detail = if ([string]::IsNullOrWhiteSpace([string]$lastIdentityObservationError)) {
             ''

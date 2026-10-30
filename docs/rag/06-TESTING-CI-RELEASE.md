@@ -69,6 +69,32 @@ A zero-test or all-skipped lane fails.
 
 Focused tests do not replace the full merge gate.
 
+### EDF-003 repair-specific qualification
+
+For the source-bound private-DACL and native QEMU lifetime repair,
+EDF-003 additionally requires **four** exact-head Windows CI jobs, two per
+reviewed PowerShell engine:
+
+- `EDF-003 native process (PowerShell 5)`;
+- `EDF-003 native process (PowerShell 7)`;
+- `EDF-003 standard-user ACL (PowerShell 5)`;
+- `EDF-003 standard-user ACL (PowerShell 7)`.
+
+The native jobs must run the complete 11-case synthetic Windows process/QMP
+suite, retain source commit/tree, SHA-256s and per-case receipts, and fail on a
+missing or skipped required software case. The standard-user jobs must verify
+an ordinary non-administrator token, **reproduce** the unmodified EDF-002
+baseline DACL failure under that user, then pass all updated first-party
+tests on the corrected source; they run only on disposable GitHub-hosted
+Windows workers and must show both child exit and temporary-account/fixture
+cleanup. Administrator-hosted control-plane tests cannot substitute for
+ordinary-user DACL acceptance.
+
+The baseline five-job merge gate remains mandatory. These four additional
+jobs are required for EDF-003 PR head and actual merged main. No source
+test can establish WHPX, real QEMU/Ubuntu guest readiness, physical Windows
+Terminal or human use. Preserve failed original and retry receipts.
+
 ## Historical regression fixtures
 
 EDF-003 retains safe negative fixtures for:

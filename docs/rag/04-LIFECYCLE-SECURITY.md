@@ -121,6 +121,39 @@ Clipboard/shared-folder integration is disabled by default until separately spec
 
 A graphical console is a presentation channel, not permission to bypass identity/readiness checks.
 
+## EDF-003 public source reconciliation
+
+EDF-003 selects public, versioned repair behavior for the two historical
+owner-local amendment classes, without claiming recovery or byte equivalence
+of any private patch. [The scoped repair report](../provenance/EDF-003-REPAIRS.md)
+and [machine-readable source mapping](../provenance/edf003-repairs.json)
+identify every input blob, exact EDF adaptation, negative-control fixture,
+independent standard-user regression and native-process qualification.
+
+For private controller keys, preserve the existing keypair/identity/trust and
+native `icacls` guards, while persisting only owner and protected DACL with
+.NET's supported filesystem ACL API rather than PowerShell's broad
+`Set-Acl` provider. Current owner and exactly one explicit FullControl ACE
+are verified with the correct file/directory inheritance semantics. Never
+request audit/SACL privileges, silently grant broad access or recover denial
+using elevation.
+
+For QEMU starts, use a source-bound native Windows launcher with NUL input,
+direct append-independent new logs, a three-handle inheritance allowlist and
+exact creation-time/process-handle ownership. Controller stdout/stderr
+capture must not own QEMU's lifetime. A created child still unpublishable
+before durable runtime state must be cleaned up by the exact owned handle;
+a timeout *after* publication preserves STARTING/STOPPING and storage holds.
+Each QMP operation has one monotonic connect/greeting/capability/command
+deadline and may not publish a late success or changed identity.
+
+These are **software contracts**, not evidence of actual Windows/WHPX guest
+operation. Synthetic native child, hosted ordinary-user DACL, inherited
+test suites and provenance gates are separate evidence classes. Native
+Windows host acceptance does not promote an unmerged upstream candidate
+or a failed full TCG release run into accepted physical WHPX evidence.
+EDF-011 remains responsible for actual supported-host runtime gates.
+
 ## Patch-reconciliation rule
 
 For `Keys.ps1` and `Runtime.ps1` classes:
