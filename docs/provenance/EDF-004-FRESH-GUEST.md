@@ -105,4 +105,3 @@ not an actual QEMU guest execution. Both focused receipts state
 The later EDF-011 real runtime, WHPX and physical/human gates remain
 outstanding. [Issue #4's durable handoff](https://github.com/techrote/ezDarkFactory/issues/4)
 is authoritative for its acceptance history. EDF-005 is now dependency-ready.
-
