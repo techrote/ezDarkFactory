@@ -992,8 +992,8 @@
       "destination": "tests/Repository.Tests.ps1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
-      "destination_blob": "a7093079108d51dc228dba0b5aef75dd87535e12"
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules. Source fixture now copies exact tracked-file enumeration to avoid accidentally importing ignored Python cache during the one-shot full gate.",
+      "destination_blob": "9e5eee0f81d420b7a7121f4f7765f15d4410eb5e"
     },
     {
       "source_repository": "techrote/ezvm",
