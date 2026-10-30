@@ -6,8 +6,8 @@ This file is the entry point for project contracts. Issues incorporate this file
 
 1. [Project charter](docs/rag/00-PROJECT-CHARTER.md) — product purpose, scope, non-goals and success criteria.
 2. [Baseline provenance](docs/rag/01-BASELINE-PROVENANCE.md) — original local-TUIsynth evidence boundary, EzVM reconstruction source and import rules.
-3. [Architecture](docs/rag/02-ARCHITECTURE.md) — control plane, broker, UI, VM/storage/network and reference-layer boundaries.
-4. [Human control surface](docs/rag/03-HUMAN-CONTROL-SURFACE.md) — GUI feasibility gate and comprehensive TUI fallback.
+3. [Architecture](docs/rag/02-ARCHITECTURE.md) — multi-factory host-manager layering, control plane, VM/storage/network and reference boundaries.
+4. [Host management TUI specification](docs/rag/03-HUMAN-CONTROL-SURFACE.md) — authoritative project-specific tile-native UI/UX and implementation contract, pinned to specdocz.
 5. [Lifecycle and security](docs/rag/04-LIFECYCLE-SECURITY.md) — VM ownership, storage, networking, destructive-action and secret contracts.
 6. [Guest profile and reference demo](docs/rag/05-GUEST-REFERENCE.md) — clean project environment and isolated TUIsynth reference/demo behavior.
 7. [Testing, CI and release](docs/rag/06-TESTING-CI-RELEASE.md) — merge gates, real-runtime lanes, human acceptance and packaging truthfulness.
@@ -15,6 +15,16 @@ This file is the entry point for project contracts. Issues incorporate this file
 9. [Plan review](docs/programme/PLAN-REVIEW.md) — initial plan, review findings and improved plan.
 10. [Implementation programme](docs/programme/IMPLEMENTATION-PROGRAMME.md) — dependency graph and issue catalogue.
 11. [Status ledger](docs/programme/STATUS.md) — compact implementation status; GitHub issue/PR state remains authoritative.
+
+## UI specification precedence
+
+The host-manager specification is the authoritative ezDarkFactory UI/UX and UI implementation contract, subject to higher-priority safety, lifecycle/storage/security, compatibility, repository and issue requirements.
+
+Its shared baseline is pinned to:
+
+`techrote/specdocz@2e95d6931cc23862a4176c9d8ccb4da78f00c265`
+
+Future specdocz changes have no automatic effect. They must be reviewed as explicit Adopt/Adapt/Reject/Extend deltas before this project specification is changed.
 
 ## Historical authority
 
