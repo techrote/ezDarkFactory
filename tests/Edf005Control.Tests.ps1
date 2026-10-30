@@ -347,11 +347,13 @@ Add-EzDarkFactoryTest -Name 'EDF-005: standalone JSON control launcher round-tri
         Copy-Item -LiteralPath (Join-Path $script:EzDarkFactoryRepositoryRoot 'ezdarkfactory-control.ps1') -Destination $root -Force
         $request = New-Edf005Request -Root $root -Command 'factory.info'
         $json = ConvertTo-Json -InputObject $request -Depth 12 -Compress
-        $b64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($json))
+        $requestFile = Join-Path $root 'edf005-request-fixture.json'
+        [IO.File]::WriteAllText($requestFile, $json, (New-Object Text.UTF8Encoding($false)))
         $launcher = Join-Path $root 'ezdarkfactory-control.ps1'
-        $code = '$payload=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String("' + $b64 + '")); & "' + $launcher + '" -RequestJson $payload'
+        $code = '& "' + $launcher + '" -RequestFile "' + $requestFile + '"'
         $child = Invoke-EzDarkFactoryTestPowerShell -CommandText $code -WorkingDirectory $root
-        Assert-EzDarkFactoryEqual -Actual $child.ExitCode -Expected 0 -Message $child.StandardError
+        $diagnostic = 'stdout=' + $child.StandardOutput + '; stderr=' + $child.StandardError
+        Assert-EzDarkFactoryEqual -Actual $child.ExitCode -Expected 0 -Message $diagnostic
         $response = $child.StandardOutput.Trim() | ConvertFrom-Json
         Assert-EzDarkFactoryEqual -Actual $response.state -Expected 'completed'
         Assert-EzDarkFactoryEqual -Actual $response.operation_id -Expected $request.operation_id
