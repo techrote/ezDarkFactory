@@ -15,6 +15,7 @@ Add-EzDarkFactoryTest -Name 'EDF: stopped root-local state and synthetic identit
     try {
         $runtime = Join-Path $original 'runtime'
         [void][IO.Directory]::CreateDirectory((Join-Path $runtime 'instances/project-one'))
+        [IO.File]::WriteAllText((Join-Path $runtime 'config.json'), '{"profiles":{"normal":{"memoryMiB":12288}}}', (New-Object Text.UTF8Encoding($false)))
         $instanceIdentity = 'instance-demo-opaque-0001'
         $identityFile = Join-Path $runtime 'instances/project-one/identity.json'
         [IO.File]::WriteAllText($identityFile, ('{"schemaVersion":1,"instanceId":"' + $instanceIdentity + '"}'), (New-Object Text.UTF8Encoding($false)))
@@ -27,6 +28,8 @@ Add-EzDarkFactoryTest -Name 'EDF: stopped root-local state and synthetic identit
         Assert-EzDarkFactoryEqual -Actual (($paths.Instances | Split-Path -Parent)) -Expected (Join-Path $destination 'runtime')
         $movedIdentity = Get-Content -LiteralPath (Join-Path $paths.Instances 'project-one/identity.json') -Raw | ConvertFrom-Json
         Assert-EzDarkFactoryEqual -Actual $movedIdentity.instanceId -Expected $instanceIdentity
+        $movedConfiguration = Get-EzDarkFactoryConfiguration -Root $destination
+        Assert-EzDarkFactoryEqual -Actual $movedConfiguration.profiles.normal.memoryMiB -Expected 12288
         Assert-EzDarkFactoryTrue -Condition (-not $paths.Runtime.StartsWith($original, [StringComparison]::OrdinalIgnoreCase))
         Assert-EzDarkFactoryTrue -Condition (-not $paths.Keys.Contains([Environment]::GetFolderPath('LocalApplicationData')))
     }
