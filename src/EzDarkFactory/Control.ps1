@@ -251,8 +251,9 @@ function Assert-EzDarkFactoryControlRequest {
         @(@('major','minor') | Where-Object { @($Request.api.PSObject.Properties.Name) -cnotcontains $_ }).Count -gt 0) {
         throw 'Control API version must have exactly major and minor.'
     }
-    if ($Request.schemaVersion -isnot [int] -or $Request.schemaVersion -ne 1 -or
-        $null -eq $Request.api -or $Request.api.major -isnot [int] -or $Request.api.minor -isnot [int] -or
+    if (($Request.schemaVersion -isnot [int] -and $Request.schemaVersion -isnot [long]) -or $Request.schemaVersion -ne 1 -or
+        $null -eq $Request.api -or ($Request.api.major -isnot [int] -and $Request.api.major -isnot [long]) -or
+        ($Request.api.minor -isnot [int] -and $Request.api.minor -isnot [long]) -or
         $Request.api.major -ne 1 -or $Request.api.minor -gt 0 -or $Request.api.minor -lt 0) {
         throw 'Unsupported control API/schema version; no downgrade is permitted.'
     }
