@@ -17,7 +17,7 @@ One manager may control multiple explicitly registered local factory roots.
 
 Final names may change during implementation, but the product must provide obvious equivalents to:
 
-- **manager setup/doctor** — verify manager runtime/Windows Terminal prerequisites and host-manager state;
+- **manager setup/doctor** — verify manager runtime/Windows Terminal prerequisites and an explicit portable manager workspace when one is used;
 - **factory bootstrap** — obtain reviewed QEMU/extractor and pinned guest source for a selected factory;
 - **factory build-base** — build/reuse the reviewed clean prepared base in the selected factory;
 - **manager open** — launch the host management TUI;
@@ -145,20 +145,27 @@ Failure in one factory does not hide or disable safe operations for unrelated fa
 
 ## Portability workflow
 
+**Primary portability goal:** a specific ezDarkFactory can be moved to another compatible Windows computer by archiving its folder, transferring/extracting it, then running one or two checked-in setup/doctor/launch steps.
+
 Before moving a factory bundle:
 
-- stop every VM in that factory positively;
-- run portability validation;
-- state which runtime/generated files are included;
-- warn that stateful overlays may include credentials;
-- copy the complete intended bundle;
-- update/validate the manager's root locator;
-- detect the preserved factory identity;
-- ensure old and new reachable locations are not simultaneously treated as independent writable factories;
-- run doctor/portability checks at destination;
-- start one selected VM and verify identity/READY.
+1. positively stop every VM in that factory;
+2. run portability validation;
+3. verify there are no unresolved external/absolute dependencies required for operation;
+4. show which generated/runtime files and credentials/private keys will travel;
+5. warn that a stateful working bundle is sensitive;
+6. archive/copy the complete factory root;
+7. transfer/extract at any supported path, including a different drive/root;
+8. run the checked-in destination setup/doctor step to revalidate prerequisites and current-user ACLs;
+9. open the factory directly by its new path, even if no previous manager registry/workspace exists;
+10. preserve/detect the existing factory and instance identities;
+11. start one selected VM and verify identity/READY.
 
 The old source copy remains stopped while the same factory identity is in use elsewhere.
+
+If the user wants both copies to become independently writable factories, use an explicit fork/rekey workflow before operating both.
+
+Cross-factory manager workspace/layout/registry files are optional convenience state. They may be stored in a separate portable folder alongside the factories and can be copied too, but losing them must never make a factory unusable.
 
 ## Documentation set
 
