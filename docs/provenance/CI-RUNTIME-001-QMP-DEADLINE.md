@@ -13,7 +13,12 @@ namespace adaptation or EDF-003 source-selection records.
   - `src/EzDarkFactory/Runtime.ps1`: `f4e9af5f0058fd3b7176650a774aea355baaf1ff`.
   - `tests/Runtime.Tests.ps1`: `d298a546c1428b0c6d7d56c44d892eaf7b4eb43b`.
 - Original EDF-001 baseline and EDF-002/EDF-003 imported-source/blob/hash
-  manifests remain immutable. This document records later deviations; it
+  manifests remain immutable. The bounded `tests/edf_runtime_supersession.py` verifier
+pins each accepted preimage and exact replacement Git blob, independently
+checks the accepted `main` preimage, and compares current HEAD and working
+bytes. Existing EDF-002/EDF-003 tests still verify the upstream original
+bytes and transformations from their historical records. No arbitrary
+replacement blob is accepted. This document records later deviations; it
   does not claim altered bytes match the original imported source.
 
 ## Negative CI receipt — do not erase
