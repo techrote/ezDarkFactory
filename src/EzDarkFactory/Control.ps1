@@ -334,6 +334,28 @@ function Assert-EzDarkFactoryControlRequest {
     }
 }
 
+function Get-EzDarkFactoryControlDiagnosis {
+    [CmdletBinding()]
+    param([string]$Root = $script:EzDarkFactoryDefaultRoot,
+          [Parameter(Mandatory)][object]$Target)
+    # EDF-005 diagnostics deliberately use the accepted read-only runtime
+    # status observer; no speculative QMP, repair, or storage operation occurs.
+    $status = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName ([string]$Target.name)
+    return [pscustomobject][ordered]@{
+        schemaVersion = 1
+        target = $Target
+        state = [string]$status.state
+        reason = Protect-EzDarkFactoryDiagnosticText -Text ([string]$status.reason) -MaximumCharacters 2048
+        readiness = $(if ($status.state -ceq 'RUNNING') { 'unknown' } else { 'not-ready' })
+        resource_profile = [pscustomobject][ordered]@{
+            cpus = $status.cpus
+            memoryMiB = $status.memoryMiB
+            profile = $status.profile
+        }
+        repair_attempted = $false
+    }
+}
+
 function Invoke-EzDarkFactoryControl {
     [CmdletBinding()]
     param([string]$Root = $script:EzDarkFactoryDefaultRoot, [Parameter(Mandatory)][object]$Request)
@@ -371,7 +393,7 @@ function Invoke-EzDarkFactoryControl {
                         'instance.get' { $data = [pscustomobject]@{ target = $target; status = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name } }
                         'instance.resources' { $data = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name }
                         'instance.readiness' { $data = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name }
-                        'instance.diagnose' { $data = Get-EzDarkFactoryInstanceDiagnosis -Root $Root -InstanceName $target.name }
+                        'instance.diagnose' { $data = Get-EzDarkFactoryControlDiagnosis -Root $Root -Target $target }
                         'instance.shell_descriptor' {
                             $status = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name
                             $data = [pscustomobject]@{ kind = 'managed-ssh'; target = $target; state = $status.state
