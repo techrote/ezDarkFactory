@@ -25,7 +25,11 @@ try {
             $RequestJson = [IO.File]::ReadAllText($file.FullName, [Text.Encoding]::UTF8)
         }
         if ($RequestJson.Length -gt 65536) { throw 'Request is larger than 64 KiB.' }
-        $request = ConvertFrom-EzDarkFactoryJsonText -Text $RequestJson -SchemaVersion 1 -Description 'Control request'
+        $module = Get-Module Edf005
+        $request = & $module {
+            param([string]$json)
+            ConvertFrom-EzDarkFactoryJsonText -Text $json -SchemaVersion 1 -Description 'Control request'
+        } $RequestJson
         $output = Invoke-EzDarkFactoryControl -Root $PSScriptRoot -Request $request
     }
     [Console]::Out.WriteLine((ConvertTo-Json -InputObject $output -Depth 64 -Compress))
