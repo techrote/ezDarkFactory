@@ -199,6 +199,15 @@ function Invoke-EzDarkFactoryManagerControl {
     # code. Future adapters may start the enrolled root script only after enrollment.
     $budget = Enter-EzDarkFactoryManagerBudgetSlot -Workspace $Workspace -Limit $MaxConcurrentRoots
     try {
+        # Recheck the *entire* reachable fleet after waiting for the host
+        # budget, not just this root: a second copy can become reachable while
+        # the request waits and would otherwise evade collision refusal.
+        $fleet = @(Get-EzDarkFactoryManagerObservations -Workspace $Workspace)
+        $freshRows = @($fleet | Where-Object { $_.enrollment_id -ceq $EnrollmentId })
+        if ($freshRows.Count -ne 1 -or $freshRows[0].state -cne 'current' -or
+            $freshRows[0].observed_factory_id -cne $entry.last_factory_id) {
+            throw 'Fleet identity, enrollment or collision state changed while waiting for the host budget; refresh.'
+        }
         $fresh = Get-EzDarkFactoryCandidate -Root $entry.canonical_path
         if ($fresh.state -cne 'current' -or $fresh.factory_id -cne $entry.last_factory_id) {
             throw 'Factory changed while acquiring manager operation slot; refresh.'
