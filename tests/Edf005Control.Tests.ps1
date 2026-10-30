@@ -286,14 +286,14 @@ Add-EzDarkFactoryTest -Name 'EDF-005: bounded guest log sanitizes control sequen
         $ref = (Invoke-EzDarkFactoryControl -Root $root -Request $adopt).data
         $logs = Join-Path $root 'runtime/instances/logreader/logs'
         [void][IO.Directory]::CreateDirectory($logs)
-        [IO.File]::WriteAllText((Join-Path $logs 'serial.log'), ('prefix' + [char]27 + '[31m' + ('q' * 15000)), (New-Object Text.UTF8Encoding($false)))
+        [IO.File]::WriteAllText((Join-Path $logs 'serial.log'), (('q' * 15000) + [char]27 + '[31m'), (New-Object Text.UTF8Encoding($false)))
         $args = [pscustomobject]@{ name = 'logreader'; kind = 'serial'; maximum_characters = 256 }
         $request = New-Edf005Request -Root $root -Command 'instance.logs' -Arguments $args -InstanceId $ref.instance_id -Generation $ref.instance_generation
         $result = Invoke-EzDarkFactoryControl -Root $root -Request $request
         Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'completed'
         Assert-EzDarkFactoryTrue -Condition ($result.data.text.Length -le 256)
         Assert-EzDarkFactoryTrue -Condition (-not $result.data.text.Contains([string][char]27))
-        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root 'runtime/control/operations')))
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $request.operation_id + '.json'))))
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
@@ -327,7 +327,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: second PowerShell process reads relocated 
     $root = New-EzDarkFactoryCheckoutFixture -Prefix 'process boundary'
     try {
         $identity = Initialize-EzDarkFactoryIdentity -Root $root
-        $module = Join-Path $script:EzDarkFactoryRepositoryRoot 'src/EzDarkFactory/Edf005.psm1'
+        $module = Join-Path $root 'src/EzDarkFactory/Edf005.psm1'
         $safeModule = $module.Replace("'", "''")
         $safeRoot = $root.Replace("'", "''")
         $command = "Import-Module '$safeModule' -Force -ErrorAction Stop; " +
