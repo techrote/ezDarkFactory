@@ -71,6 +71,8 @@ Future specdocz changes are reviewed as explicit deltas; they are not silently i
 
 ## EDF-002 developer CLI (no TUI yet)
 
+The [full Windows fast merge gate](docs/FAST-CI.md) is `scripts/Invoke-FastCheck.ps1`. It is source/FAST-CI evidence only.
+
 From an **unelevated Windows PowerShell 5.1** window in this checkout:
 
 ```powershell

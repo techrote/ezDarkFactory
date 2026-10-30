@@ -42,6 +42,29 @@ Once EDF-002 establishes the harness, every implementation PR must run one repos
 - documentation/RAG/programme integrity;
 - package/source-content tests.
 
+### EDF-002 and subsequent implementation fast gate
+
+From EDF-002 onward, the accepted Windows source/control-plane fast merge gate
+has a single developer entry point, `scripts/Invoke-FastCheck.ps1`, documented
+in [docs/FAST-CI.md](../FAST-CI.md). It executes the authenticated
+EDF provenance/Python suite, Windows PowerShell 5.1 repository contract,
+Windows PowerShell 5.1 first-party control-plane suite, and a separately
+SHA-256-verified pinned PowerShell 7.6.6 first-party suite.
+
+The exact-head CI counterpart uses five required jobs:
+
+- `Provenance (ubuntu-24.04)`;
+- `Provenance (windows-2022)`;
+- `Repository contract (Windows PowerShell 5.1)`;
+- `Control plane (Windows PowerShell 5.1)`;
+- `Control plane (PowerShell 7.6.6)`.
+
+Each job must independently finish green at the final literal PR head and
+again on post-merge `main`; other repositories' or earlier heads' evidence
+cannot replace these checks. The source-only package/publisher is not
+EDF-012 release qualification. Real guest/WHPX/physical-TUI/human acceptance
+continues to require the separate evidence classes below.
+
 A zero-test or all-skipped lane fails.
 
 Focused tests do not replace the full merge gate.

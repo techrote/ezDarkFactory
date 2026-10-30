@@ -20,7 +20,7 @@ powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File 
 powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Run-Tests.ps1
 ```
 
-Repeat the suite under current PowerShell 7:
+Repeat the suite under the **pinned** PowerShell 7.6.6 executable (or use the complete `scripts/Invoke-FastCheck.ps1` gate):
 
 ```powershell
 pwsh.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\tests\Run-Tests.ps1

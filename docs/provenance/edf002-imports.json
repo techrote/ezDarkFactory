@@ -238,8 +238,8 @@
       "destination": "README.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
-      "destination_blob": "7e6aba3cb65c13b6f8d4ed44ce0cfc5460b4969a"
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules. Fast-gate documentation references EDF-002 source/FAST-CI entry point.",
+      "destination_blob": "406c98f94d27b0e84dab2da3ff78122e88306634"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -940,8 +940,8 @@
       "destination": "tests/README.md",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF.",
-      "destination_blob": "7ab271400573b5fbc8e682f61396b14521498baf"
+      "review_note": "Preserve operational baseline procedure with explicit EDF-002 development/qualification limitations; no historical upstream runtime PASS promoted to EDF. Fast-gate documentation references EDF-002 source/FAST-CI entry point.",
+      "destination_blob": "ca3f3bcdc4267db3c4fb04a3cc01e06284f3b5fd"
     },
     {
       "source_repository": "techrote/ezvm",
