@@ -151,6 +151,27 @@ does not persist checkout credentials. These are EDF-001's complete required
 automated checks. EDF-002 later extends the repository gate with the imported
 PowerShell/control-plane suites; none is claimed to have run in this issue.
 
+### CI-PROV-001 shallow-fetch reliability
+
+Two retained Ubuntu main-push first attempts on 30 October 2026 failed during
+public Git-object acquisition with `fatal: shallow file has changed since we read
+it`; the same immutable source revisions succeeded only on retry, while Windows
+passed first attempt. Both failing jobs used Ubuntu 24.04 and Git 2.56.0. The
+failure happened before provenance/hash assertions.
+
+The acquisition implementation now groups all unique immutable commits for each
+upstream repository into one bounded `--depth=1` fetch, keeps EzVM and TUIsynth
+in separate bare object caches, disables both `maintenance.auto` and legacy
+`gc.auto`, suppresses fetch-head/ref creation, and verifies every requested
+commit object exists before authentication continues. No retry is part of the
+acceptance path.
+
+The hosted provenance jobs record `git --version`, then require three independent
+fresh-cache first-attempt verifications plus one reused-cache verification on both
+Ubuntu and Windows. A transport error, missing commit, malformed/non-bare cache,
+wrong object identity, tree/blob/hash mismatch or other acquisition failure stays
+fail-closed. This is SOURCE/FAST-CI evidence only.
+
 ## Acquisition and portability limits
 
 The manifest retains the exact baseline acquisition descriptors for QEMU 11.1.0

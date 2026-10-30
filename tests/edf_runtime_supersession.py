@@ -14,14 +14,18 @@ PINNED = {
     ),
 }
 BASE = "4ca42999081f6253e9701821f1c378f439fca9a9"
+EDF002_ACCEPTED = "978288496aa5d328f0d79712c74e69cf769689e4"
 
 def verified_supersession(root: Path, destination: str, accepted_blob: str) -> bool:
     """Allow only exact reviewed replacement bytes, with intact accepted base history."""
     if destination not in PINNED:
         return False
     old, new = PINNED[destination]
-    if accepted_blob != old:
-        raise AssertionError("Supersession preimage differs from accepted provenance")
+    # Callers authenticate different historical layers: EDF-002 imported bytes
+    # and EDF-003 selected public repair bytes. Neither is mutable current HEAD.
+    edf002_blob = p.run_git(root, "rev-parse", EDF002_ACCEPTED + ":" + destination).decode("ascii").strip()
+    if accepted_blob not in (edf002_blob, old):
+        raise AssertionError("Supersession preimage differs from accepted EDF-002/003 provenance")
     base_blob = p.run_git(root, "rev-parse", BASE + ":" + destination).decode("ascii").strip()
     if base_blob != old:
         raise AssertionError("Accepted base no longer matches supersession preimage")

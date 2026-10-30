@@ -305,6 +305,125 @@ class SourceProvenanceTests(unittest.TestCase):
         self.assertIs(self.manifest["acquisition_pins"]["guest_package_versions_pinned"], False)
 
 
+
+
+class AcquisitionTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="edf acquisition fixture ")
+        self.root = Path(self.temporary.name)
+        self.upstream = self.root / "upstream"
+        self.upstream.mkdir()
+        p.run_git(self.upstream, "init", "--quiet")
+        p.run_git(self.upstream, "config", "user.name", "EDF acquisition fixture")
+        p.run_git(self.upstream, "config", "user.email", "fixture@example.invalid")
+        p.run_git(self.upstream, "config", "core.autocrlf", "false")
+        (self.upstream / "source.txt").write_text("first\n", encoding="utf-8")
+        p.run_git(self.upstream, "add", "--", "source.txt")
+        p.run_git(self.upstream, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "first")
+        self.first = p.run_git(self.upstream, "rev-parse", "HEAD").decode().strip()
+        (self.upstream / "source.txt").write_text("second\n", encoding="utf-8")
+        p.run_git(self.upstream, "add", "--", "source.txt")
+        p.run_git(self.upstream, "-c", "commit.gpgsign=false", "commit", "--quiet", "-m", "second")
+        self.second = p.run_git(self.upstream, "rev-parse", "HEAD").decode().strip()
+        self.remote_url = self.upstream.resolve().as_uri()
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def acquire(self, cache: Path, commits=None):
+        commits = tuple(commits or (self.first, self.second))
+        return p._acquire_repository(cache, "techrote/synthetic", commits, self.remote_url)
+
+    def test_acquisition_plan_groups_unique_commits_deterministically(self):
+        pins = {
+            "two": ("techrote/alpha", self.second, self.first, "reference"),
+            "one": ("techrote/alpha", self.first, self.first, "baseline"),
+            "duplicate": ("techrote/alpha", self.first, self.first, "duplicate-role"),
+            "other": ("techrote/beta", self.second, self.first, "reference"),
+        }
+        self.assertEqual(
+            p.acquisition_plan(pins),
+            {
+                "techrote/alpha": tuple(sorted((self.first, self.second))),
+                "techrote/beta": (self.second,),
+            },
+        )
+
+    def test_fresh_acquisition_is_one_fetch_with_maintenance_disabled(self):
+        cache = self.root / "cache"
+        original = p.run_git
+        commands = []
+
+        def observe(path, *args, **kwargs):
+            commands.append((Path(path), args))
+            return original(path, *args, **kwargs)
+
+        with mock.patch.object(p, "run_git", side_effect=observe):
+            repository = self.acquire(cache)
+
+        fetches = [args for _, args in commands if "fetch" in args]
+        self.assertEqual(len(fetches), 1)
+        self.assertEqual(fetches[0][-2:], (self.first, self.second))
+        self.assertIn("maintenance.auto=false", fetches[0])
+        self.assertIn("gc.auto=0", fetches[0])
+        self.assertEqual(original(cache, "config", "--get", "maintenance.auto").strip(), b"false")
+        self.assertEqual(original(cache, "config", "--get", "gc.auto").strip(), b"0")
+        self.assertFalse((cache / "objects" / "info" / "alternates").exists())
+        for commit in (self.first, self.second):
+            self.assertTrue(repository.object("commit", commit))
+
+    def test_reused_cache_repeats_bounded_fetch_without_losing_objects(self):
+        cache = self.root / "cache"
+        first_repository = self.acquire(cache)
+        second_repository = self.acquire(cache)
+        self.assertEqual(first_repository.path, second_repository.path)
+        for commit in (self.first, self.second):
+            self.assertEqual(first_repository.object("commit", commit), second_repository.object("commit", commit))
+
+    def test_cache_isolation_does_not_redirect_objects(self):
+        first_cache = self.root / "first-cache"
+        second_cache = self.root / "second-cache"
+        first_repository = self.acquire(first_cache, (self.first,))
+        second_repository = self.acquire(second_cache, (self.second,))
+        self.assertNotEqual(first_repository.path, second_repository.path)
+        self.assertTrue(first_repository.object("commit", self.first))
+        self.assertTrue(second_repository.object("commit", self.second))
+        with self.assertRaises(p.Invalid):
+            first_repository.object("commit", self.second)
+        self.assertFalse((first_cache / "objects" / "info" / "alternates").exists())
+        self.assertFalse((second_cache / "objects" / "info" / "alternates").exists())
+
+    def test_missing_requested_object_fails_closed(self):
+        missing = "0" * 40
+        with self.assertRaisesRegex(p.Invalid, "source acquisition failed"):
+            self.acquire(self.root / "missing-object-cache", (self.first, missing))
+
+    def test_acquisition_transport_failure_fails_closed(self):
+        missing_remote = (self.root / "does-not-exist.git").resolve().as_uri()
+        with self.assertRaisesRegex(p.Invalid, "source acquisition failed"):
+            p._acquire_repository(self.root / "failed-cache", "techrote/synthetic", (self.first,), missing_remote)
+
+    def test_malformed_bare_repository_response_is_rejected(self):
+        cache = self.root / "malformed-cache"
+        original = p.run_git
+
+        def malformed(path, *args, **kwargs):
+            if args == ("rev-parse", "--is-bare-repository"):
+                return b"not-a-boolean\n"
+            return original(path, *args, **kwargs)
+
+        with mock.patch.object(p, "run_git", side_effect=malformed), self.assertRaisesRegex(
+            p.Invalid, "fetch destination must be a bare object cache"
+        ):
+            self.acquire(cache, (self.first,))
+
+    def test_wrong_commit_identity_is_not_accepted_from_partial_cache(self):
+        repository = self.acquire(self.root / "identity-cache", (self.first,))
+        self.assertTrue(repository.object("commit", self.first))
+        with self.assertRaises(p.Invalid):
+            repository.object("commit", self.second)
+
+
 class RepositoryBoundaryTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory(prefix="edf provenance fixture ")

@@ -237,7 +237,7 @@ def run_git(path: Path, *args: str, input_data: bytes | None = None) -> bytes:
         environment.pop(key, None)
     result = subprocess.run(["git", "--no-replace-objects", "-C", str(path), *args], input=input_data,
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=120, env=environment, check=False)
-    require(result.returncode == 0, f"git {args[0]} failed: {result.stderr.decode('utf-8', errors='replace').strip()}")
+    require(result.returncode == 0, f"git command failed with exit {result.returncode}: {result.stderr.decode('utf-8', errors='replace').strip()}")
     return result.stdout
 
 
@@ -464,21 +464,76 @@ def check_repository(root: Path = ROOT) -> int:
     return len(paths)
 
 
+def acquisition_plan(pins: dict = PINS) -> dict[str, tuple[str, ...]]:
+    """Group each upstream's unique immutable commit pins into one deterministic fetch."""
+    grouped: dict[str, set[str]] = {}
+    for source_id, row in pins.items():
+        require(isinstance(row, tuple) and len(row) == 4, f"invalid source pin row: {source_id}")
+        repository, commit, tree, role = row
+        require(isinstance(repository, str) and re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) is not None,
+                f"invalid source repository: {source_id}")
+        require(isinstance(commit, str) and SHA1.fullmatch(commit) is not None, f"invalid source commit: {source_id}")
+        require(isinstance(tree, str) and SHA1.fullmatch(tree) is not None, f"invalid source tree: {source_id}")
+        require(isinstance(role, str) and bool(role), f"invalid source role: {source_id}")
+        grouped.setdefault(repository, set()).add(commit)
+    return {repository: tuple(sorted(commits)) for repository, commits in sorted(grouped.items())}
+
+
+def _acquire_repository(path: Path, repository: str, commits: tuple[str, ...],
+                        remote_url: str | None = None) -> GitRepository:
+    """Fetch one upstream into one bare cache with maintenance disabled and verify every requested commit exists."""
+    require(bool(commits), f"empty acquisition plan for {repository}")
+    require(all(SHA1.fullmatch(commit) is not None for commit in commits), f"invalid acquisition commit for {repository}")
+    if path.exists():
+        require(path.is_dir(), f"fetch destination is not a directory: {path}")
+    else:
+        path.mkdir()
+        run_git(path, "init", "--bare")
+    require(run_git(path, "rev-parse", "--is-bare-repository").strip() == b"true",
+            "fetch destination must be a bare object cache")
+
+    # Git 2.54+ defaults to geometric auto-maintenance; gc.auto=0 alone no longer
+    # prevents a detached maintenance process from rewriting a shallow file after
+    # fetch returns. Disable both mechanisms locally and on the fetch invocation.
+    run_git(path, "config", "maintenance.auto", "false")
+    run_git(path, "config", "gc.auto", "0")
+    require(run_git(path, "config", "--get", "maintenance.auto").strip() == b"false",
+            "failed to disable Git automatic maintenance")
+    require(run_git(path, "config", "--get", "gc.auto").strip() == b"0",
+            "failed to disable legacy Git automatic gc")
+
+    url = remote_url if remote_url is not None else "https://github.com/" + repository + ".git"
+    print(f"SOURCE acquisition: repository={repository} commits={','.join(commits)} cache={path}", flush=True)
+    try:
+        # One bounded shallow fetch per upstream avoids repeatedly rewriting the
+        # same shallow boundary for each immutable pin. No refs, checkout or
+        # upstream hooks are created/executed.
+        run_git(path, "-c", "core.hooksPath=/dev/null", "-c", "maintenance.auto=false", "-c", "gc.auto=0",
+                "fetch", "--no-tags", "--no-recurse-submodules", "--no-write-fetch-head", "--depth=1",
+                url, *commits)
+    except Invalid as exc:
+        raise Invalid(f"source acquisition failed for {repository} commits={','.join(commits)}: {exc}") from exc
+
+    for commit in commits:
+        try:
+            run_git(path, "cat-file", "-e", f"{commit}^{{commit}}")
+        except Invalid as exc:
+            raise Invalid(f"source acquisition missing requested commit {repository}@{commit}: {exc}") from exc
+    return GitRepository(path)
+
+
 def fetch_sources(directory: Path) -> dict[str, GitRepository]:
-    """Acquire public Git objects into an explicit disposable cache; no checkout or hooks."""
+    """Acquire public Git objects into isolated disposable bare caches; no checkout or hooks."""
     directory.mkdir(parents=True, exist_ok=True)
+    require(directory.is_dir(), "source cache root must be a directory")
+    plan = acquisition_plan()
+    cache_names: dict[str, str] = {}
     repositories = {}
-    for name in ("ezvm", "tuisynth"):
-        path = directory / name
-        if not path.exists():
-            path.mkdir()
-            run_git(path, "init", "--bare")
-        require(run_git(path, "rev-parse", "--is-bare-repository").strip() == b"true", "fetch destination must be a bare object cache")
-        repository = "techrote/" + name
-        for _, (repo, commit, _, _) in PINS.items():
-            if repo == repository:
-                run_git(path, "-c", "core.hooksPath=/dev/null", "fetch", "--no-tags", "--depth=1", "https://github.com/" + repository + ".git", commit)
-        repositories[repository] = GitRepository(path)
+    for repository, commits in plan.items():
+        name = repository.rsplit("/", 1)[1]
+        require(name not in cache_names, f"source cache name collision: {repository} vs {cache_names.get(name)}")
+        cache_names[name] = repository
+        repositories[repository] = _acquire_repository(directory / name, repository, commits)
     return repositories
 
 

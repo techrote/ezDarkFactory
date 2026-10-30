@@ -66,3 +66,25 @@ exact original/final source IDs, test counts, substantive diff review,
 merge SHA, and the nine actual post-merge results in the PR/issue discussion.
 No unexecuted Windows, QEMU/TCG/WHPX, physical terminal or human tests
 may be promoted to PASS.
+
+## EDF-002/003 supersession-chain correction (post-PR-head CI)
+
+First exact-head run [41127098432](https://github.com/techrote/ezDarkFactory/actions/runs/41127098432)
+gave **seven green / two red** checks. Both Ubuntu/Windows provenance
+jobs failed in `test_edf002_import` because the caller supplied the
+accepted EDF-002 import blob while the CI-RUNTIME helper was comparing it
+only to the later EDF-003 preimage. The EDF-002 imported Runtime source and EDF-003 repaired Runtime source are
+*different authenticated historical layers*, while their unchanged inherited
+Runtime test preimages can be identical. Neither is rewritten to current HEAD.
+
+The corrected helper now authenticates **both pinned preimages** through
+their accepted immutable commits and verifies the current replacement
+against exactly the reviewed new blob. A dedicated negative test refuses
+unknown preimages/paths. No unbound SHA, alternate replacement, floating
+branch source or weakening of existing authentication is permitted.
+This is a provenance-verifier integration defect, not evidence that either
+original or new Runtime source was tampered with.
+
+The PR branch is reconciled with later accepted `main@dbfec6555f33aa6035c0dbb18373c843c54e2f01`
+(CI-PROV-001 #17), retaining its grouped immutable-source fetching and
+maintenance suppression. Exact-head CI must be rerun before merge.
