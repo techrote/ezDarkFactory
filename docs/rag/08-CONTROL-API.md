@@ -60,7 +60,7 @@ A root-scoped file lock serializes typed mutations inside that root, while indep
 
 Static candidate inspection never dot-sources or runs candidate scripts; enrollment explicitly authorizes local execution as the current user for any future root-specific adapter. The current module adapter uses the enrolled manager's accepted code and root-local paths, not candidate executable code. The portable registry stores enrollment ID, alias, canonical path, last identity/API, authorization, and timestamps. Unregister only removes a registration. A relocated/unavailable, incompatible, or conflicting root never receives manager mutations. Duplicate canonical path cannot be enrolled twice. Re-enroll after an explicit rekey or relocation rather than automatically rebinding a stale path.
 
-Observations carry schemaVersion, enrollment, identity, last-known identity/version/time, observed identity/API, state, reason and timestamp. States include current, incompatible, unreachable and conflict; last_known fields are retained separately rather than presented as live. The manager should synthesize stale/unknown from freshness budgets and error handling without claiming an unavailable VM is stopped.
+Observations follow `docs/schemas/manager-observation.v1.schema.json`: schemaVersion, enrollment, verified and last-known identity/version/time, static-root state, reason, timestamp, `inventory_state=unknown` and `last_known.freshness=stale`. Static-root states distinguish current, incompatible, unreachable and conflict; the schema additionally defines stale and unknown for future observation adapters. Live factory-root identity verification does **not** imply live VM inventory or readiness. On every static refresh, the last persisted registration metadata remains last-known/stale until an explicit update; no runtime mutation occurs.
 
 ## Safety and limitations
 
@@ -76,4 +76,4 @@ Run the inherited full Windows PowerShell test harness on 5.1 and pinned 7.6.6, 
 
     .\scripts\Invoke-Edf005Qualification.ps1 -ExpectedMajor 5 -OutputDirectory $env:TEMP\edf005-proof
 
-The focused source-matched receipts include at least eighteen mandatory cases across real disposable filesystem roots, child-process parallel independent roots, duplicate-operation races, negative controls, identity collision/rekey, manager registration isolation and stale requests. These are real filesystem/software tests, **not** real QEMU or physical WHPX/TUI proof.
+The focused source-matched receipts include at least nineteen mandatory cases across real disposable filesystem roots, child-process parallel independent roots, duplicate-operation races, negative controls, identity collision/rekey, manager registration isolation and stale requests. These are real filesystem/software tests, **not** real QEMU or physical WHPX/TUI proof.
