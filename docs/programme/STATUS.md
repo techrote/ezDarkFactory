@@ -8,7 +8,7 @@ This is a compact navigation ledger. Current GitHub issue/PR state and exact `ma
 | EDF-002 | [#2](https://github.com/techrote/ezDarkFactory/issues/2) | done | [PR #15](https://github.com/techrote/ezDarkFactory/pull/15) | accepted `978288496aa5d328f0d79712c74e69cf769689e4`; five exact-main jobs green |
 | EDF-003 | [#3](https://github.com/techrote/ezDarkFactory/issues/3) | done | [PR #18](https://github.com/techrote/ezDarkFactory/pull/18) | accepted `d7b7debbaf66d5b50136342d26634ff05ea34d3f`; nine exact-main checks PASS |
 | EDF-004 | [#4](https://github.com/techrote/ezDarkFactory/issues/4) | done | [PR #23](https://github.com/techrote/ezDarkFactory/pull/23) | accepted `a983c957fb65acfd781ac131733512658b3e9927`; eleven exact-main checks PASS |
-| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | todo | | EDF-003 + EDF-004 accepted; dependency-ready, unstarted |
+| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | in-progress | `edf-005-multiroot-control` | Identity, typed control, portable manager substrate under active qualification; no acceptance before exact-head and post-merge proof |
 | EDF-006 | [#6](https://github.com/techrote/ezDarkFactory/issues/6) | todo | | EDF-003 + EDF-004 + EDF-005 |
 | EDF-007 | [#7](https://github.com/techrote/ezDarkFactory/issues/7) | todo | | EDF-006 |
 | EDF-008 | [#8](https://github.com/techrote/ezDarkFactory/issues/8) | todo | | EDF-004 + EDF-005 + EDF-007 |
