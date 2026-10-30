@@ -1,0 +1,1439 @@
+{
+  "amendments": [
+    {
+      "baseline_source": "ezvm-baseline",
+      "candidate_source": "ezvm-keys-repair",
+      "demonstrated_equivalent": false,
+      "disposition": "candidate-repair",
+      "implementation_issue": "EDF-003",
+      "owner_patch_bytes_recovered": false,
+      "source_path": "src/EzVm/Keys.ps1"
+    },
+    {
+      "baseline_source": "ezvm-baseline",
+      "candidate_source": "ezvm-runtime-repair",
+      "demonstrated_equivalent": false,
+      "disposition": "candidate-repair",
+      "implementation_issue": "EDF-003",
+      "owner_patch_bytes_recovered": false,
+      "source_path": "src/EzVm/Runtime.ps1"
+    }
+  ],
+  "baseline_edf_main": "f996fd3e6a68157b2d7507ee660dac29fb9d6fbe",
+  "evidence_class": "SOURCE",
+  "exclusions": {
+    "classification": "excluded-generated-private",
+    "components": [
+      ".aws",
+      ".cache",
+      ".claude",
+      ".codex",
+      ".config",
+      ".ezdarkfactory",
+      ".ezvm",
+      ".git",
+      ".lmstudio",
+      ".opencode",
+      ".provenance-cache",
+      ".ssh",
+      ".venv",
+      "__pycache__",
+      "artifacts",
+      "cache",
+      "coverage",
+      "credentials",
+      "keys",
+      "model-cache",
+      "models",
+      "node_modules",
+      "private-evidence",
+      "runtime",
+      "testresults",
+      "venv",
+      "weights"
+    ],
+    "filename_globs": [
+      "*.7z",
+      "*.bak",
+      "*.bin",
+      "*.bz2",
+      "*.db",
+      "*.dll",
+      "*.dylib",
+      "*.exe",
+      "*.fd",
+      "*.gguf",
+      "*.gz",
+      "*.img",
+      "*.iso",
+      "*.key",
+      "*.log",
+      "*.msi",
+      "*.msix",
+      "*.msp",
+      "*.onnx",
+      "*.ova",
+      "*.ovf",
+      "*.p12",
+      "*.pem",
+      "*.pfx",
+      "*.pid",
+      "*.ppk",
+      "*.pt",
+      "*.pth",
+      "*.pyc",
+      "*.pyo",
+      "*.qcow",
+      "*.qcow2",
+      "*.rar",
+      "*.raw",
+      "*.safetensors",
+      "*.so",
+      "*.so.*",
+      "*.sock",
+      "*.sqlite",
+      "*.sqlite3",
+      "*.tar",
+      "*.tgz",
+      "*.tmp",
+      "*.token",
+      "*.vdi",
+      "*.vhd",
+      "*.vhdx",
+      "*.vmdk",
+      "*.xz",
+      "*.zip",
+      "*.zst",
+      ".env",
+      ".env.*",
+      "auth.json",
+      "authorized_keys",
+      "controller-key*",
+      "controller_ed25519*",
+      "controller_rsa*",
+      "cookies.txt",
+      "credentials.json",
+      "id_dsa*",
+      "id_ecdsa*",
+      "id_ed25519*",
+      "id_rsa*",
+      "known_hosts",
+      "ssh_host_*_key*"
+    ],
+    "intended_treatment": "Never import, commit or distribute historical generated/private state. No forbidden payload was found among the 110 baseline tracked text blobs; these rules describe excluded classes, not invented historical file records."
+  },
+  "files": [
+    {
+      "classification": "unchanged-import",
+      "destination": ".gitattributes",
+      "edf002_import": true,
+      "intended_treatment": "Retain exact baseline LF text policy if it still matches current EDF policy; preserve current EDF additions. Any changed result needs adapted provenance.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".gitattributes"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": ".github/workflows/ci.yml",
+      "edf002_import": true,
+      "intended_treatment": "Merge/adapt baseline PS5.1 and pinned PS7 control-plane lanes into current EDF workflow, retaining the EDF-001 provenance gate. Never overwrite current CI wholesale.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ci.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ezvm-004-real-tcg.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ezvm-005-real-qemu-img.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ezvm-006-real-qmp.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ezvm-007-real-ssh.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ezvm-009-real-profile.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ezvm-010-real-portability.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ezvm-011-real-security.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/ezvm-012-real-release.yml"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Inventory as exact historical runtime/release automation; do not install as active EDF workflow. Later issue may explicitly adapt after reviewing acquisition/cost/evidence gates. Manual runtime or tag-publication workflow is not an EDF-001 fast gate or an inherited runtime/release PASS.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".github/workflows/release.yml"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": ".gitignore",
+      "edf002_import": true,
+      "intended_treatment": "Merge generated-state exclusions and add EDF-specific hidden-root names; exclusions describe files never committed, not permission to move critical working state outside factory root.",
+      "source_id": "ezvm-baseline",
+      "source_path": ".gitignore"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "AGENTS.md"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "README.md",
+      "edf002_import": true,
+      "intended_treatment": "Merge relevant operator/start/stop/bootstrap content into current EDF README; preserve EDF charter/TUI/portability scope and do not overwrite with historical release claims.",
+      "source_id": "ezvm-baseline",
+      "source_path": "README.md"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "THIRD-PARTY-NOTICES.md",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identity while retaining provider/licensing references and exact acquisition versions/digests; no provider payload redistribution.",
+      "source_id": "ezvm-baseline",
+      "source_path": "THIRD-PARTY-NOTICES.md"
+    },
+    {
+      "classification": "unchanged-import",
+      "destination": "config/defaults.json",
+      "edf002_import": true,
+      "intended_treatment": "Copy exact upstream Git-blob bytes to the relative destination and retain hash equality; any subsequent change requires an explicit adapted-source provenance record.",
+      "source_id": "ezvm-baseline",
+      "source_path": "config/defaults.json"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "docs/CODING-GUEST.md",
+      "edf002_import": true,
+      "intended_treatment": "Adapt commands/product paths and link to current EDF contracts; retain operational and recovery safety. Historical runtime evidence remains labelled upstream only.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/CODING-GUEST.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/EZVM-011-AUDIT.md"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "docs/GETTING-STARTED.md",
+      "edf002_import": true,
+      "intended_treatment": "Adapt commands/product paths and link to current EDF contracts; retain operational and recovery safety. Historical runtime evidence remains labelled upstream only.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/GETTING-STARTED.md"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "docs/PORTABILITY.md",
+      "edf002_import": true,
+      "intended_treatment": "Adapt commands/product paths and link to current EDF contracts; retain operational and recovery safety. Historical runtime evidence remains labelled upstream only.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/PORTABILITY.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/RELEASE-v0.1.0.md"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "docs/TROUBLESHOOTING.md",
+      "edf002_import": true,
+      "intended_treatment": "Adapt commands/product paths and link to current EDF contracts; retain operational and recovery safety. Historical runtime evidence remains labelled upstream only.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/TROUBLESHOOTING.md"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "docs/WHPX-QUALIFICATION.md",
+      "edf002_import": true,
+      "intended_treatment": "Adapt commands/product paths and link to current EDF contracts; retain operational and recovery safety. Historical runtime evidence remains labelled upstream only.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/WHPX-QUALIFICATION.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/programme/IMPLEMENTATION-PROGRAMME.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/00-PROJECT-CHARTER.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/01-ARCHITECTURE.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/02-HOST-QEMU-CONTRACT.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/03-QCOW2-STATE-CONTRACT.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/04-GUEST-BOOTSTRAP-CONTRACT.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/05-NETWORK-SSH-CONTRACT.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/06-SECURITY-PORTABILITY-CONTRACT.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/07-CLI-STATE-CONTRACT.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/08-TESTING-CI-RELEASE.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Read by pinned source path/hash as historical reference only. Do not overwrite EDF AGENTS, RAG, programme or promote historical qualification to EDF acceptance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "docs/rag/README.md"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "ezdarkfactory.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Stable EDF launcher plus renamed module import; script-derived root remains independent of current working directory.",
+      "source_id": "ezvm-baseline",
+      "source_path": "ezvm.ps1"
+    },
+    {
+      "classification": "unchanged-import",
+      "destination": "guest/base-cloud-init/baseline.json",
+      "edf002_import": true,
+      "intended_treatment": "Copy exact upstream Git-blob bytes to the relative destination and retain hash equality; any subsequent change requires an explicit adapted-source provenance record. Lists package names, not package versions. Hash-bound recipe is not a bit-for-bit historical guest reconstruction.",
+      "source_id": "ezvm-baseline",
+      "source_path": "guest/base-cloud-init/baseline.json"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "guest/base-cloud-init/meta-data.yaml",
+      "edf002_import": true,
+      "intended_treatment": "Adapt EzVM guest paths/markers to EDF identity without changing reviewed provisioning behavior; clean fresh-project profile changes belong to EDF-004.",
+      "source_id": "ezvm-baseline",
+      "source_path": "guest/base-cloud-init/meta-data.yaml"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "guest/base-cloud-init/user-data.yaml",
+      "edf002_import": true,
+      "intended_treatment": "Adapt EzVM guest paths/markers to EDF identity without changing reviewed provisioning behavior; clean fresh-project profile changes belong to EDF-004. package_update=true, package_upgrade=false, unversioned package installation; finalize removes cloud seed, host keys and authorized_keys before base-ready publication.",
+      "source_id": "ezvm-baseline",
+      "source_path": "guest/base-cloud-init/user-data.yaml"
+    },
+    {
+      "classification": "unchanged-import",
+      "destination": "guest/profiles/coding-default/v1/profile.json",
+      "edf002_import": true,
+      "intended_treatment": "Copy exact upstream Git-blob bytes to the relative destination and retain hash equality; any subsequent change requires an explicit adapted-source provenance record.",
+      "source_id": "ezvm-baseline",
+      "source_path": "guest/profiles/coding-default/v1/profile.json"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "guest/profiles/coding-default/v1/provision.sh",
+      "edf002_import": true,
+      "intended_treatment": "Adapt EzVM guest paths/markers to EDF identity without changing reviewed provisioning behavior; clean fresh-project profile changes belong to EDF-004. Root-checked profile/identity files, locked coder/root passwords, passwordless guest sudo, empty workspace creation/permissions and no provider installation.",
+      "source_id": "ezvm-baseline",
+      "source_path": "guest/profiles/coding-default/v1/provision.sh"
+    },
+    {
+      "classification": "unchanged-import",
+      "destination": "manifests/qemu-windows.json",
+      "edf002_import": true,
+      "intended_treatment": "Copy exact upstream Git-blob bytes to the relative destination and retain hash equality; any subsequent change requires an explicit adapted-source provenance record.",
+      "source_id": "ezvm-baseline",
+      "source_path": "manifests/qemu-windows.json"
+    },
+    {
+      "classification": "unchanged-import",
+      "destination": "manifests/ubuntu-noble-amd64.json",
+      "edf002_import": true,
+      "intended_treatment": "Copy exact upstream Git-blob bytes to the relative destination and retain hash equality; any subsequent change requires an explicit adapted-source provenance record.",
+      "source_id": "ezvm-baseline",
+      "source_path": "manifests/ubuntu-noble-amd64.json"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Install-TestPowerShell.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Install-TestPowerShell.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Invoke-CiCheck.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Invoke-CiCheck.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Invoke-EzDarkFactory005RealQemuImg.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Retain/rebrand first-party manual integration harness for future EDF qualification; importing its source is not executing it or inheriting its historical PASS. Requires acquired binaries/generated fixtures when deliberately run in later runtime issues; not executed in EDF-001.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Invoke-EzVm005RealQemuImg.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Invoke-EzDarkFactory006RealQmp.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Retain/rebrand first-party manual integration harness for future EDF qualification; importing its source is not executing it or inheriting its historical PASS. Requires acquired binaries/generated fixtures when deliberately run in later runtime issues; not executed in EDF-001.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Invoke-EzVm006RealQmp.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Invoke-EzDarkFactory007RealSsh.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Retain/rebrand first-party manual integration harness for future EDF qualification; importing its source is not executing it or inheriting its historical PASS. Requires acquired binaries/generated fixtures when deliberately run in later runtime issues; not executed in EDF-001.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Invoke-EzVm007RealSsh.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Invoke-EzDarkFactory009RealProfile.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Retain/rebrand first-party manual integration harness for future EDF qualification; importing its source is not executing it or inheriting its historical PASS. Requires acquired binaries/generated fixtures when deliberately run in later runtime issues; not executed in EDF-001.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Invoke-EzVm009RealProfile.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Invoke-EzDarkFactory010RealPortability.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Retain/rebrand first-party manual integration harness for future EDF qualification; importing its source is not executing it or inheriting its historical PASS. Requires acquired binaries/generated fixtures when deliberately run in later runtime issues; not executed in EDF-001.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Invoke-EzVm010RealPortability.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/New-EzDarkFactoryReleasePackage.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Requires tracked clean source, source commit/tree, no binaries, fixed archive timestamps. Historical stable-version requirements require later reviewed EDF release adaptation.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/New-EzVmReleasePackage.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Publish-EzDarkFactoryGitHubRelease.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Source only; explicit token parameter is not a token value. Do not run, activate publication, or use historical v0.1.0 tag in EDF-001/002.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Publish-EzVmGitHubRelease.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/RepositoryContract.psm1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Historical programme links, exact 0.1.0 version, release-tag and RAG required-file assertions need reviewed EDF-specific adaptation; preserve negative guards.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/RepositoryContract.psm1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "scripts/Test-Repository.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state.",
+      "source_id": "ezvm-baseline",
+      "source_path": "scripts/Test-Repository.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/BaseBuilder.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Prepared-base creation, standalone QCOW2 validation, staging/failure evidence, base hashes and immutable publication. Preserve clean-base identity and nonpublication on failure.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/BaseBuilder.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/BaseRecipe.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Reviewed cloud-init recipe, provisioning digest over exact source bytes, seed rendering, q35/UEFI/QEMU headless arguments and explicit WHPX/TCG selection.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/BaseRecipe.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Cli.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Command dispatch, typed result envelopes, argument errors, output identity/version/help and source-specific user guidance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Cli.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Configuration.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Strict defaults plus root/runtime/config.json overrides; deep map validation, bounded resources/timeouts and fresh values on each read.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Configuration.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Doctor.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Host/QEMU/OpenSSH/WHPX prerequisite observations and bounded diagnostic results; not evidence the host actually supports WHPX.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Doctor.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Download.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. HTTPS-only acquisition, digest/length verification before promotion, bounded redirects/deadlines, per-target locks and temporary-file cleanup.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Download.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/EzDarkFactory.psd1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Module name/GUID/version/export metadata; new EDF namespace/version required, with historical v0.1.0 identity retained in provenance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/EzVm.psd1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/EzDarkFactory.psm1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Root derived from module directory, explicit source include allowlist and export boundary. Do not wildcard dot-source new files.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/EzVm.psm1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Json.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Strict versioned JSON read/write validation and atomic durable-file replacement.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Json.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Keys.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Historical owner-local private-DACL amendment seam. Import exact baseline only, then separately reconcile reviewed repair in EDF-003; do not fabricate private patch bytes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Keys.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Paths.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Source-derived factory root; runtime/config.json, runtime/keys, bases, instances, locks, QEMU/cache all below root. Help/path discovery is read-only.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Paths.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Portability.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Stopped reset/fresh/stateful clone/export/import and whole-root portability checks; preserves stateful sensitivity and identity/transaction safeguards.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Portability.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Process.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Bounded child-process execution, native quoting, input bytes and concurrent stdout/stderr draining with timeout cleanup.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Process.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Profiles.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Strict profile identity/source hashing and guest readiness recipe lookup.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Profiles.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Qemu.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Pinned installer/extractor validation, safe acquisition/extraction, repository-local managed QEMU publication and tool resolution.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Qemu.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/QemuIntegrity.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Per-file managed QEMU inventory hashes checked before execution, distinct from source provenance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/QemuIntegrity.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Recovery.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Bounded read-only process/storage/base/access diagnosis; preserve refusal on ambiguous identity.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Recovery.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Registry.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Per-instance durable resource/profile intent, SSH-port reservations, base selection and status/list integration.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Registry.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Runtime.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Historical owner-local captured-start amendment seam; lifecycle locks, process start-time/executable/argv/launch identity, QMP and bounded start/stop. Baseline behavior remains distinct from later repair.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Runtime.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Security.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Managed path/reparse-point/hardlink checks, bounded reads, locks and diagnostic credential scrubbing.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Security.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/SeedServer.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Bounded cloud-init seed transport and owned client/server cleanup; never package generated seed secrets.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/SeedServer.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Snapshots.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Strict QCOW2 headers/backing chains, derived base/export provenance, standalone conversion and transactional publication.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Snapshots.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/SourceImage.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Pinned Ubuntu source manifest plus downloaded-image verification/acquisition provenance.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/SourceImage.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Ssh.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. Windows OpenSSH prerequisites, root-local controller identity/known-hosts, guest identity generation, seed setup, current-boot readiness, managed exec/copy/attach.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Ssh.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "src/EzDarkFactory/Storage.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Adapt product identifiers and paths; preserve reviewed baseline behavior and provenance; do not import generated state. One immutable managed base to one overlay, root-relative backing references, stopped lifecycle guards and recoverable storage mutation.",
+      "source_id": "ezvm-baseline",
+      "source_path": "src/EzVm/Storage.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/BaseBuilder.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/BaseBuilder.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/BaseRecipe.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/BaseRecipe.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Cli.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Cli.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/CodingReadiness.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/CodingReadiness.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Configuration.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Configuration.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Doctor.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Doctor.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Download.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Download.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Json.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Json.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Paths.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Paths.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Portability.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Portability.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/PortabilityCli.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/PortabilityCli.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/PortabilityIdentity.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/PortabilityIdentity.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Process.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Process.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Profiles.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Profiles.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Qemu.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Qemu.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/README.md",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/README.md"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Recovery.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Recovery.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Registry.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Registry.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Release.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes. Retain source-only determinism and fail-safe publication tests, but historical stable v0.1.0 release identity cannot be claimed for EDF 0.0.0-dev.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Release.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Repository.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes. Must target current EDF authority/programme and coexist with EDF-001 provenance tests; do not enforce historical EzVM issue catalogue or v0.1.0 release status.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Repository.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Run-Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Run-Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Runtime.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Runtime.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Security.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Security.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/SeedServer.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/SeedServer.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Snapshots.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Snapshots.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/SourceImage.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/SourceImage.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Ssh.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Ssh.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/Storage.Tests.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/Storage.Tests.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/TestHarness.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/TestHarness.ps1"
+    },
+    {
+      "classification": "unchanged-import",
+      "destination": "tests/fixtures/NativeArguments.cs",
+      "edf002_import": true,
+      "intended_treatment": "Copy exact upstream Git-blob bytes to the relative destination and retain hash equality; any subsequent change requires an explicit adapted-source provenance record.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/fixtures/NativeArguments.cs"
+    },
+    {
+      "classification": "unchanged-import",
+      "destination": "tests/fixtures/ProcessFixture.ps1",
+      "edf002_import": true,
+      "intended_treatment": "Copy exact upstream Git-blob bytes to the relative destination and retain hash equality; any subsequent change requires an explicit adapted-source provenance record.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/fixtures/ProcessFixture.ps1"
+    },
+    {
+      "classification": "adapt-rebrand",
+      "destination": "tests/tooling.json",
+      "edf002_import": true,
+      "intended_treatment": "Preserve behavioral assertions and negative fixtures; adapt EzVm namespace/launcher/paths and obsolete release-only assertions through explicit EDF contract changes. Rename first-party harness identity only; retain reviewed PowerShell 7.6.6 URL/hash/size until explicit reviewed update.",
+      "source_id": "ezvm-baseline",
+      "source_path": "tests/tooling.json"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Later public replay-era snapshot: observations/index remain byte-identical to original; README adds programme/replay links, not original local Git identities.",
+      "source_id": "ezvm-field-replay",
+      "source_path": "docs/research/TRIO-2026-10/README.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Later public replay-era snapshot: observations/index remain byte-identical to original; README adds programme/replay links, not original local Git identities.",
+      "source_id": "ezvm-field-replay",
+      "source_path": "docs/research/TRIO-2026-10/evidence-index.json"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Later public replay-era snapshot: observations/index remain byte-identical to original; README adds programme/replay links, not original local Git identities.",
+      "source_id": "ezvm-field-replay",
+      "source_path": "docs/research/TRIO-2026-10/observations.json"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Cite immutable public field-study source; no active import, command execution, or inherited runtime qualification.",
+      "source_id": "ezvm-field-study",
+      "source_path": "docs/design/VM-AI-DASHBOARD-CONTRACTS.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Cite immutable public field-study source; no active import, command execution, or inherited runtime qualification.",
+      "source_id": "ezvm-field-study",
+      "source_path": "docs/design/VM-AI-DASHBOARD-DELIVERY.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Cite immutable public field-study source; no active import, command execution, or inherited runtime qualification.",
+      "source_id": "ezvm-field-study",
+      "source_path": "docs/design/VM-AI-DASHBOARD.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Cite immutable public field-study source; no active import, command execution, or inherited runtime qualification.",
+      "source_id": "ezvm-field-study",
+      "source_path": "docs/research/TRIO-2026-10/README.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Cite immutable public field-study source; no active import, command execution, or inherited runtime qualification.",
+      "source_id": "ezvm-field-study",
+      "source_path": "docs/research/TRIO-2026-10/evidence-index.json"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Cite immutable public field-study source; no active import, command execution, or inherited runtime qualification.",
+      "source_id": "ezvm-field-study",
+      "source_path": "docs/research/TRIO-2026-10/observations.json"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Review/select smallest ACL behavior in EDF-003 with fresh EDF tests; do not wholesale replace historical baseline or copy upstream CI deferral.",
+      "source_id": "ezvm-keys-repair",
+      "source_path": ".github/workflows/private-acl.yml"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Review/select smallest ACL behavior in EDF-003 with fresh EDF tests; do not wholesale replace historical baseline or copy upstream CI deferral.",
+      "source_id": "ezvm-keys-repair",
+      "source_path": "docs/research/CI-POC-001-PRIVATE-DACL.md"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Review/select smallest ACL behavior in EDF-003 with fresh EDF tests; do not wholesale replace historical baseline or copy upstream CI deferral.",
+      "source_id": "ezvm-keys-repair",
+      "source_path": "scripts/Invoke-PrivateAclHosted.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Review/select smallest ACL behavior in EDF-003 with fresh EDF tests; do not wholesale replace historical baseline or copy upstream CI deferral.",
+      "source_id": "ezvm-keys-repair",
+      "source_path": "scripts/Invoke-PrivateAclQualification.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Review/select smallest ACL behavior in EDF-003 with fresh EDF tests; do not wholesale replace historical baseline or copy upstream CI deferral.",
+      "source_id": "ezvm-keys-repair",
+      "source_path": "scripts/PrivateAclHostedSupport.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Review/select smallest ACL behavior in EDF-003 with fresh EDF tests; do not wholesale replace historical baseline or copy upstream CI deferral.",
+      "source_id": "ezvm-keys-repair",
+      "source_path": "src/EzVm/Keys.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Review/select smallest ACL behavior in EDF-003 with fresh EDF tests; do not wholesale replace historical baseline or copy upstream CI deferral.",
+      "source_id": "ezvm-keys-repair",
+      "source_path": "tests/PrivateAcl.Tests.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Review/select smallest ACL behavior in EDF-003 with fresh EDF tests; do not wholesale replace historical baseline or copy upstream CI deferral.",
+      "source_id": "ezvm-keys-repair",
+      "source_path": "tests/PrivateAclHosted.Tests.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": ".github/workflows/dash08-lifecycle.yml"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "docs/rag/DASH-08-LIFECYCLE-CONTRACT.md"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "docs/research/TRIO-2026-10/DASH-08-LIFECYCLE.md"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "scripts/Invoke-Dash08Qualification.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "src/EzVm/Runtime.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "src/EzVm/RuntimeProcess.cs"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "tests/Dash08Lifecycle.Tests.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "tests/fixtures/Dash08ProcessScenario.ps1"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "tests/fixtures/Dash08QmpServer.cs"
+    },
+    {
+      "classification": "later-repair-candidate",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Unmerged candidate only; preserve native/deadline tests and failed real-release evidence. Selective EDF-003 review/requalification required.",
+      "source_id": "ezvm-runtime-repair",
+      "source_path": "tests/fixtures/Dash08VmLifetime.cs"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Authenticate original public local-Git programme and its evidence boundary; no active TUIsynth import, execution, workload or inferred later acceptance.",
+      "source_id": "tuisynth-programme",
+      "source_path": "AGENTS.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Authenticate original public local-Git programme and its evidence boundary; no active TUIsynth import, execution, workload or inferred later acceptance.",
+      "source_id": "tuisynth-programme",
+      "source_path": "trio/AGENTS.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Authenticate original public local-Git programme and its evidence boundary; no active TUIsynth import, execution, workload or inferred later acceptance.",
+      "source_id": "tuisynth-programme",
+      "source_path": "trio/docs/PROVENANCE.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Authenticate original public local-Git programme and its evidence boundary; no active TUIsynth import, execution, workload or inferred later acceptance.",
+      "source_id": "tuisynth-programme",
+      "source_path": "trio/docs/programme/IMPLEMENTATION-PROGRAMME.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Authenticate original public local-Git programme and its evidence boundary; no active TUIsynth import, execution, workload or inferred later acceptance.",
+      "source_id": "tuisynth-programme",
+      "source_path": "trio/docs/programme/STATUS.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Authenticate original public local-Git programme and its evidence boundary; no active TUIsynth import, execution, workload or inferred later acceptance.",
+      "source_id": "tuisynth-programme",
+      "source_path": "trio/docs/rag/10-TESTING-CI-RELEASE.md"
+    },
+    {
+      "classification": "historical-reference-only",
+      "destination": null,
+      "edf002_import": false,
+      "intended_treatment": "Authenticate original public local-Git programme and its evidence boundary; no active TUIsynth import, execution, workload or inferred later acceptance.",
+      "source_id": "tuisynth-programme",
+      "source_path": "trio/docs/rag/12-LOCAL-WORKFLOW-AND-MODELS.md"
+    }
+  ],
+  "new_edf_source": [
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "New explicit LF source policy; raw upstream Git blobs bypass worktree conversion.",
+      "path": ".gitattributes"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "New exact-head Linux/Windows provenance jobs; no guest or inherited VM qualification.",
+      "path": ".github/workflows/ci.yml"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "New generated/private-source exclusions; working-factory authority remains root-local.",
+      "path": ".gitignore"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "Historical field source/limitation interpretation.",
+      "path": "docs/provenance/HISTORICAL-EVIDENCE.md"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "Baseline/field/later-repair/disposition matrix.",
+      "path": "docs/provenance/LOCAL-AMENDMENTS.md"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "Human import/provenance contract and reproducibility instructions.",
+      "path": "docs/provenance/README.md"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "Truthful unresolved original local Git cutoff.",
+      "path": "docs/provenance/TUISYNTH-CUTOFF.md"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "Dated public upstream state/check/receipt summary; not generated private evidence.",
+      "path": "docs/provenance/audit-2026-10-30.json"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "Deterministic derived upstream source identities/hashes and evidence metadata.",
+      "path": "docs/provenance/manifest.json"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "Closed published schema for manifest and selection.",
+      "path": "docs/provenance/provenance.schema.json"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "Reviewed per-path classification and immutable source pins.",
+      "path": "docs/provenance/selection.json"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "New deterministic provenance and negative security fixtures.",
+      "path": "tests/test_provenance.py"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "New EDF-001 source/FAST-CI entry point, extended by EDF-002 later.",
+      "path": "tools/check.py"
+    },
+    {
+      "classification": "new-edf-source",
+      "intended_treatment": "New EDF source-only object verification/generation; no VM importer.",
+      "path": "tools/provenance.py"
+    }
+  ],
+  "non_authoritative_repositories": [
+    "techrote/tuisynth-claude",
+    "techrote/tuisynth-codex"
+  ],
+  "portability": {
+    "critical_state_inside_factory": true,
+    "destination_base": "factory-root",
+    "developer_absolute_paths_required": false,
+    "hidden_host_appdata_authority": false,
+    "historical_overlay_required": false,
+    "independent_writable_copy_requires_fork_rekey": true,
+    "manager_workspace_optional": true,
+    "relocation_preserves_identity": true,
+    "transient_process_paths_require_destination_revalidation": true,
+    "tuisynth_active_workload": false,
+    "ui_implemented_by_edf001": false
+  },
+  "retrieved_at": "2026-10-30T15:22:42Z",
+  "schema_version": 1,
+  "sources": [
+    {
+      "commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+      "id": "ezvm-baseline",
+      "repository": "techrote/ezvm",
+      "role": "historical-vm-baseline",
+      "tree": "78e5ce0db9c32972451add22d28c7d19983775ee"
+    },
+    {
+      "commit": "d5265c804d0d8494d8171482a85aca563b181e05",
+      "id": "ezvm-field-replay",
+      "repository": "techrote/ezvm",
+      "role": "historical-field-reference",
+      "tree": "9416befc914dafcdefbc5c9bcc605b1ddd53e082"
+    },
+    {
+      "commit": "d692be6a79a0c6bd3c1d246ff74096bc523b23e1",
+      "id": "ezvm-field-study",
+      "repository": "techrote/ezvm",
+      "role": "historical-field-reference",
+      "tree": "ab551beb502560fd065a8dfee1a9053bc3c17c00"
+    },
+    {
+      "commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+      "id": "ezvm-keys-repair",
+      "repository": "techrote/ezvm",
+      "role": "later-repair-candidate",
+      "tree": "2aa3170d8ba0a60ae98bb07803f63d9c04d41de0"
+    },
+    {
+      "commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "id": "ezvm-runtime-repair",
+      "repository": "techrote/ezvm",
+      "role": "later-repair-candidate",
+      "tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f"
+    },
+    {
+      "commit": "e7060f6788421029ea9a1cb7cbee86a994c5b4d5",
+      "id": "tuisynth-programme",
+      "repository": "techrote/tuisynth",
+      "role": "original-public-programme",
+      "tree": "0b5d96d1979ed150734ae95938395165bc40530a"
+    }
+  ],
+  "tuisynth_cutoff": {
+    "accepted_local_main": {
+      "commit": null,
+      "evidence": "TRIO-FR-02",
+      "reported": "whole/TRIO-001..007",
+      "tree": null,
+      "verbatim_field_label": "whole001..007"
+    },
+    "historical_canonical_checkout": {
+      "commit": null,
+      "distinct_from_accepted_and_partial": true,
+      "tree": null
+    },
+    "later_issue_acceptance_inferred": false,
+    "partial_pause_checkpoint": {
+      "commit": null,
+      "distinct_from_accepted_main": true,
+      "evidence": "TRIO-FR-02",
+      "existence_reported": true,
+      "tree": null
+    },
+    "public_programme_source": "tuisynth-programme",
+    "recovered_original_local_records": [],
+    "subsequent_implementation": "local-git-in-development-vm-by-design"
+  }
+}

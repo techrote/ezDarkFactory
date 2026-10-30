@@ -1,0 +1,993 @@
+{
+  "$defs": {
+    "manifestRow": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "classification": {
+          "enum": [
+            "unchanged-import",
+            "adapt-rebrand",
+            "later-repair-candidate",
+            "historical-reference-only"
+          ]
+        },
+        "destination": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "edf002_import": {
+          "type": "boolean"
+        },
+        "git_blob": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "intended_treatment": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "mode": {
+          "enum": [
+            "100644",
+            "100755"
+          ]
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "source_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source_path": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_path",
+        "classification",
+        "edf002_import",
+        "destination",
+        "intended_treatment",
+        "git_blob",
+        "mode",
+        "bytes",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "manifestSource": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "commit_object_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "committed_at": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "repository": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "repository_url": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "historical-field-reference",
+            "historical-vm-baseline",
+            "later-repair-candidate",
+            "original-public-programme"
+          ]
+        },
+        "subject": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "tree": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "tree_file_count": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "tree_object_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "repository",
+        "commit",
+        "tree",
+        "role",
+        "repository_url",
+        "committed_at",
+        "subject",
+        "commit_object_sha256",
+        "tree_object_sha256",
+        "tree_file_count"
+      ],
+      "type": "object"
+    },
+    "selection": {
+      "additionalProperties": false,
+      "properties": {
+        "amendments": {
+          "const": [
+            {
+              "baseline_source": "ezvm-baseline",
+              "candidate_source": "ezvm-keys-repair",
+              "demonstrated_equivalent": false,
+              "disposition": "candidate-repair",
+              "implementation_issue": "EDF-003",
+              "owner_patch_bytes_recovered": false,
+              "source_path": "src/EzVm/Keys.ps1"
+            },
+            {
+              "baseline_source": "ezvm-baseline",
+              "candidate_source": "ezvm-runtime-repair",
+              "demonstrated_equivalent": false,
+              "disposition": "candidate-repair",
+              "implementation_issue": "EDF-003",
+              "owner_patch_bytes_recovered": false,
+              "source_path": "src/EzVm/Runtime.ps1"
+            }
+          ]
+        },
+        "baseline_edf_main": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "evidence_class": {
+          "const": "SOURCE"
+        },
+        "exclusions": {
+          "additionalProperties": false,
+          "properties": {
+            "classification": {
+              "const": "excluded-generated-private"
+            },
+            "components": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "filename_globs": {
+              "items": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "minItems": 1,
+              "type": "array"
+            },
+            "intended_treatment": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "classification",
+            "components",
+            "filename_globs",
+            "intended_treatment"
+          ],
+          "type": "object"
+        },
+        "files": {
+          "items": {
+            "$ref": "#/$defs/selectionRow"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "new_edf_source": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "classification": {
+                "const": "new-edf-source"
+              },
+              "intended_treatment": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "path": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "path",
+              "classification",
+              "intended_treatment"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "non_authoritative_repositories": {
+          "const": [
+            "techrote/tuisynth-claude",
+            "techrote/tuisynth-codex"
+          ]
+        },
+        "portability": {
+          "const": {
+            "critical_state_inside_factory": true,
+            "destination_base": "factory-root",
+            "developer_absolute_paths_required": false,
+            "hidden_host_appdata_authority": false,
+            "historical_overlay_required": false,
+            "independent_writable_copy_requires_fork_rekey": true,
+            "manager_workspace_optional": true,
+            "relocation_preserves_identity": true,
+            "transient_process_paths_require_destination_revalidation": true,
+            "tuisynth_active_workload": false,
+            "ui_implemented_by_edf001": false
+          }
+        },
+        "retrieved_at": {
+          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": 1
+        },
+        "sources": {
+          "items": {
+            "$ref": "#/$defs/source"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "tuisynth_cutoff": {
+          "const": {
+            "accepted_local_main": {
+              "commit": null,
+              "evidence": "TRIO-FR-02",
+              "reported": "whole/TRIO-001..007",
+              "tree": null,
+              "verbatim_field_label": "whole001..007"
+            },
+            "historical_canonical_checkout": {
+              "commit": null,
+              "distinct_from_accepted_and_partial": true,
+              "tree": null
+            },
+            "later_issue_acceptance_inferred": false,
+            "partial_pause_checkpoint": {
+              "commit": null,
+              "distinct_from_accepted_main": true,
+              "evidence": "TRIO-FR-02",
+              "existence_reported": true,
+              "tree": null
+            },
+            "public_programme_source": "tuisynth-programme",
+            "recovered_original_local_records": [],
+            "subsequent_implementation": "local-git-in-development-vm-by-design"
+          }
+        }
+      },
+      "required": [
+        "schema_version",
+        "evidence_class",
+        "retrieved_at",
+        "baseline_edf_main",
+        "sources",
+        "files",
+        "new_edf_source",
+        "exclusions",
+        "non_authoritative_repositories",
+        "portability",
+        "tuisynth_cutoff",
+        "amendments"
+      ],
+      "type": "object"
+    },
+    "selectionRow": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "enum": [
+            "unchanged-import",
+            "adapt-rebrand",
+            "later-repair-candidate",
+            "historical-reference-only"
+          ]
+        },
+        "destination": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "edf002_import": {
+          "type": "boolean"
+        },
+        "intended_treatment": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "source_path": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "source_id",
+        "source_path",
+        "classification",
+        "edf002_import",
+        "destination",
+        "intended_treatment"
+      ],
+      "type": "object"
+    },
+    "source": {
+      "additionalProperties": false,
+      "properties": {
+        "commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "repository": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "role": {
+          "enum": [
+            "historical-field-reference",
+            "historical-vm-baseline",
+            "later-repair-candidate",
+            "original-public-programme"
+          ]
+        },
+        "tree": {
+          "pattern": "^[0-9a-f]{40}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "repository",
+        "commit",
+        "tree",
+        "role"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://github.com/techrote/ezDarkFactory/docs/provenance/provenance.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "acquisition_pins": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_class": {
+          "const": "SOURCE"
+        },
+        "github_actions": {
+          "items": {
+            "additionalProperties": false,
+            "properties": {
+              "source_path": {
+                "minLength": 1,
+                "type": "string"
+              },
+              "uses": {
+                "minLength": 1,
+                "type": "string"
+              }
+            },
+            "required": [
+              "source_path",
+              "uses"
+            ],
+            "type": "object"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "guest_package_versions_pinned": {
+          "const": false
+        },
+        "guest_packages": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "limitation": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "payloads_downloaded_or_executed": {
+          "const": false
+        },
+        "qemu_manifest": {
+          "additionalProperties": false,
+          "properties": {
+            "extractor": {
+              "additionalProperties": false,
+              "properties": {
+                "bootstrap": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "digest": {
+                      "pattern": "^(?:[0-9a-f]{64}|[0-9a-f]{128})$",
+                      "type": "string"
+                    },
+                    "digestAlgorithm": {
+                      "enum": [
+                        "SHA256",
+                        "SHA512"
+                      ]
+                    },
+                    "filename": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "url": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "filename",
+                    "digestAlgorithm",
+                    "digest",
+                    "sizeBytes"
+                  ],
+                  "type": "object"
+                },
+                "package": {
+                  "additionalProperties": false,
+                  "properties": {
+                    "digest": {
+                      "pattern": "^(?:[0-9a-f]{64}|[0-9a-f]{128})$",
+                      "type": "string"
+                    },
+                    "digestAlgorithm": {
+                      "enum": [
+                        "SHA256",
+                        "SHA512"
+                      ]
+                    },
+                    "filename": {
+                      "minLength": 1,
+                      "type": "string"
+                    },
+                    "sizeBytes": {
+                      "minimum": 0,
+                      "type": "integer"
+                    },
+                    "url": {
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "url",
+                    "filename",
+                    "digestAlgorithm",
+                    "digest",
+                    "sizeBytes"
+                  ],
+                  "type": "object"
+                },
+                "version": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "version",
+                "bootstrap",
+                "package"
+              ],
+              "type": "object"
+            },
+            "provider": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "qemu": {
+              "additionalProperties": false,
+              "properties": {
+                "digest": {
+                  "pattern": "^(?:[0-9a-f]{64}|[0-9a-f]{128})$",
+                  "type": "string"
+                },
+                "digestAlgorithm": {
+                  "enum": [
+                    "SHA256",
+                    "SHA512"
+                  ]
+                },
+                "expectedVersionPrefix": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "filename": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "providerBuild": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "sizeBytes": {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "url": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "version": {
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "url",
+                "filename",
+                "digestAlgorithm",
+                "digest",
+                "sizeBytes",
+                "version",
+                "providerBuild",
+                "expectedVersionPrefix"
+              ],
+              "type": "object"
+            },
+            "schemaVersion": {
+              "const": 1
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "provider",
+            "qemu",
+            "extractor"
+          ],
+          "type": "object"
+        },
+        "test_powershell": {
+          "additionalProperties": false,
+          "properties": {
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "sizeBytes": {
+              "minimum": 0,
+              "type": "integer"
+            },
+            "url": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "version": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "version",
+            "url",
+            "sha256",
+            "sizeBytes"
+          ],
+          "type": "object"
+        },
+        "ubuntu_manifest": {
+          "additionalProperties": false,
+          "properties": {
+            "architecture": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "codename": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "filename": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "provider": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "publication": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "release": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "schemaVersion": {
+              "const": 1
+            },
+            "sha256": {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            "url": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "schemaVersion",
+            "provider",
+            "release",
+            "codename",
+            "architecture",
+            "publication",
+            "url",
+            "filename",
+            "sha256"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "evidence_class",
+        "payloads_downloaded_or_executed",
+        "qemu_manifest",
+        "ubuntu_manifest",
+        "test_powershell",
+        "github_actions",
+        "guest_packages",
+        "guest_package_versions_pinned",
+        "limitation"
+      ],
+      "type": "object"
+    },
+    "amendments": {
+      "const": [
+        {
+          "baseline_source": "ezvm-baseline",
+          "candidate_source": "ezvm-keys-repair",
+          "demonstrated_equivalent": false,
+          "disposition": "candidate-repair",
+          "implementation_issue": "EDF-003",
+          "owner_patch_bytes_recovered": false,
+          "source_path": "src/EzVm/Keys.ps1"
+        },
+        {
+          "baseline_source": "ezvm-baseline",
+          "candidate_source": "ezvm-runtime-repair",
+          "demonstrated_equivalent": false,
+          "disposition": "candidate-repair",
+          "implementation_issue": "EDF-003",
+          "owner_patch_bytes_recovered": false,
+          "source_path": "src/EzVm/Runtime.ps1"
+        }
+      ]
+    },
+    "baseline_edf_main": {
+      "pattern": "^[0-9a-f]{40}$",
+      "type": "string"
+    },
+    "counts": {
+      "additionalProperties": false,
+      "properties": {
+        "all_recorded_files": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "baseline_files": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "edf002_import_files": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "baseline_files",
+        "all_recorded_files",
+        "edf002_import_files"
+      ],
+      "type": "object"
+    },
+    "evidence_class": {
+      "const": "SOURCE"
+    },
+    "exclusions": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "const": "excluded-generated-private"
+        },
+        "components": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "filename_globs": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "intended_treatment": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "classification",
+        "components",
+        "filename_globs",
+        "intended_treatment"
+      ],
+      "type": "object"
+    },
+    "files": {
+      "items": {
+        "$ref": "#/$defs/manifestRow"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "historical_observations": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "confidence": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "evidence_ids": {
+            "items": {
+              "minLength": 1,
+              "type": "string"
+            },
+            "minItems": 1,
+            "type": "array"
+          },
+          "id": {
+            "enum": [
+              "TRIO-FR-02",
+              "TRIO-FR-05",
+              "TRIO-FR-14",
+              "TRIO-FR-15",
+              "TRIO-FR-17",
+              "TRIO-FR-19"
+            ]
+          },
+          "observation": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "scope": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "observation",
+          "evidence_ids",
+          "scope",
+          "confidence"
+        ],
+        "type": "object"
+      },
+      "minItems": 6,
+      "type": "array"
+    },
+    "new_edf_source": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "classification": {
+            "const": "new-edf-source"
+          },
+          "intended_treatment": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "path": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "path",
+          "classification",
+          "intended_treatment"
+        ],
+        "type": "object"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "non_authoritative_repositories": {
+      "const": [
+        "techrote/tuisynth-claude",
+        "techrote/tuisynth-codex"
+      ]
+    },
+    "portability": {
+      "const": {
+        "critical_state_inside_factory": true,
+        "destination_base": "factory-root",
+        "developer_absolute_paths_required": false,
+        "hidden_host_appdata_authority": false,
+        "historical_overlay_required": false,
+        "independent_writable_copy_requires_fork_rekey": true,
+        "manager_workspace_optional": true,
+        "relocation_preserves_identity": true,
+        "transient_process_paths_require_destination_revalidation": true,
+        "tuisynth_active_workload": false,
+        "ui_implemented_by_edf001": false
+      }
+    },
+    "published_local_only_metadata": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "availability": {
+            "const": "local-only"
+          },
+          "bytes": {
+            "minimum": 0,
+            "type": "integer"
+          },
+          "capture_note": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "content_recovered": {
+            "const": false
+          },
+          "description": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "kind": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "description",
+          "kind",
+          "sha256",
+          "bytes",
+          "availability",
+          "capture_note",
+          "content_recovered"
+        ],
+        "type": "object"
+      },
+      "minItems": 17,
+      "type": "array"
+    },
+    "retrieved_at": {
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/manifestSource"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "tuisynth_cutoff": {
+      "const": {
+        "accepted_local_main": {
+          "commit": null,
+          "evidence": "TRIO-FR-02",
+          "reported": "whole/TRIO-001..007",
+          "tree": null,
+          "verbatim_field_label": "whole001..007"
+        },
+        "historical_canonical_checkout": {
+          "commit": null,
+          "distinct_from_accepted_and_partial": true,
+          "tree": null
+        },
+        "later_issue_acceptance_inferred": false,
+        "partial_pause_checkpoint": {
+          "commit": null,
+          "distinct_from_accepted_main": true,
+          "evidence": "TRIO-FR-02",
+          "existence_reported": true,
+          "tree": null
+        },
+        "public_programme_source": "tuisynth-programme",
+        "recovered_original_local_records": [],
+        "subsequent_implementation": "local-git-in-development-vm-by-design"
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "evidence_class",
+    "retrieved_at",
+    "baseline_edf_main",
+    "sources",
+    "files",
+    "new_edf_source",
+    "exclusions",
+    "non_authoritative_repositories",
+    "portability",
+    "tuisynth_cutoff",
+    "amendments",
+    "acquisition_pins",
+    "historical_observations",
+    "published_local_only_metadata",
+    "counts"
+  ],
+  "title": "EDF-001 exact-source provenance manifest",
+  "type": "object"
+}

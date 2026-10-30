@@ -6,6 +6,10 @@ A Windows-first, **folder-portable** development-VM factory for fresh projects, 
 
 Planning and authoritative specifications are published; VM/runtime and TUI implementation have not yet been imported.
 
+EDF-001 adds a deterministic [baseline provenance and import plan](docs/provenance/README.md)
+with source authentication and automated negative tests. It inventories the exact
+historical recipe without importing the VM implementation or private runtime state.
+
 Start with:
 
 - `AGENTS.md` — autonomous implementation/PR/merge contract;

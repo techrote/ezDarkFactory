@@ -1,0 +1,272 @@
+{
+  "schema_version": 1,
+  "document_kind": "edf-001-public-upstream-audit-snapshot",
+  "public_status_observed_at": "2026-10-30T16:11:14Z",
+  "receipt_verification_date": "2026-10-30",
+  "evidence_class": "SOURCE",
+  "scope": "Inspection and authentication of existing public upstream SOURCE and FAST-CI evidence; failed upstream TCG-RUNTIME evidence retained. No EDF runtime execution.",
+  "immutable_baseline": {
+    "repository": "https://github.com/techrote/ezvm",
+    "commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+    "tree": "78e5ce0db9c32972451add22d28c7d19983775ee"
+  },
+  "amendments": [
+    {
+      "source_path": "src/EzVm/Keys.ps1",
+      "disposition": "candidate-repair",
+      "owner_patch_bytes_recovered": false,
+      "equivalence_to_owner_patch": "unresolved",
+      "candidate_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+      "candidate_tree": "2aa3170d8ba0a60ae98bb07803f63d9c04d41de0",
+      "pull_request": {
+        "number": 48,
+        "url": "https://github.com/techrote/ezvm/pull/48",
+        "state": "closed",
+        "merged": true,
+        "head_commit": "d5fdebf2d759ee44e2ac4c604ffc2116c75cf740",
+        "base_commit": "2f79e6b836a4592acfd6015bee58177fb15e3022",
+        "merge_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+        "merged_at": "2026-10-17T17:32:34Z"
+      },
+      "checks": [
+        {
+          "name": "Control plane (PowerShell 7.6.6)",
+          "head_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/39054219143/job/117458766031"
+        },
+        {
+          "name": "Control plane (Windows PowerShell 5.1)",
+          "head_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/39054219143/job/117458766140"
+        },
+        {
+          "name": "DASH-01 replay (ubuntu-24.04, Python 3.12.10)",
+          "head_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/39054219122/job/117458765938"
+        },
+        {
+          "name": "DASH-01 replay (windows-2022, Python 3.12.10)",
+          "head_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/39054219122/job/117458766274"
+        },
+        {
+          "name": "Private ACL standard user (PowerShell 5)",
+          "head_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/39054219124/job/117458765982"
+        },
+        {
+          "name": "Private ACL standard user (PowerShell 7)",
+          "head_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/39054219124/job/117458766081"
+        },
+        {
+          "name": "Repository contract (Windows PowerShell 5.1)",
+          "head_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/39054219143/job/117458765877"
+        }
+      ],
+      "limits": [
+        "Upstream accepted software candidate only; not an EDF result or historical patch reconstruction.",
+        "Unrelated temporary upstream hosted-TCG deferral is not an EDF permission or required import."
+      ]
+    },
+    {
+      "source_path": "src/EzVm/Runtime.ps1",
+      "disposition": "candidate-repair",
+      "owner_patch_bytes_recovered": false,
+      "equivalence_to_owner_patch": "unresolved",
+      "candidate_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "candidate_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "pull_request": {
+        "number": 45,
+        "url": "https://github.com/techrote/ezvm/pull/45",
+        "state": "open",
+        "merged": false,
+        "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+        "base_commit": "d5265c804d0d8494d8171482a85aca563b181e05",
+        "merge_commit": null,
+        "merged_at": null
+      },
+      "issues": [
+        {
+          "number": 34,
+          "url": "https://github.com/techrote/ezvm/issues/34",
+          "state": "open"
+        },
+        {
+          "number": 44,
+          "url": "https://github.com/techrote/ezvm/issues/44",
+          "state": "open"
+        }
+      ],
+      "checks": [
+        {
+          "name": "Control plane (PowerShell 7.6.6)",
+          "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/38985065988/job/117254506747"
+        },
+        {
+          "name": "Control plane (Windows PowerShell 5.1)",
+          "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/38985065988/job/117254506822"
+        },
+        {
+          "name": "DASH-01 replay (ubuntu-24.04, Python 3.12.10)",
+          "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/38985066003/job/117254507052"
+        },
+        {
+          "name": "DASH-01 replay (windows-2022, Python 3.12.10)",
+          "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/38985066003/job/117254506718"
+        },
+        {
+          "name": "DASH-08 process and deadline qualification (PowerShell 5)",
+          "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/38985065979/job/117254507188"
+        },
+        {
+          "name": "DASH-08 process and deadline qualification (PowerShell 7)",
+          "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/38985065979/job/117254506990"
+        },
+        {
+          "name": "Real v0.1 end-to-end release (Windows TCG; WHPX SKIP)",
+          "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/techrote/ezvm/actions/runs/38985066027/job/117254507101"
+        },
+        {
+          "name": "Repository contract (Windows PowerShell 5.1)",
+          "head_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/techrote/ezvm/actions/runs/38985065988/job/117254506525"
+        }
+      ],
+      "limits": [
+        "Unmerged upstream candidate; required full TCG release check failed.",
+        "Physical DASH-08-T04 remains SKIP; originalIssueAcceptance=false.",
+        "No historical private patch bytes or physical equivalence recovered."
+      ]
+    }
+  ],
+  "authenticated_public_native_receipts": [
+    {
+      "artifact_id": 12082449079,
+      "run_id": 38985065979,
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "power_shell": "5.1.20348.5622",
+      "archive_sha256": "1f687ed1c62451cd5e132b93ad8a0af435049b5b94228b6c03333a1cf6e93591",
+      "raw_json_sha256": "3012fa605b3a6042c1f152c1284be4c6e3019e2b73252f1e2d934ff1c15a3b2c",
+      "artifact_expired_at_observation": false,
+      "artifact_expires_at": "2026-10-31T00:10:25Z",
+      "verification": {
+        "archive_digest_matches_github": true,
+        "raw_json_digest_matches_public_pr_comment": true,
+        "source_hash_count": 10,
+        "all_source_hashes_match_pinned_git_blobs": true
+      },
+      "observed_receipt_fields": {
+        "software_pass": true,
+        "tests_passed": 11,
+        "tests_failed": 0,
+        "original_issue_acceptance": false,
+        "standard_user_whpx_executed": false,
+        "physical_case": "DASH-08-T04",
+        "physical_result": "SKIP"
+      },
+      "evidence_class": "upstream FAST-CI",
+      "payload_retained_in_edf_repository": false
+    },
+    {
+      "artifact_id": 12083070841,
+      "run_id": 38985065979,
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "power_shell": "7.6.6",
+      "archive_sha256": "0cd61983f36f3c6f4dc95eb379aea29583bd5e791b5bf251caeecbea0493871c",
+      "raw_json_sha256": "d3e70610e80ba71f96667ba8cf747856682e087bdb4d291412c92fc1ca702757",
+      "artifact_expired_at_observation": false,
+      "artifact_expires_at": "2026-10-31T00:10:38Z",
+      "verification": {
+        "archive_digest_matches_github": true,
+        "raw_json_digest_matches_public_pr_comment": true,
+        "source_hash_count": 10,
+        "all_source_hashes_match_pinned_git_blobs": true
+      },
+      "observed_receipt_fields": {
+        "software_pass": true,
+        "tests_passed": 11,
+        "tests_failed": 0,
+        "original_issue_acceptance": false,
+        "standard_user_whpx_executed": false,
+        "physical_case": "DASH-08-T04",
+        "physical_result": "SKIP"
+      },
+      "evidence_class": "upstream FAST-CI",
+      "payload_retained_in_edf_repository": false
+    }
+  ],
+  "negative_upstream_evidence": {
+    "evidence_class": "upstream TCG-RUNTIME",
+    "run_id": 38985066027,
+    "job_id": 117254507101,
+    "url": "https://github.com/techrote/ezvm/actions/runs/38985066027/job/117254507101",
+    "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+    "conclusion": "failure",
+    "public_log_inspected": true,
+    "observations": [
+      "ezvm012-fresh did not reach authenticated SSH READY within 676 seconds.",
+      "A seven-second SSH process timeout reported child exit with unfinished output streams.",
+      "Graceful cleanup did not stop that instance within 30 seconds; runtime state remained STOPPING.",
+      "Guest serial diagnostics also recorded an IO-APIC/timer kernel panic; no causal attribution of the combined failure is established."
+    ],
+    "cause": "not established by this audit",
+    "raw_log_retained_in_edf_repository": false
+  },
+  "historical_private_records": {
+    "original_bytes_recovered": false,
+    "original_accepted_local_commit": null,
+    "original_accepted_local_tree": null,
+    "original_partial_local_commit": null,
+    "original_partial_local_tree": null,
+    "limitation": "Published local-only index hashes/descriptions are metadata; original private contents and Git identities remain unavailable."
+  },
+  "evidence_not_executed": [
+    "EDF VM runtime",
+    "EDF TCG-RUNTIME",
+    "WHPX-RUNTIME",
+    "PHYSICAL-TUI",
+    "HUMAN-USABILITY"
+  ],
+  "freshness_rule": "This fixed dated snapshot is not live authority. Reverify mutable GitHub state before future repair adoption."
+}
