@@ -38,7 +38,14 @@ try {
 }
 catch {
     # Never echo raw untrusted request contents or loader secrets into diagnostics.
-    $safe = 'Control request refused before execution. Check root identity, envelope, API version and local module availability.'
+    $safe = 'Control request refused before execution. Check module availability and envelope schema.'
+    $module = Get-Module Edf005
+    if ($null -ne $module) {
+        $safe = & $module {
+            param([string]$message)
+            Protect-EzDarkFactoryDiagnosticText -Text $message -MaximumCharacters 512
+        } $_.Exception.Message
+    }
     [Console]::Out.WriteLine((ConvertTo-Json -InputObject ([pscustomobject]@{
         schemaVersion = 1; state = 'refused'; data = $null
         refusal = [pscustomobject]@{ code = 'invalid_request'; message = $safe }
