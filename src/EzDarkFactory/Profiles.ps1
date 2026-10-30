@@ -7,7 +7,7 @@ function Get-EzDarkFactoryCodingProfile {
     )
 
     if (@('coding-default', 'fresh-project') -cnotcontains $Name -or $Version -ne 1) {
-        throw "Guest provisioning profile '$Name' version '$Version' is unsupported. New managed instances use fresh-project version 1; existing coding-default version 1 overlays remain readable and are not silently upgraded or reset."
+        throw "Guest provisioning profile '$Name' version '$Version' is unsupported. Create a new named instance with fresh-project version 1; existing coding-default version 1 overlays remain readable and are not silently upgraded or reset."
     }
 
     $paths = Get-EzDarkFactoryPaths -Root $Root
