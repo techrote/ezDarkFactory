@@ -16,6 +16,8 @@ The system inherits proven EzVM lifecycle/storage/security behavior from the pin
 A finished release must provide:
 
 - one-folder Windows-first factory setup with repository-local VM dependencies and verified acquisition;
+- a self-contained working-factory portability model: stop → portability check → zip/copy one factory folder → transfer/extract → setup/doctor → run from the new path;
+- no critical factory configuration, identity, recovery, key, or VM state stored only in hidden machine-local application data;
 - clean immutable base construction and disposable/stateful per-project instances;
 - safe start/status/stop/reset/clone/export/import operations;
 - one host-side management TUI capable of registering and observing multiple local ezDarkFactory roots;
@@ -60,7 +62,11 @@ The manager may register multiple local factory roots on one Windows host.
 
 Registration is read-only with respect to VM/storage state.
 
-Each factory root remains independently authoritative for its own instances, lifecycle locks, images, keys and operation semantics.
+Each factory root remains independently authoritative for its own instances, lifecycle locks, images, keys, configuration, recovery evidence and operation semantics.
+
+A working factory is self-describing and directly operable from its own folder even if the cross-factory manager registry/workspace is missing.
+
+Cross-factory manager layout/registry state is optional portable convenience state and should live in an explicit folder alongside the managed factories rather than being required under a hidden user-profile path.
 
 If two reachable roots claim the same stable factory identity, the manager must hold mutations until the collision/relocation is explicitly reconciled.
 
@@ -85,6 +91,8 @@ The initial programme does not:
 ## Definition of product success
 
 A clean compatible Windows machine can follow the README, acquire verified dependencies, build/acquire a reviewed factory base, launch the host management TUI, register more than one local factory root, create a new project instance in the intended factory, start it, reach READY, open/attach to the workspace, observe resources/logs, stop/restart safely, clone/export it and recover from a documented failure.
+
+A stopped working factory can then be zipped/copied as one folder to another compatible Windows machine/path, opened without the old manager registry, revalidated with the checked-in setup/doctor path, and started to the same factory/instance identity.
 
 A second user should be able to complete that flow from documentation without project-specific helper knowledge.
 
