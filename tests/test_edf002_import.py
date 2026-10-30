@@ -10,6 +10,26 @@ import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import provenance as p
 
+REVIEWED_INTEGRATION_DESTINATIONS = frozenset({
+    ".github/workflows/ci.yml",
+    ".gitignore",
+    "README.md",
+    "THIRD-PARTY-NOTICES.md",
+    "docs/CODING-GUEST.md",
+    "docs/GETTING-STARTED.md",
+    "docs/PORTABILITY.md",
+    "docs/TROUBLESHOOTING.md",
+    "docs/WHPX-QUALIFICATION.md",
+    "scripts/New-EzDarkFactoryReleasePackage.ps1",
+    "scripts/Publish-EzDarkFactoryGitHubRelease.ps1",
+    "scripts/RepositoryContract.psm1",
+    "src/EzDarkFactory/EzDarkFactory.psd1",
+    "tests/Cli.Tests.ps1",
+    "tests/README.md",
+    "tests/Release.Tests.ps1",
+    "tests/Repository.Tests.ps1",
+})
+
 class ActiveImportTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -55,7 +75,9 @@ class ActiveImportTests(unittest.TestCase):
     def test_identity_and_default_rebrand_are_byte_reproducible_without_code_execution(self):
         for record in self.active["records"]:
             if record["transform"] == "reviewed-integration-v1":
-                self.assertTrue(record["review_note"] and "source" in record["review_note"].lower())
+                self.assertIn(record["destination"], REVIEWED_INTEGRATION_DESTINATIONS)
+                self.assertIsInstance(record["review_note"], str)
+                self.assertGreaterEqual(len(record["review_note"]), 35)
                 continue
             with self.subTest(path=record["destination"]):
                 original = self.repo.file(record["source_commit"], record["source_path"])
