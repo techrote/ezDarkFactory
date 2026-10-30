@@ -77,7 +77,7 @@ Add-EzDarkFactoryTest -Name 'EDF-004: new managed instance defaults to fresh-pro
 Add-EzDarkFactoryTest -Name 'EDF-004: sensitive snapshot bases cannot masquerade as fresh empty projects' -ScriptBlock {
     $source = [IO.File]::ReadAllText((Join-Path $script:EzDarkFactoryRepositoryRoot 'src/EzDarkFactory/Registry.ps1'))
     Assert-EzDarkFactoryTrue -Condition $source.Contains('Test-EzDarkFactoryPreparedBase -Root $Root -BaseId $base.BaseId')
-    Assert-EzDarkFactoryTrue -Condition $source.Contains("[int]$validatedBase.Manifest.schemaVersion -eq 1")
+    Assert-EzDarkFactoryTrue -Condition $source.Contains('[int]$validatedBase.Manifest.schemaVersion -eq 1')
     Assert-EzDarkFactoryTrue -Condition $source.Contains("{ 'fresh-project' } else { 'coding-default' }")
     Assert-EzDarkFactoryTrue -Condition $source.Contains('Get-EzDarkFactoryCodingProfile -Root $Root -Name $provisioningProfileName -Version 1')
 }
@@ -129,7 +129,7 @@ Add-EzDarkFactoryTest -Name 'EDF-004: base recipe remains project-neutral and sc
     }
 }
 
-Add-EzDarkFactoryTest -Name 'EDF-004: reset and fresh clone rotate generation while retaining fresh profile' -ScriptBlock {
+Add-EzDarkFactoryTest -Name 'EDF-004: sensitive-base reset and fresh clone rotate generation without claiming fresh profile' -ScriptBlock {
     # Reuse the repository's synthetic QCOW2 fixture so this crosses the
     # accepted reset/clone storage boundary, not a JSON disk stand-in.
     $f = New-EzDarkFactorySnapshotFixture
