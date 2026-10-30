@@ -9,6 +9,7 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 import provenance as p
+from edf_runtime_supersession import verified_supersession, PINNED
 
 ADAPTED = frozenset({
     "scripts/Invoke-Edf003PrivateAclQualification.ps1",
@@ -57,7 +58,10 @@ class Edf003RepairsTests(unittest.TestCase):
                 self.assertFalse(p.excluded(row["destination"]))
                 actual = (self.root / row["destination"]).read_bytes()
                 oid = p.run_git(self.root, "rev-parse", "HEAD:" + row["destination"]).decode("ascii").strip()
-                self.assertEqual(oid, row["destination_blob"])
+                if row["destination"] in PINNED:
+                    self.assertTrue(verified_supersession(self.root, row["destination"], row["destination_blob"]))
+                else:
+                    self.assertEqual(oid, row["destination_blob"])
                 self.assertEqual(p.run_git(self.root, "cat-file", "blob", oid), actual)
 
     def test_exact_namespace_rebrands_and_bounded_review_exceptions(self):
@@ -72,7 +76,11 @@ class Edf003RepairsTests(unittest.TestCase):
                 raw = self.origin.file(row["source_commit"], row["source_path"])
                 expected = (raw.decode("utf-8").replace("EzVm", "EzDarkFactory")
                     .replace("EZVM", "EDF").replace("ezvm", "ezdarkfactory")).encode("utf-8")
-                self.assertEqual((self.root / row["destination"]).read_bytes(), expected)
+                if row["destination"] in PINNED:
+                    self.assertEqual(p.run_git(self.root, "cat-file", "blob", row["destination_blob"]), expected)
+                    self.assertTrue(verified_supersession(self.root, row["destination"], row["destination_blob"]))
+                else:
+                    self.assertEqual((self.root / row["destination"]).read_bytes(), expected)
 
     def test_selected_runtime_has_no_legacy_capture_pipe_or_pid_kill(self):
         root = self.root

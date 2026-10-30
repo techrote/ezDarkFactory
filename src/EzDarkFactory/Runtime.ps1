@@ -1007,6 +1007,9 @@ function Start-EzDarkFactoryInstance {
         $runtimePublished = $true
 
         $lastError = $null
+        # Preserve a valid within-budget non-running observation separately from
+        # later transport/deadline failures; neither is permission to publish RUNNING.
+        $lastObservedNonRunningQmp = $null
         while ($startupClock.ElapsedMilliseconds -lt $startupBudget) {
             $identity = Get-EzDarkFactoryRuntimeIdentityResult -Runtime $runtime -ProcessProvider $ProcessProvider
             if (-not $identity.Match) {
@@ -1019,7 +1022,8 @@ function Start-EzDarkFactoryInstance {
                 $qmpRunning = Get-EzDarkFactoryRuntimeProperty $qmpStatus 'running'
                 $qmpState = [string](Get-EzDarkFactoryRuntimeProperty $qmpStatus 'status')
                 if ($qmpRunning -ne $true -or $qmpState -cne 'running') {
-                    throw "QMP is reachable but reports status '$qmpState' (running=$qmpRunning)."
+                    $lastObservedNonRunningQmp = "QMP is reachable but reports status '$qmpState' (running=$qmpRunning)."
+                    throw $lastObservedNonRunningQmp
                 }
                 $after = Get-EzDarkFactoryRuntimeIdentityResult -Runtime $runtime -ProcessProvider $ProcessProvider
                 if (-not $after.Match) { throw "QEMU identity changed during startup observation: $($after.Reason)" }
@@ -1049,7 +1053,8 @@ function Start-EzDarkFactoryInstance {
                 if ($remaining -gt 0) { Start-Sleep -Milliseconds ([Math]::Min(100, $remaining)) }
             }
         }
-        throw "Instance '$InstanceName' exceeded its $StartupTimeoutSeconds second startup timeout while QEMU still owns the disk. runtime.json remains STARTING; do not mutate storage until status is reconciled. Last QMP error: $lastError"
+        $observedDetail = if ($null -ne $lastObservedNonRunningQmp) { ' Last within-deadline QMP observation: ' + $lastObservedNonRunningQmp } else { '' }
+        throw "Instance '$InstanceName' exceeded its $StartupTimeoutSeconds second startup timeout while QEMU still owns the disk. runtime.json remains STARTING; do not mutate storage until status is reconciled. Last QMP error: $lastError$observedDetail"
     }
     catch {
         if ($null -ne $launch -and -not $runtimePublished -and $null -ne (Get-EzDarkFactoryRuntimeProperty $launch 'Process')) {
