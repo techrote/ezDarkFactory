@@ -52,7 +52,10 @@ class Edf004ProfileTests(unittest.TestCase):
         registry = (self.root / "src/EzDarkFactory/Registry.ps1").read_text(encoding="utf-8")
         profiles = (self.root / "src/EzDarkFactory/Profiles.ps1").read_text(encoding="utf-8")
         script = (self.root / "guest/profiles/fresh-project/v1/provision.sh").read_text(encoding="utf-8")
-        self.assertIn("Get-EzDarkFactoryCodingProfile -Root $Root -Name 'fresh-project' -Version 1", registry)
+        self.assertIn("$provisioningProfileName = 'fresh-project'", registry)
+        self.assertIn("@('stateful-clone', 'import')", registry)
+        self.assertIn("$provisioningProfileName = 'coding-default'", registry)
+        self.assertIn("Get-EzDarkFactoryCodingProfile -Root $Root -Name $provisioningProfileName -Version 1", registry)
         self.assertIn("@('coding-default', 'fresh-project')", profiles)
         for token in ("fresh workspace is not empty", "historical workload state exists in coder home",
                       "provider, model, credential or autostart state exists in coder home",
