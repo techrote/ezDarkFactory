@@ -87,7 +87,7 @@ Add-EzDarkFactoryTest -Name 'CLI: human version matches the module version' -Scr
     Assert-EzDarkFactoryEqual -Actual $result.ExitCode -Expected 0
     Assert-EzDarkFactoryEqual -Actual $result.StandardError -Expected ''
     Assert-EzDarkFactoryEqual -Actual $result.StandardOutput.Trim() -Expected ('ezdarkfactory ' + (Get-EzDarkFactoryVersion))
-    Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryVersion) -Expected '0.1.0'
+    Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryVersion) -Expected '0.0.0-dev'
 }
 
 $structuredCases = @(
@@ -110,10 +110,10 @@ foreach ($structuredCase in $structuredCases) {
 
 Add-EzDarkFactoryTest -Name 'CLI: JSON is available to a same-host PowerShell pipeline' -ScriptBlock {
     $entry = ConvertTo-EzDarkFactoryTestLiteral (Join-Path $script:EzDarkFactoryRepositoryRoot 'ezdarkfactory.ps1')
-    $command = '$ErrorActionPreference = ''Stop''; $value = & ' + $entry + ' version -Json | ConvertFrom-Json; if ($value.data.version -ne ''0.1.0'' -or -not $value.success) { exit 91 }; [Console]::Write($value.data.version); exit 0'
+    $command = '$ErrorActionPreference = ''Stop''; $value = & ' + $entry + ' version -Json | ConvertFrom-Json; if ($value.data.version -ne ''0.0.0-dev'' -or -not $value.success) { exit 91 }; [Console]::Write($value.data.version); exit 0'
     $result = Invoke-EzDarkFactoryTestPowerShell -CommandText $command
     Assert-EzDarkFactoryEqual -Actual $result.ExitCode -Expected 0
-    Assert-EzDarkFactoryEqual -Actual $result.StandardOutput -Expected '0.1.0'
+    Assert-EzDarkFactoryEqual -Actual $result.StandardOutput -Expected '0.0.0-dev'
     Assert-EzDarkFactoryEqual -Actual $result.StandardError -Expected ''
 }
 
@@ -146,7 +146,7 @@ Add-EzDarkFactoryTest -Name 'CLI: direct File invocation produces clean JSON wit
         Assert-EzDarkFactoryTrue -Condition ($stdout.Wait(5000) -and $stderr.Wait(5000))
         $result = [pscustomobject]@{ ExitCode = $process.ExitCode; StandardOutput = $stdout.Result; StandardError = $stderr.Result }
         $value = Assert-EzDarkFactoryJsonEnvelope -Result $result -Command 'version' -ExitCode 0
-        Assert-EzDarkFactoryEqual -Actual $value.data.version -Expected '0.1.0'
+        Assert-EzDarkFactoryEqual -Actual $value.data.version -Expected '0.0.0-dev'
     }
     finally {
         $process.Dispose()
@@ -194,7 +194,7 @@ Add-EzDarkFactoryTest -Name 'CLI: copied checkout with spaces and brackets works
     try {
         $result = Invoke-EzDarkFactoryCliForTest -ArgumentList @('version', '-Json') -Root $root -WorkingDirectory $elsewhere
         $value = Assert-EzDarkFactoryJsonEnvelope -Result $result -Command 'version' -ExitCode 0
-        Assert-EzDarkFactoryEqual -Actual $value.data.version -Expected '0.1.0'
+        Assert-EzDarkFactoryEqual -Actual $value.data.version -Expected '0.0.0-dev'
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root '.git')))
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root 'runtime')))
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $elsewhere 'runtime')))

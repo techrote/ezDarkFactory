@@ -688,8 +688,8 @@
       "source_mode": "100644",
       "destination": "tests/Cli.Tests.ps1",
       "classification": "adapt-rebrand",
-      "transform": "namespace-rebrand-v1",
-      "review_note": "Deterministic token replacement EzVm -> EzDarkFactory, EZVM -> EDF, ezvm -> ezdarkfactory; preserve all other bytes."
+      "transform": "reviewed-integration-v1",
+      "review_note": "Retain all CLI positive/negative tests, update expected public version from upstream 0.1.0 to EDF 0.0.0-dev."
     },
     {
       "source_repository": "techrote/ezvm",
