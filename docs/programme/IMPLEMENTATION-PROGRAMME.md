@@ -63,20 +63,20 @@ EDF-003 and EDF-004 may proceed in parallel after EDF-002 if they do not modify 
 
 | ID | GitHub | Title | Depends on | Primary outcome |
 |---|---|---|---|---|
-| EDF-001 | TBD | Reconstruct and manifest the original development-VM baseline | — | Exact `b6abdf8` import/provenance plan, local-patch evidence matrix, honest local-TUIsynth cutoff |
-| EDF-002 | TBD | Establish ezDarkFactory core namespace, repository contract and CI | 001 | Buildable/testable fork with no generated historical state |
-| EDF-003 | TBD | Reconcile private-key ACL and QEMU process-lifetime amendments | 002 | Public regression-tested replacement for the two historical owner patch classes |
-| EDF-004 | TBD | Build the clean fresh-project guest profile | 002 | Empty general-purpose coding workspace and versioned READY contract |
-| EDF-005 | TBD | Add typed human-control broker and helper command substrate | 003, 004 | One safe seam for UI, scripts, status and mutations |
-| EDF-006 | TBD | Qualify GUI conversion and record the GUI/TUI ADR | 003, 004, 005 | Evidence-backed GO/NO-GO for host GUI, QEMU display and guest desktop |
-| EDF-007 | TBD | Implement the selected primary human control surface | 006 | Qualified GUI path or comprehensive TUI fallback with parity coverage |
-| EDF-008 | TBD | Deliver fresh-project kickoff helpers and human onboarding | 004, 005, 007 | One documented first-run/project workflow usable without TUIsynth knowledge |
-| EDF-009 | TBD | Seal TUIsynth as an isolated reference/demo | 001, 004, 007 | Authenticated, opt-in historical reference that cannot become active project state |
-| EDF-010 | TBD | Integrate portability, backup, clone/export and recovery UX | 003, 005, 007, 008 | Human-safe lifecycle/storage recovery through selected UI and helpers |
-| EDF-011 | TBD | Run clean-host, WHPX, physical-UI and usability qualification | 008, 009, 010 | Exact-source real-host evidence and remaining limitation ledger |
-| EDF-012 | TBD | Deterministic packaging, final end-to-end gate and v0.1 release | 011 | Release only from accepted exact source with truthful evidence matrix |
+| EDF-001 | [#1](https://github.com/techrote/ezDarkFactory/issues/1) | Reconstruct and manifest the original development-VM baseline | — | Exact `b6abdf8` import/provenance plan, local-patch evidence matrix, honest local-TUIsynth cutoff |
+| EDF-002 | [#2](https://github.com/techrote/ezDarkFactory/issues/2) | Establish ezDarkFactory core namespace, repository contract and CI | 001 | Buildable/testable fork with no generated historical state |
+| EDF-003 | [#3](https://github.com/techrote/ezDarkFactory/issues/3) | Reconcile private-key ACL and QEMU process-lifetime amendments | 002 | Public regression-tested replacement for the two historical owner patch classes |
+| EDF-004 | [#4](https://github.com/techrote/ezDarkFactory/issues/4) | Build the clean fresh-project guest profile | 002 | Empty general-purpose coding workspace and versioned READY contract |
+| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | Add typed human-control broker and helper command substrate | 003, 004 | One safe seam for UI, scripts, status and mutations |
+| EDF-006 | [#6](https://github.com/techrote/ezDarkFactory/issues/6) | Qualify GUI conversion and record the GUI/TUI ADR | 003, 004, 005 | Evidence-backed GO/NO-GO for host GUI, QEMU display and guest desktop |
+| EDF-007 | [#7](https://github.com/techrote/ezDarkFactory/issues/7) | Implement the selected primary human control surface | 006 | Qualified GUI path or comprehensive TUI fallback with parity coverage |
+| EDF-008 | [#8](https://github.com/techrote/ezDarkFactory/issues/8) | Deliver fresh-project kickoff helpers and human onboarding | 004, 005, 007 | One documented first-run/project workflow usable without TUIsynth knowledge |
+| EDF-009 | [#9](https://github.com/techrote/ezDarkFactory/issues/9) | Seal TUIsynth as an isolated reference/demo | 001, 004, 007 | Authenticated, opt-in historical reference that cannot become active project state |
+| EDF-010 | [#10](https://github.com/techrote/ezDarkFactory/issues/10) | Integrate portability, backup, clone/export and recovery UX | 003, 005, 007, 008 | Human-safe lifecycle/storage recovery through selected UI and helpers |
+| EDF-011 | [#11](https://github.com/techrote/ezDarkFactory/issues/11) | Run clean-host, WHPX, physical-UI and usability qualification | 008, 009, 010 | Exact-source real-host evidence and remaining limitation ledger |
+| EDF-012 | [#12](https://github.com/techrote/ezDarkFactory/issues/12) | Deterministic packaging, final end-to-end gate and v0.1 release | 011 | Release only from accepted exact source with truthful evidence matrix |
 
-GitHub numbers/links are filled after issue publication. Stable EDF IDs never change when issue numbers do.
+Stable EDF IDs never change when issue numbers do.
 
 ## Common issue completion contract
 
