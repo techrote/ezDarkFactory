@@ -65,6 +65,13 @@ cannot replace these checks. The source-only package/publisher is not
 EDF-012 release qualification. Real guest/WHPX/physical-TUI/human acceptance
 continues to require the separate evidence classes below.
 
+For CI-PROV-001 and later, each provenance job must additionally prove source
+acquisition without retries using three independent fresh bare caches and one
+immediate reused-cache verification. Acquisition is one shallow fetch per
+upstream repository with automatic Git maintenance disabled, followed by exact
+commit/tree/blob/SHA-256 authentication. A successful retry never rewrites a
+recorded first-attempt failure into PASS.
+
 A zero-test or all-skipped lane fails.
 
 Focused tests do not replace the full merge gate.
