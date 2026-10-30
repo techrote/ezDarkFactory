@@ -4,7 +4,7 @@ A Windows-first, **folder-portable** development-VM factory for fresh projects, 
 
 ## Status
 
-Planning and authoritative specifications are published; VM/runtime and TUI implementation have not yet been imported.
+EDF-001 provenance is accepted. EDF-002 imports the namespaced source control plane and first-party tests as a **development build**; the host multi-factory TUI, clean guest profile, owner-local amendment fixes and physical/runtime qualification remain later issues.
 
 EDF-001 adds a deterministic [baseline provenance and import plan](docs/provenance/README.md)
 with source authentication and automated negative tests. It inventories the exact
@@ -68,3 +68,36 @@ The tailored host-manager specification is pinned to:
 `techrote/specdocz@2e95d6931cc23862a4176c9d8ccb4da78f00c265`.
 
 Future specdocz changes are reviewed as explicit deltas; they are not silently inherited.
+
+## EDF-002 developer CLI (no TUI yet)
+
+From an **unelevated Windows PowerShell 5.1** window in this checkout:
+
+```powershell
+.\ezdarkfactory.ps1 help
+.\ezdarkfactory.ps1 version -Json
+.\ezdarkfactory.ps1 doctor -Json
+.\scripts\Test-Repository.ps1
+.\scripts\Invoke-CiCheck.ps1 -Check ControlPlane -ExpectedMajor 5
+```
+
+The direct CLI is the recovery/automation surface and currently reports
+**0.0.0-dev**. Its authority is always this factory root, not another EzVM
+checkout, profile-local application-data folder or external manager workspace.
+`doctor` may report missing optional QEMU/SSH/Windows prerequisites. Acquiring
+verified VM dependencies and building/starting a real guest is a deliberate
+operator operation; source/FAST-CI tests make no WHPX/guest success claim.
+
+The inherited baseline implementation exposes bootstrap, base, instance
+lifecycle, SSH/readiness, storage, clone, import/export and portability
+primitives. See [getting started](docs/GETTING-STARTED.md),
+[portability](docs/PORTABILITY.md) and [development source limits](docs/DEVELOPMENT.md).
+EDF-003 and EDF-004 will repair the historical local amendment classes and
+implement the clean fresh-project guest contract. The host-side multi-factory
+tile-native TUI is a later milestone and is **not** claimed to exist yet.
+
+New factory state is root-local under `runtime/`, deliberately Git-ignored.
+Source trees and releases exclude generated disks, keys, accounts and caches.
+A relocated *stopped working folder* preserves its persisted instance identity;
+an independently writable duplicate requires an explicit later fork/rekey.
+Do not present unqualified dev source packaging as an EDF v0.1 release.
