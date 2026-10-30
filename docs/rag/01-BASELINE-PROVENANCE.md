@@ -70,7 +70,7 @@ Later EzVM work is useful for replacing the two private amendments with reviewab
 
 These are **repair candidates to audit and selectively port**. Importing them wholesale would move the historical baseline forward and conflate later EzVM development with the requested reconstruction.
 
-EDF-001/EDF-004 must produce a source/behavior matrix with four columns:
+EDF-001/EDF-003 must produce a source/behavior matrix with four columns:
 
 | Concern | Historical b6abdf8 source | Observed owner-local amendment | Later public repair evidence | ezDarkFactory disposition |
 |---|---|---|---|---|
@@ -78,6 +78,17 @@ EDF-001/EDF-004 must produce a source/behavior matrix with four columns:
 | QEMU start/output lifetime | inspect exact source | bytes may be unavailable | inspect DASH-08 candidate | port/reimplement only after regression evidence |
 
 No historical owner patch may be described as byte-recovered unless its actual bytes and hash are obtained.
+
+## EDF-001 reconstruction artifacts
+
+The [provenance companion](../provenance/README.md) documents the reviewed
+[selection](../provenance/selection.json), deterministic
+[manifest](../provenance/manifest.json), closed schema, regeneration commands,
+exclusions and relative destination mapping for EDF-002. The
+[amendment matrix](../provenance/LOCAL-AMENDMENTS.md) and
+[TUIsynth cutoff](../provenance/TUISYNTH-CUTOFF.md) preserve unresolved historical
+identity separately from public repair candidates. Dated upstream check snapshots
+are historical observations and require fresh reconciliation before repair adoption.
 
 ## Fresh-project import policy
 

@@ -20,6 +20,14 @@ TCG is not WHPX performance evidence. Headless TUI simulation is not PHYSICAL-TU
 
 ## Required fast merge gate
 
+For the source-only EDF-001 stage, the complete gate is
+`python tools/check.py --fetch --sources .provenance-cache`, or the offline
+`--ezvm <Git checkout> --tuisynth <original Git checkout>` equivalent documented in
+[the provenance companion](../provenance/README.md). Both exact-head GitHub jobs,
+`Provenance (ubuntu-24.04)` and `Provenance (windows-2022)`, must pass. They execute
+schema/object/hash/completeness/security/reproducibility tests and make no VM,
+PowerShell control-plane or physical-runtime claim. No zero/all-skipped lane passes.
+
 Once EDF-002 establishes the harness, every implementation PR must run one repository entry point covering applicable:
 
 - repository/provenance contract tests;

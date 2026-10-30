@@ -4,7 +4,7 @@ This is a compact navigation ledger. Current GitHub issue/PR state and exact `ma
 
 | ID | GitHub | Status | Branch/PR | Dependency note |
 |---|---|---|---|---|
-| EDF-001 | [#1](https://github.com/techrote/ezDarkFactory/issues/1) | todo | | none |
+| EDF-001 | [#1](https://github.com/techrote/ezDarkFactory/issues/1) | review | `edf-001-baseline-provenance` | no dependency; acceptance awaits merge and verified main |
 | EDF-002 | [#2](https://github.com/techrote/ezDarkFactory/issues/2) | todo | | EDF-001 |
 | EDF-003 | [#3](https://github.com/techrote/ezDarkFactory/issues/3) | todo | | EDF-002 |
 | EDF-004 | [#4](https://github.com/techrote/ezDarkFactory/issues/4) | todo | | EDF-002 |
