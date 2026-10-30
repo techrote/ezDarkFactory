@@ -246,6 +246,7 @@ function New-EzDarkFactoryControlResponse {
         instance_id = $effectiveId
         instance_generation = $effectiveGeneration
         state = $State; data = $Data
+        progress = [pscustomobject]@{ stage = $State; terminal = ($State -in @('completed','refused')) }
         refusal = $(if ($Code) { [pscustomobject]@{ code = $Code; message = (Protect-EzDarkFactoryDiagnosticText -Text $Message) } } else { $null })
     }
 }
@@ -441,6 +442,7 @@ function Invoke-EzDarkFactoryControl {
                 instance_generation = [string]$Request.instance_generation
                 expected_revision = [string]$Request.expected_revision
                 state = 'accepted'; created_at = [DateTime]::UtcNow.ToString('o')
+                progress = [pscustomobject]@{ stage = 'accepted'; terminal = $false }
                 finished_at = $null; result = $null; refusal_code = ''; refusal_message = ''
             }
             Write-EzDarkFactoryJson -Path $operationPath -Value $receipt -SchemaVersion 1
@@ -520,6 +522,7 @@ function Invoke-EzDarkFactoryControl {
                 $receipt.refusal_message = Protect-EzDarkFactoryDiagnosticText -Text $_.Exception.Message
             }
             $receipt.finished_at = [DateTime]::UtcNow.ToString('o')
+            $receipt.progress = [pscustomobject]@{ stage = $receipt.state; terminal = $true }
             # A failed journal publication leaves the accepted record ambiguous; retry must not replay.
             Write-EzDarkFactoryJson -Path $operationPath -Value $receipt -SchemaVersion 1
             return (New-EzDarkFactoryControlResponse -Request $Request -FactoryId $factoryId -State $receipt.state -Data $receipt.result -Code $receipt.refusal_code -Message $receipt.refusal_message)
