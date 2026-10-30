@@ -1,6 +1,6 @@
 # ezDarkFactory
 
-A Windows-first, portable development-VM factory for fresh projects, with one host-side management TUI capable of operating multiple local ezDarkFactory roots.
+A Windows-first, **folder-portable** development-VM factory for fresh projects, with one host-side management TUI capable of operating multiple local ezDarkFactory roots.
 
 ## Status
 
@@ -24,6 +24,26 @@ Start with:
 - TUIsynth is reference/demo material only in ezDarkFactory.
 
 See `docs/rag/01-BASELINE-PROVENANCE.md`.
+
+## Portability goal
+
+A specific working ezDarkFactory is a self-contained portable folder.
+
+The intended move is deliberately simple:
+
+1. stop its VMs and run the portability check;
+2. zip/archive the factory folder;
+3. move/extract it on another compatible Windows computer;
+4. run the checked-in setup/doctor step;
+5. open/start it from the new path.
+
+Factory/instance identities and working state travel with the folder. Host-specific process state, endpoints and ACLs are revalidated on the destination.
+
+No critical factory configuration or recovery state may exist only in `%LOCALAPPDATA%` or another hidden machine-local location.
+
+A stateful working bundle may contain SSH keys or guest credentials, so transferred archives are sensitive.
+
+Cross-factory manager layout/registry state is optional, portable convenience state; a factory remains directly operable without it.
 
 ## Primary host interface
 
