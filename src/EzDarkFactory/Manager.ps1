@@ -143,9 +143,11 @@ function Get-EzDarkFactoryManagerObservations {
             schemaVersion = 1; enrollment_id = $entry.enrollment_id; alias = $entry.alias
             canonical_path = $entry.canonical_path; factory_id = $entry.last_factory_id
             observed_factory_id = $candidate.factory_id; api = $candidate.api
-            state = $state; last_known = [pscustomobject]@{
+            state = $state; inventory_state = 'unknown'
+            last_known = [pscustomobject]@{
                 factory_id = $entry.last_factory_id; api_major = $entry.api_major
                 api_minor = $entry.api_minor; verified_at = $entry.last_verified_at
+                freshness = 'stale'
             }
             observed_at = [DateTime]::UtcNow.ToString('o'); reason = $candidate.reason
         }
