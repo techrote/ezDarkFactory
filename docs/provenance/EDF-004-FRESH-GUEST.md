@@ -76,5 +76,33 @@ These tests do **not** execute a real QEMU guest. Under the current test
 contract real supported-host runtime is an EDF-011 qualification class.
 No TCG/WHPX/physical Windows Terminal/human PASS is claimed here.
 
-Status when authored: implementation staged; exact-head CI, review, guarded
-merge and post-merge verification pending.
+## Final EDF-004 acceptance receipt
+
+EDF-004 was guarded-squash merged by [PR #23](https://github.com/techrote/ezDarkFactory/pull/23)
+as `a983c957fb65acfd781ac131733512658b3e9927` (tree
+`b9bdfeb9c1760f0d8bea0028dafae71104fa92a6`), matching reviewed
+head `a4fa6f5f6a27f570340a966a9c10bfe6e23fece2`.
+
+All **11** literal PR-head checks passed:
+[base/native/ACL nine-job run](https://github.com/techrote/ezDarkFactory/actions/runs/41136392760)
+and [focused EDF-004 two-job run](https://github.com/techrote/ezDarkFactory/actions/runs/41136392863).
+All **11** actual merged-main checks passed on attempt 1:
+[nine-job run](https://github.com/techrote/ezDarkFactory/actions/runs/41137100823)
+and [focused guest run](https://github.com/techrote/ezDarkFactory/actions/runs/41137100701).
+The full PowerShell 5.1 and pinned PS7.6.6 suites each passed
+**381/381 (0 FAIL / 0 SKIP)**. Both EDF-004 focused profile suites
+passed **8/8**, with source-matched JSON receipts.
+Original focused PR-head archives: PowerShell 5
+[artifact #13015928335](https://github.com/techrote/ezDarkFactory/actions/runs/41136392863/artifacts/13015928335),
+ZIP SHA-256 `9d039d1b1328d11f9a85ea51cbcd5316418abd8a48ddd5c7335485acb18ebf1a`;
+PowerShell 7
+[artifact #13016797242](https://github.com/techrote/ezDarkFactory/actions/runs/41136392863/artifacts/13016797242),
+ZIP SHA-256 `cef52f900a13a67efbea3db7a49a4b60e8cba47b47c514c54af9a34886093361`.
+
+This is a **SOURCE / FAST-CI** profile/readiness contract acceptance,
+not an actual QEMU guest execution. Both focused receipts state
+`realGuestExecuted=false` / `EDF-004-REAL-GUEST: UNMEASURED`.
+The later EDF-011 real runtime, WHPX and physical/human gates remain
+outstanding. [Issue #4's durable handoff](https://github.com/techrote/ezDarkFactory/issues/4)
+is authoritative for its acceptance history. EDF-005 is now dependency-ready.
+
