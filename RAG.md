@@ -18,7 +18,9 @@ This file is the entry point for project contracts. Issues incorporate this file
 
 ## UI specification precedence
 
-The host-manager specification is the authoritative ezDarkFactory UI/UX and UI implementation contract, subject to higher-priority safety, lifecycle/storage/security, compatibility, repository and issue requirements.
+The host-manager specification is the authoritative ezDarkFactory UI/UX and UI implementation contract, subject only to higher-priority project safety, lifecycle/storage/security, functional, compatibility, and repository requirements.
+
+Issue bodies must conform to it unless the issue explicitly carries a reviewed specification amendment. Stale issue wording does not silently override the tailored specification.
 
 Its shared baseline is pinned to:
 
