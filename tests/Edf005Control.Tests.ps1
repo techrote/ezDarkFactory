@@ -338,3 +338,47 @@ Add-EzDarkFactoryTest -Name 'EDF-005: second PowerShell process reads relocated 
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: standalone JSON control launcher round-trips version and factory ID across a real child process' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'standalone JSON child'
+    try {
+        $identity = Initialize-EzDarkFactoryIdentity -Root $root
+        Copy-Item -LiteralPath (Join-Path $script:EzDarkFactoryRepositoryRoot 'ezdarkfactory-control.ps1') -Destination $root -Force
+        $request = New-Edf005Request -Root $root -Command 'factory.info'
+        $json = ConvertTo-Json -InputObject $request -Depth 12 -Compress
+        $b64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($json))
+        $launcher = Join-Path $root 'ezdarkfactory-control.ps1'
+        $code = '$payload=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String("' + $b64 + '")); & "' + $launcher + '" -RequestJson $payload'
+        $child = Invoke-EzDarkFactoryTestPowerShell -CommandText $code -WorkingDirectory $root
+        Assert-EzDarkFactoryEqual -Actual $child.ExitCode -Expected 0 -Message $child.StandardError
+        $response = $child.StandardOutput.Trim() | ConvertFrom-Json
+        Assert-EzDarkFactoryEqual -Actual $response.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $response.operation_id -Expected $request.operation_id
+        Assert-EzDarkFactoryEqual -Actual $response.factory_id -Expected $identity.factory_id
+        Assert-EzDarkFactoryEqual -Actual $response.api.major -Expected 1
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: invalid command fields, unsupported minor version and wrong operation replay are refused without effects' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture
+    try {
+        $identity = Initialize-EzDarkFactoryIdentity -Root $root
+        $checks = @('extra-argument','minor-version','missing-capability','wrong-scope')
+        foreach ($kind in $checks) {
+            $request = New-Edf005Request -Root $root -Command 'factory.rekey'
+            switch ($kind) {
+                'extra-argument' { $request.arguments = [pscustomobject]@{ script = 'do not run' } }
+                'minor-version' { $request.api.minor = 55 }
+                'missing-capability' { $request.capabilities = @('unknown.command') }
+                'wrong-scope' { $request.instance_id = 'ins_' + ('0' * 32) }
+            }
+            $response = Invoke-EzDarkFactoryControl -Root $root -Request $request
+            Assert-EzDarkFactoryEqual -Actual $response.state -Expected 'refused'
+            Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $request.operation_id + '.json'))))
+            Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryIdentity -Root $root).factory_id -Expected $identity.factory_id
+        }
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
