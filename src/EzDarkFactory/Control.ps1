@@ -227,13 +227,24 @@ function Get-EzDarkFactoryControlOperation {
 function New-EzDarkFactoryControlResponse {
     param([object]$Request, [string]$FactoryId, [string]$State, [object]$Data = $null,
         [string]$Code = '', [string]$Message = '')
+    $effectiveId = [string]$Request.instance_id
+    $effectiveGeneration = [string]$Request.instance_generation
+    if ($null -ne $Data -and [string]$Request.command -in @('instance.create','instance.import','instance.adopt')) {
+        $ref = $null
+        if ($Data.PSObject.Properties['target']) { $ref = $Data.target }
+        elseif ($Data.PSObject.Properties['instance_id']) { $ref = $Data }
+        if ($null -ne $ref -and $ref.PSObject.Properties['instance_id'] -and $ref.PSObject.Properties['instance_generation']) {
+            $effectiveId = [string]$ref.instance_id
+            $effectiveGeneration = [string]$ref.instance_generation
+        }
+    }
     return [pscustomobject][ordered]@{
         schemaVersion = 1; api = [pscustomobject]@{ major = 1; minor = 0 }
         factory_id = $FactoryId
         operation_id = [string]$Request.operation_id
         command = [string]$Request.command
-        instance_id = [string]$Request.instance_id
-        instance_generation = [string]$Request.instance_generation
+        instance_id = $effectiveId
+        instance_generation = $effectiveGeneration
         state = $State; data = $Data
         refusal = $(if ($Code) { [pscustomobject]@{ code = $Code; message = (Protect-EzDarkFactoryDiagnosticText -Text $Message) } } else { $null })
     }
