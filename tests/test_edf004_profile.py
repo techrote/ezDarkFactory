@@ -20,7 +20,7 @@ class Edf004ProfileTests(unittest.TestCase):
         self.assertEqual(self.map["issue"], "EDF-004")
         self.assertEqual(self.map["evidence_class"], "SOURCE")
         self.assertEqual(self.map["edf002_accepted_commit"], "978288496aa5d328f0d79712c74e69cf769689e4")
-        self.assertEqual(len(self.map["records"]), 5)
+        self.assertEqual(len(self.map["records"]), 7)
         for row in self.map["records"]:
             with self.subTest(path=row["destination"]):
                 raw = self.upstream.file(row["source_commit"], row["source_path"])
@@ -52,9 +52,9 @@ class Edf004ProfileTests(unittest.TestCase):
         registry = (self.root / "src/EzDarkFactory/Registry.ps1").read_text(encoding="utf-8")
         profiles = (self.root / "src/EzDarkFactory/Profiles.ps1").read_text(encoding="utf-8")
         script = (self.root / "guest/profiles/fresh-project/v1/provision.sh").read_text(encoding="utf-8")
-        self.assertIn("$provisioningProfileName = 'fresh-project'", registry)
-        self.assertIn("@('stateful-clone', 'import')", registry)
-        self.assertIn("$provisioningProfileName = 'coding-default'", registry)
+        self.assertIn("Test-EzDarkFactoryPreparedBase -Root $Root -BaseId $base.BaseId", registry)
+        self.assertIn("[int]$validatedBase.Manifest.schemaVersion -eq 1", registry)
+        self.assertIn("{ 'fresh-project' } else { 'coding-default' }", registry)
         self.assertIn("Get-EzDarkFactoryCodingProfile -Root $Root -Name $provisioningProfileName -Version 1", registry)
         self.assertIn("@('coding-default', 'fresh-project')", profiles)
         for token in ("fresh workspace is not empty", "historical workload state exists in coder home",

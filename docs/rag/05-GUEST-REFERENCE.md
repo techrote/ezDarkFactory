@@ -47,10 +47,13 @@ after the human has added project files only when a matching completed marker
 already proved that generation's fresh start; a failed live validation removes
 the marker before returning failure. Validation never deletes user project data.
 
-Explicit **stateful clone** and **import** are preservation operations, not
-fresh-project creation. They use the retained `coding-default/v1` validation
-contract so preserved workspace/authentication state is not misrepresented as
-empty. Ordinary create and **fresh clone** use `fresh-project/v1`.
+Profile selection follows the **validated immutable base**, not the command
+label alone. Schema-1 clean prepared bases use `fresh-project/v1`. Schema-2
+derived/imported bases use retained `coding-default/v1`, including an explicit
+create or “fresh clone” against such a sensitive baseline, because that baseline
+can already contain workspace/authentication state. Stateful clone/import always
+produce schema-2 bases. This prevents preserved state from being misrepresented
+as an empty fresh project.
 
 ### Profile extension seam
 

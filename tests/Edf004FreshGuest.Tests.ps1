@@ -74,12 +74,12 @@ Add-EzDarkFactoryTest -Name 'EDF-004: new managed instance defaults to fresh-pro
     finally { Remove-EzDarkFactoryBaseBuildFixture $f.Base }
 }
 
-Add-EzDarkFactoryTest -Name 'EDF-004: explicit stateful origins do not masquerade as fresh empty projects' -ScriptBlock {
+Add-EzDarkFactoryTest -Name 'EDF-004: sensitive snapshot bases cannot masquerade as fresh empty projects' -ScriptBlock {
     $source = [IO.File]::ReadAllText((Join-Path $script:EzDarkFactoryRepositoryRoot 'src/EzDarkFactory/Registry.ps1'))
-    Assert-EzDarkFactoryTrue -Condition $source.Contains('$provisioningProfileName = ''fresh-project''')
-    Assert-EzDarkFactoryTrue -Condition $source.Contains("@('stateful-clone', 'import')")
-    Assert-EzDarkFactoryTrue -Condition $source.Contains('$provisioningProfileName = ''coding-default''')
-    Assert-EzDarkFactoryTrue -Condition ($source -notmatch "(?s)fresh-clone'.*provisioningProfileName = 'coding-default'") -Message 'Fresh clone must remain on the empty-workspace profile.'
+    Assert-EzDarkFactoryTrue -Condition $source.Contains('Test-EzDarkFactoryPreparedBase -Root $Root -BaseId $base.BaseId')
+    Assert-EzDarkFactoryTrue -Condition $source.Contains("[int]$validatedBase.Manifest.schemaVersion -eq 1")
+    Assert-EzDarkFactoryTrue -Condition $source.Contains("{ 'fresh-project' } else { 'coding-default' }")
+    Assert-EzDarkFactoryTrue -Condition $source.Contains('Get-EzDarkFactoryCodingProfile -Root $Root -Name $provisioningProfileName -Version 1')
 }
 
 Add-EzDarkFactoryTest -Name 'EDF-004: generated seed binds current base generation and fresh profile marker without private material' -ScriptBlock {
@@ -136,15 +136,15 @@ Add-EzDarkFactoryTest -Name 'EDF-004: reset and fresh clone rotate generation wh
     try {
         $created = New-EzDarkFactoryManagedInstance -Root $f.Root -InstanceName 'fresh-source' -BaseId $f.Base.BaseId -Profile light -QemuImgRunner $f.Runner -PortProbe { $true }
         $before = Get-EzDarkFactoryInstanceIntent -Root $f.Root -InstanceName 'fresh-source'
-        Assert-EzDarkFactoryEqual -Actual $before.provisioningProfile -Expected 'fresh-project'
+        Assert-EzDarkFactoryEqual -Actual $before.provisioningProfile -Expected 'coding-default'
         $reset = Reset-EzDarkFactoryManagedInstance -Root $f.Root -InstanceName 'fresh-source' -QemuImgRunner $f.Runner -ProcessProvider { @() }
         $after = Get-EzDarkFactoryInstanceIntent -Root $f.Root -InstanceName 'fresh-source'
-        Assert-EzDarkFactoryEqual -Actual $after.provisioningProfile -Expected 'fresh-project'
+        Assert-EzDarkFactoryEqual -Actual $after.provisioningProfile -Expected 'coding-default'
         Assert-EzDarkFactoryTrue -Condition ($after.identityGeneration -cne $before.identityGeneration)
         Assert-EzDarkFactoryEqual -Actual $reset.identityGeneration -Expected $after.identityGeneration
         $clone = Copy-EzDarkFactoryManagedInstance -Root $f.Root -SourceInstanceName 'fresh-source' -DestinationInstanceName 'fresh-clone' -Mode fresh -QemuImgRunner $f.Runner -QemuStatusProvider $f.QemuStatusProvider -ProcessProvider { @() } -PortProbe { $true }
         $cloneIntent = Get-EzDarkFactoryInstanceIntent -Root $f.Root -InstanceName 'fresh-clone'
-        Assert-EzDarkFactoryEqual -Actual $cloneIntent.provisioningProfile -Expected 'fresh-project'
+        Assert-EzDarkFactoryEqual -Actual $cloneIntent.provisioningProfile -Expected 'coding-default'
         Assert-EzDarkFactoryTrue -Condition ($cloneIntent.identityGeneration -cne $after.identityGeneration)
         # The fixture deliberately uses an imported/sensitive base; fresh
         # identity must not erase that provenance classification.

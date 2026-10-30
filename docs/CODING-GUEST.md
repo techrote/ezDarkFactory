@@ -1,15 +1,16 @@
 # Using the coding guest
 
-> **EDF-002 source adaptation (0.0.0-dev):** This document preserves the
-> reviewed EzVM baseline procedure as a future operator reference. It is **not**
-> a claim that an ezDarkFactory guest, WHPX, release, multi-factory manager or
-> human workflow passed qualification. EDF-003/004 repair and guest-profile
-> work, and later physical/release gates, remain outstanding. Runtime
-> disks/credentials from the historical lab are never imported.
+> **EDF-004 source contract (0.0.0-dev):** The default clean guest profile is
+> now source-defined and FAST-CI qualified. This is **not** a claim of real
+> QEMU/TCG/WHPX, physical-terminal or human qualification; those remain later
+> gates. Runtime disks/credentials from the historical lab are never imported.
 
 
-New ezdarkfactory instances use the repository-controlled `coding-default` profile,
-version `1`. A successful `start` means the requested guest has authenticated
+New ezdarkfactory instances created from a clean prepared base use the
+repository-controlled `fresh-project` profile, version `1`. Explicit
+derived/imported sensitive bases use the retained state-compatible
+`coding-default/v1` contract instead of pretending their preserved contents
+are empty. A successful `start` means the requested guest has authenticated
 over localhost SSH and passed its versioned coding-environment checks.
 
 ## Create and enter an instance
@@ -24,8 +25,10 @@ have succeeded, run these commands from the ezdarkfactory folder in PowerShell:
 ~~~
 
 The `-Profile` option selects CPU/RAM defaults: `light`, `normal` or `heavy`.
-All three use the same `coding-default` guest profile. `create` selects the most
-recent valid prepared base unless you provide `-BaseId`.
+All three resource sizes use the same `fresh-project/v1` guest profile on a
+clean prepared base. `create` selects the most recent valid prepared base unless
+you provide `-BaseId`; selecting a derived/imported sensitive base deliberately
+uses the state-preserving profile instead.
 
 Inside the guest, work as `coder` in `/home/coder/workspace`:
 
@@ -64,7 +67,8 @@ These stable dependencies are installed while building the prepared base. The
 instance profile validates and configures the existing environment without
 downloading or reinstalling packages at first boot. The exact baseline package
 and required-command sets live in `guest/base-cloud-init/baseline.json` and
-`guest/profiles/coding-default/v1/profile.json`.
+`guest/profiles/fresh-project/v1/profile.json` (with
+`coding-default/v1` retained for explicit state-preserving bases).
 
 Node, Rust, uv and vendor-specific agent CLIs are not preinstalled. Version 1 is
 a stable environment for adding the tools you choose, and does not promise an
@@ -75,8 +79,11 @@ base has its own immutable content identity and provenance.
 
 The normal login is `coder`, its home is `/home/coder`, and its workspace is
 `/home/coder/workspace`. The workspace is owned by coder with mode `0750`.
-Repeated provisioning preserves files already inside it; it does not recursively
-change their ownership.
+The **first READY for each fresh-project identity generation requires the
+workspace to be empty**. Once that same generation has published its matching
+completed READY marker, repeated provisioning preserves project files and
+revalidates the live account/tool/SSH/workspace policy; it does not recursively
+delete or change project-file ownership.
 
 The coder password is locked. SSH permits public-key authentication, disables
 password and keyboard-interactive authentication, and disables direct root SSH
@@ -123,8 +130,8 @@ apply the same explicit version and acquisition policy to that dependency.
 | Normal stop and restart | Preserved in the same overlay; an external provider can still expire or revoke a login. |
 | Reset to a clean prepared base | Later overlay state is discarded, including installed agents and guest login state. Reinstall and reauthenticate. |
 | Reset to a derived/imported snapshot base | Restores that snapshot's content, including any authentication saved in it; later overlay changes are discarded. |
-| Fresh clone | Uses the source's existing base without later overlay changes. A snapshot base can already contain software and authentication. |
-| Intentional stateful clone/export/import | Preserves guest disk state independently of the source overlay and can include credentials. Treat the resulting copies and snapshot bases as sensitive. |
+| Fresh clone | Uses the source's existing base without later overlay changes. A clean prepared base receives `fresh-project/v1`; a derived/imported sensitive base retains the state-compatible profile because it can already contain software, workspace data and authentication. |
+| Intentional stateful clone/export/import | Preserves guest disk state independently of the source overlay and can include credentials. Stateful/imported destinations use the state-compatible profile and must not claim the fresh empty-workspace invariant. Treat the resulting copies and snapshot bases as sensitive. |
 | Copy the complete ezdarkfactory folder after cleanly stopping every VM | Preserves included overlays and optional bundle SSH identity; destination runtime state is revalidated. |
 
 The reset, explicit fresh/stateful clone, standalone export/import and
@@ -163,6 +170,10 @@ tool/account/configuration failure or create a fresh named instance from a valid
 base, retaining the failed overlay when its files need recovery.
 
 ## Existing instances and future profiles
+
+Existing durable `coding-default/v1` instances remain readable/startable under
+their recorded profile. They are not silently relabelled as `fresh-project`.
+New clean-base creates and clean-base fresh clones use `fresh-project/v1`.
 
 Instances created before EDF-009 may record `ezdarkfactory-core` version `1`. Their
 complete durable intent remains readable through `list`, `status` and `stop`.

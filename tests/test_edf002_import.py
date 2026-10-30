@@ -39,6 +39,8 @@ EDF003_SUPERSEDED_DESTINATIONS = frozenset({
     "src/EzDarkFactory/Runtime.ps1",
 })
 EDF004_SUPERSEDED_DESTINATIONS = frozenset({
+    "docs/CODING-GUEST.md",
+    "docs/PORTABILITY.md",
     "src/EzDarkFactory/Profiles.ps1",
     "src/EzDarkFactory/Registry.ps1",
     "tests/Registry.Tests.ps1",
