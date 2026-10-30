@@ -16,11 +16,11 @@ try {
     # EDF-005 reviewed supersession: official direct-CLI mutations on identity-enabled
     # roots share the typed manager's root-scoped lock. Pure reads and legacy
     # uninitialized factories remain side-effect-free and backward compatible.
-    $commandParts = @($args | Where-Object { $_ -is [string] -and $_ -cnotin @('-Json','--') })
+    $commandParts = @($args | Where-Object { $_ -is [string] -and $_ -notin @('-Json','--') })
     $verb = if ($commandParts.Count -gt 0) { [string]$commandParts[0] } else { '' }
     $subverb = if ($commandParts.Count -gt 1) { [string]$commandParts[1] } else { '' }
     $mutating = ($verb -in @('bootstrap','create','clone','reset','export','import','start',
-        'stop','exec','copy-to','copy-from')) -or ($verb -ceq 'base' -and $subverb -in @('acquire','build'))
+        'stop','exec','copy-to','copy-from')) -or ($verb -eq 'base' -and $subverb -in @('acquire','build'))
     $controlLock = $null
     try {
         if ($mutating -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'runtime/factory-identity.json') -PathType Leaf)) {
