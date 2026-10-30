@@ -115,6 +115,9 @@ Implementation issues EDF-005 through EDF-011 must treat `docs/rag/03-HUMAN-CONT
 In particular:
 
 - one manager may register multiple local factory roots;
+- each working factory is a self-contained portable folder with no correctness dependency on hidden host-local application data;
+- cross-factory manager workspace state is explicit, portable, optional and reconstructible;
+- ordinary relocation preserves factory/instance identity; independently writable copies require fork/rekey;
 - a path is not stable factory identity;
 - duplicate factory identities at multiple reachable paths hold mutations;
 - root failure cannot block other root observations or the UI event loop;
@@ -168,8 +171,9 @@ EDF-012 may call v0.1 release-ready only when a clean compatible Windows host ca
 8. open the exact managed guest shell path;
 9. observe logs/resources/errors without confusing roots;
 10. stop and restart safely;
-11. clone/export/recover according to documented semantics;
-12. inspect/run TUIsynth only as a separate reference/demo;
-13. reproduce the applicable automated, WHPX, Windows Terminal and human evidence at the exact candidate revision.
+11. move one stopped working factory as a single folder to a different supported path/computer, run setup/doctor, open it without the old manager registry and reach READY with preserved identity;
+12. clone/export/recover according to documented semantics;
+13. inspect/run TUIsynth only as a separate reference/demo;
+14. reproduce the applicable automated, WHPX, Windows Terminal and human evidence at the exact candidate revision.
 
 No historical success claim substitutes for this gate.
