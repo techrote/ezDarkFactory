@@ -16,7 +16,8 @@
     "result",
     "refusal_code",
     "refusal_message",
-    "request_sha256"
+    "request_sha256",
+    "progress"
   ],
   "properties": {
     "schemaVersion": {
@@ -67,6 +68,26 @@
     "request_sha256": {
       "type": "string",
       "pattern": "^[a-f0-9]{64}$"
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "terminal"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "accepted",
+            "completed",
+            "refused"
+          ]
+        },
+        "terminal": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }
