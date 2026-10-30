@@ -33,7 +33,16 @@ jobs:
         run: |
           set -euo pipefail
           git rev-parse HEAD
+          git --version
+          echo "CI-PROV-001 fresh-cache trial 1 (full gate; no retry)"
           python tools/check.py --fetch --sources "$RUNNER_TEMP/edf-provenance-sources"
+          echo "CI-PROV-001 reused-cache trial 1 (same objects; no retry)"
+          python tools/provenance.py verify --fetch --sources "$RUNNER_TEMP/edf-provenance-sources"
+          echo "CI-PROV-001 fresh-cache trial 2 (no retry)"
+          python tools/provenance.py verify --fetch --sources "$RUNNER_TEMP/edf-provenance-sources-trial-2"
+          echo "CI-PROV-001 fresh-cache trial 3 (no retry)"
+          python tools/provenance.py verify --fetch --sources "$RUNNER_TEMP/edf-provenance-sources-trial-3"
+          echo "CI-PROV-001 acquisition qualification PASS: 3 fresh + 1 reused first-attempt executions"
 
   repository-contract:
     name: Repository contract (Windows PowerShell 5.1)
