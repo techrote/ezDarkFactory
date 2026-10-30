@@ -12,10 +12,10 @@ function Assert-EzDarkFactoryIdentityDocument {
     if ($fields.Count -ne $required.Count -or @($required | Where-Object { $fields -cnotcontains $_ }).Count -ne 0) {
         throw 'Factory identity contains missing or unsupported fields; migration is explicit.'
     }
-    if ($Document.schemaVersion -isnot [int] -or $Document.schemaVersion -ne 1 -or
+    if (@([int], [long]) -notcontains $Document.schemaVersion.GetType() -or $Document.schemaVersion -ne 1 -or
         $Document.factory_id -isnot [string] -or $Document.factory_id -cnotmatch '^fct_[a-f0-9]{32}$' -or
-        $Document.api_major -isnot [int] -or $Document.api_major -ne 1 -or
-        $Document.api_minor -isnot [int] -or $Document.api_minor -lt 0 -or $Document.api_minor -gt 0 -or
+        @([int], [long]) -notcontains $Document.api_major.GetType() -or $Document.api_major -ne 1 -or
+        @([int], [long]) -notcontains $Document.api_minor.GetType() -or $Document.api_minor -lt 0 -or $Document.api_minor -gt 0 -or
         $Document.created_at -isnot [string] -or $Document.created_at -cnotmatch '^\d{4}-\d\d-\d\dT') {
         throw 'Factory identity format/API is incompatible; no automatic rekey or migration is permitted.'
     }
