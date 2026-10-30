@@ -140,7 +140,11 @@ A factory record MUST contain or resolve:
 
 The manager MUST NOT infer stable factory identity from a path alone.
 
-The EDF control plane SHALL provide a stable factory identity suitable for registration. A cold relocation preserves that identity.
+The EDF control plane SHALL provide a stable, opaque factory identity suitable for registration. It SHOULD be randomly generated at factory initialization rather than derived from a path, hostname, username, hardware identifier, or mutable configuration.
+
+A cold relocation or ordinary archive/copy used as a **move** preserves that identity.
+
+If the user intentionally wants the copied folder to become a second simultaneously writable independent factory, an explicit **fork/rekey** operation MUST mint a new factory identity before both copies are used independently.
 
 If two simultaneously reachable registered paths report the same `factory_id`, the manager MUST show an **identity collision / relocated-copy conflict** and disable mutations for those records until the user explicitly resolves which location is authoritative.
 
@@ -151,10 +155,12 @@ Registration itself MUST NOT start a VM or mutate guest/storage state.
 An instance target is composite:
 
 ```text
-(factory_id, instance_name, instance_generation)
+(factory_id, instance_id, instance_generation)
 ```
 
 or a versioned equivalent with equal or stronger uniqueness.
+
+`instance_id` is an opaque stable identity. The human-readable instance/project name is metadata and MUST NOT be the sole mutation key.
 
 Commands that can discard or preserve mutable guest state MUST bind to the exact target generation expected when the action was presented.
 
@@ -235,17 +241,48 @@ An adapter MUST expose:
 
 An adapter timeout or malformed response affects that root's state only. It MUST NOT block UI input or make unrelated roots appear idle/free.
 
-## 3.3 No mandatory background service
+## 3.3 Registration trust boundary
 
-V0.1 MUST NOT require a permanent Windows service.
+Candidate discovery MAY inspect static, non-executable identity/manifest files in a prospective factory root.
+
+Discovery MUST NOT automatically execute PowerShell, binaries, scripts, or hooks from an unregistered root.
+
+Before first execution of a root's control plane, registration MUST show the canonical root, static product/factory identity information available without execution, and that enrollment authorizes the manager to execute that root's local control plane as the current user.
+
+Enrollment is explicit. A discovered directory is not trusted merely because its name or layout resembles ezDarkFactory.
+
+## 3.4 No mandatory background service and operation lifetime
+
+V0.1 MUST NOT require a permanent Windows service or network listener.
 
 The user-launched manager owns observation workers.
 
-A mutation MAY use a root-scoped operation runner process that outlives the visible TUI long enough to preserve an already-authorized operation. Such a runner MUST be identified by operation ID and durable result location and MUST be reconcilable after manager restart.
+An accepted mutation MAY use a root-scoped operation runner process that outlives the visible TUI long enough to preserve an already-authorized operation. Such a runner MUST be identified by operation ID and a durable **factory-local** result/reconciliation record.
 
-Closing the TUI MUST NOT kill independently running QEMU processes.
+Closing the TUI MUST NOT kill independently running QEMU processes or blindly cancel already-authorized operations. Cancellation exists only for operations whose underlying contract explicitly declares a safe cancellation point.
 
-## 3.4 Framework boundary
+After restart, the manager reconciles operation IDs/results from the factory rather than replaying a mutation because its previous UI result was lost.
+
+## 3.5 API compatibility
+
+The manager negotiates capabilities from the typed control API.
+
+Default compatibility policy:
+
+- matching supported major API version: negotiate declared capabilities;
+- differing supported minor versions: use the common declared capability set;
+- unknown/unsupported major version: show `incompatible` and disable mutation;
+- never infer capability solely from filenames, executable version text, or repository branch names.
+
+## 3.6 Shared infrastructure and telemetry
+
+V0.1 SHALL NOT require shared mutable base-image stores, shared key directories, global mutable QEMU state, analytics/telemetry, or an always-on manager service.
+
+Each factory remains independently portable. Optional read-only download caches may be designed later only if a factory remains fully reconstructible/operable without them.
+
+## 3.7 Framework boundary
+
+## 3.7 Framework boundary
 
 This specification does not mandate one TUI framework.
 
@@ -706,78 +743,154 @@ It MUST:
 
 No animation is required for v0.1.
 
-# 10. Persistence and recovery
+# 10. Persistence, portability, and recovery
 
-## 10.1 Four distinct state classes
+## 10.1 Portable-factory invariant
 
-The manager SHALL keep these conceptually and physically separable.
+A specific ezDarkFactory SHALL be operable as a **self-contained portable folder**.
+
+Everything required to identify, configure, start, stop, diagnose, recover, and continue that factory after a clean transfer MUST live inside the factory root, except for host prerequisites that can be revalidated/reacquired by checked-in setup scripts.
+
+The normal portability goal is:
+
+1. positively stop the factory's VMs;
+2. run the portability check;
+3. archive/zip the factory folder;
+4. transfer and extract it on another compatible Windows computer;
+5. run one or two checked-in setup/doctor scripts;
+6. open the factory and continue.
+
+No critical factory state may exist only in `%LOCALAPPDATA%`, the registry, a hidden user profile directory, or another machine-specific location.
+
+## 10.2 Factory-local state classes
+
+The exact physical names are finalized during core import, but the bundle MUST keep these logical classes under the factory root and visibly documented:
+
+### Factory identity and configuration
+
+- stable factory ID/schema;
+- human-maintained factory/default configuration;
+- version/capability/provenance metadata;
+- root-relative path policy.
+
+### Runtime and instance state
+
+- instance identities/generations;
+- mutable overlays and accepted VM state;
+- controller SSH/trust material required by the factory;
+- lifecycle/transaction evidence;
+- bounded logs needed for recovery;
+- operation reconciliation records.
+
+### Host-manager state for that factory
+
+Per-factory aliases/preferences/status that are useful after relocation SHOULD travel with the factory.
+
+Manager-specific files MUST NOT become VM lifecycle/storage authority.
+
+### Human-readable status/provenance
+
+Important portable status, manifests, hashes, qualification receipts, and recovery notes SHOULD be available in an obvious checked/documented location such as `docs/status/` or an equivalent alongside the factory state.
+
+Machine state and human-readable summaries may be separate files, but both remain within the portable root when they are required to understand or recover that factory.
+
+## 10.3 Path relocatability
+
+Authoritative configuration MUST use root-relative paths whenever practical.
+
+Absolute host paths are permitted only when unavoidable and MUST be classified as host-specific/rebindable rather than durable portable identity.
+
+The portability checker MUST identify any authoritative state containing an unresolved external/absolute dependency that would prevent the bundle from running after relocation.
+
+At startup on a new path, derived absolute paths, transient endpoints, and host-process observations are rebuilt/revalidated from the new root.
+
+A copied PID, QMP endpoint, process handle, or previous-host runtime observation is never treated as live authority on the destination.
+
+## 10.4 Windows ACL and credentials after transfer
+
+A ZIP/archive does not preserve useful Windows process identity or ACL semantics reliably enough to treat old ACLs as destination authority.
+
+Setup/doctor on the destination MUST reapply/validate the required private-key permissions for the current user without regenerating guest identity unnecessarily.
+
+A full stateful factory bundle may contain credentials and private keys because portability intentionally preserves working guest state. Portability/export UX MUST label the archive sensitive.
+
+No credential may be silently copied outside the factory root merely for manager convenience.
+
+## 10.5 Cross-factory manager workspace
+
+A manager may keep a **portable manager workspace** for cross-factory conveniences such as:
+
+- registered-root locators;
+- aliases not already carried by the factories;
+- fleet workspace/layout presets;
+- manager-wide UI preferences;
+- bounded UI-only history.
+
+This workspace MUST be:
+
+- explicitly located in a user-selected/obvious folder, normally alongside the factories it manages;
+- portable as ordinary files;
+- non-authoritative for VM lifecycle/storage;
+- optional for operating a single factory.
+
+The manager MUST be able to open a factory directly by path even if no cross-factory workspace exists.
+
+If the workspace is lost, the factories remain operable and can be registered again from their own self-describing roots.
+
+V0.1 MUST NOT require `%LOCALAPPDATA%` or another hidden machine-local directory for correctness.
+
+## 10.6 Manager configuration, session, and journal
+
+Within the chosen portable manager workspace, keep these separable:
 
 ### Manager configuration
 
-User policy/defaults:
+User policy/defaults such as refresh budgets, theme/accessibility, bindings, workspace defaults, and concurrency limits.
 
-- refresh budgets;
-- theme/accessibility;
-- input bindings;
-- default workspace;
-- concurrency limits;
-- optional configured state directory.
+Normal interactive layout changes do not silently rewrite hand-maintained configuration.
 
-Normal layout interaction does not rewrite hand-maintained config silently.
+### Registry
 
-### Factory registry
+Convenience locators for registered factories plus last verified identities/versions.
 
-Manager-owned durable list:
-
-- factory ID;
-- alias;
-- canonical path;
-- last known adapter/control version;
-- registration metadata.
-
-Registry data is not stored inside one selected factory as the sole authority.
+The registry is a discovery index, not the sole source of factory identity.
 
 ### Session state
 
-Machine-written dynamic UI state:
-
-- active workspace;
-- tile visibility/placement/ratios;
-- focused tile;
-- selections/filters/scroll memory;
-- committed theme;
-- last selected factory/instance where safe.
+Machine-written tile/layout/focus/filter/scroll state.
 
 ### Operation journal
 
-Bounded generated operation/reconciliation records.
+Bounded metadata/reconciliation evidence only:
 
-It is not VM lifecycle authority.
+- operation ID;
+- factory/instance identity;
+- command;
+- timestamps/stage/result/refusal;
+- evidence references.
 
-## 10.2 Host storage
+It MUST NOT become a general dump of guest shell output, credentials, full logs, or project contents.
 
-Default manager state SHOULD live in a user-local application-data location such as:
+## 10.7 One-writer rule
 
-```text
-%LOCALAPPDATA%\ezDarkFactory\manager\v1\
-```
+A portable manager workspace has one active writer at a time.
 
-or a versioned equivalent selected during implementation.
+A second manager process MUST either open read-only/observer mode or refuse to mutate the same manager workspace until ownership is released.
 
-A `--state-dir`/test/portable override MAY be supported.
+This manager-workspace rule does not replace per-factory lifecycle/storage locks. Legitimate direct CLI activity may occur concurrently and is reconciled through the typed factory control plane.
 
-This user-local manager state does not violate the portable factory-root model because it stores only manager registry/session/journal data, not QEMU/base/overlay authority.
+If out-of-band CLI activity changes factory state after the TUI prepared a command/confirmation, stale generation/identity checks MUST refuse the old mutation and require refresh/review.
 
-## 10.3 Safe start
+## 10.8 Safe start
 
-A safe-start mode is REQUIRED:
+Safe start is REQUIRED:
 
 - embedded safe theme;
 - default layout;
 - no prior session restore;
-- registry validation before use;
-- no mutation;
-- clear route to repair/reset manager session state.
+- no automatic mutation;
+- direct factory-open-by-path route;
+- clear route to repair/reset manager session/workspace state.
 
 A further no-refresh/offline test mode MAY be supplied for recovery.
 
@@ -859,7 +972,7 @@ The following table classifies relevant patterns from the pinned direct implemen
 | Data-only `ThemeCompiler` | **Adapt** | Built-in safe/high-contrast themes required; external theme loading optional until closed-schema safety is implemented |
 | Adaptive ANSI/ASCII compositor | **Adapt** | Restrained management decoration only; content priority, ASCII/mono fallback, no required animation |
 | Text-editor global selection conventions | **Reject** | Apply text-selection rules only inside actual log/text surfaces; no editor semantics for fleet/inspector controls |
-| Configuration/session separation | **Extend** | Four-way separation: config, factory registry, session, operation journal, plus factory-owned runtime state outside manager authority |
+| Configuration/session separation | **Extend** | Portable per-factory state remains under each factory root; optional portable manager workspace separates config, registry, session and bounded journal without becoming VM authority |
 | Safe launch/reset layout | **Adopt** | Safe theme + default layout + no session restore + zero mutation |
 | Generation-tagged background work | **Extend** | Results keyed by factory + request generation; per-root fairness and stale-result rejection |
 | Logical damage tracking | **Adopt** | Zero-damage unchanged scene and bounded local updates are testable requirements |
@@ -915,13 +1028,13 @@ This does not prohibit future graphical guest profiles.
 
 **Rationale:** honest single-tile recovery mode is better than compressing operational state into unreadable geometry.
 
-## 13.7 Manager state is user-local rather than owned by one factory root
+## 13.7 Portable state is colocated rather than hidden in host-local application data
 
-**Adaptation:** registry/session/journal state SHOULD live in user-local application data.
+**Adaptation:** all factory-critical configuration, identity, runtime, recovery, and per-factory manager metadata lives inside the portable factory folder. Cross-factory manager state, when used, lives in an explicit portable manager-workspace folder normally alongside the factories.
 
-**Rationale:** a manager that controls multiple roots must not make one managed root its configuration authority.
+**Rationale:** a specific ezDarkFactory must remain movable by archiving one folder and running minimal setup/doctor steps on another compatible host.
 
-Factory VM/runtime state remains portable and root-local.
+No individual managed factory becomes the authority for other factories, because cross-factory registry/layout state is optional and non-authoritative.
 
 # 14. Project-specific acceptance criteria
 
@@ -937,7 +1050,24 @@ Automated registry audit MUST prove:
 
 Native tests MUST verify focus-and-act, context menu, wheel locality, overlay click consumption, divider capture/rollback, and focus-loss cleanup.
 
-## 14.2 Multi-factory identity and isolation
+## 14.2 Portable relocation and bundle completeness
+
+Tests MUST prove a fully prepared stopped factory can be copied to a different absolute root path and reopened without hidden machine-local state.
+
+At minimum:
+
+- preserve factory and instance identities across a move;
+- rebuild/revalidate transient host/process/QMP observations;
+- reapply/validate current-user key ACLs;
+- resolve all required paths relative to the relocated root or explicitly rebind documented host prerequisites;
+- detect forbidden external/absolute dependencies;
+- operate when the previous manager workspace/registry is absent;
+- pass doctor then start/READY/stop from the relocated folder;
+- mark the transferred bundle sensitive when stateful credentials are present.
+
+A second simultaneously writable copy must trigger duplicate-factory identity conflict until explicitly forked/rekeyed.
+
+## 14.3 Multi-factory identity and isolation
 
 Tests MUST cover:
 
@@ -953,7 +1083,7 @@ Tests MUST cover:
 - unregister does not delete/mutate root;
 - stale instance generation refuses destructive action.
 
-## 14.3 Lifecycle safety
+## 14.4 Lifecycle safety
 
 Using synthetic/native fixtures and later real roots:
 
@@ -964,7 +1094,7 @@ Using synthetic/native fixtures and later real roots:
 - UNKNOWN/CONFLICT disables destructive storage actions;
 - persisted lifecycle text never overrides contradictory current process evidence.
 
-## 14.4 Workspace/layout
+## 14.5 Workspace/layout
 
 Test 40×12, 80×24, 120×40, 160×48, and 200×60.
 
@@ -977,7 +1107,7 @@ Verify:
 - safe-start ignores corrupt session layout;
 - scroll/filter/selection remain bound to the correct tile and target identity.
 
-## 14.5 Logs/output safety
+## 14.6 Logs/output safety
 
 Tests MUST replay hostile and large output containing:
 
@@ -990,7 +1120,7 @@ Tests MUST replay hostile and large output containing:
 
 No replayed log content may execute terminal control side effects.
 
-## 14.6 Theme/accessibility
+## 14.7 Theme/accessibility
 
 Test:
 
@@ -1010,7 +1140,7 @@ Status meaning cannot depend solely on color.
 
 Invalid external theme data, if supported, leaves the previous valid theme unchanged.
 
-## 14.7 Performance and scale
+## 14.8 Performance and scale
 
 At reference scale (16 factories / 128 instance rows / 10,000 history records):
 
@@ -1021,7 +1151,7 @@ At reference scale (16 factories / 128 instance rows / 10,000 history records):
 - unchanged frame gives zero logical damage;
 - idle/observation manager RSS target <200 MiB excluding guests/external attach processes.
 
-## 14.8 Native Windows Terminal qualification
+## 14.9 Native Windows Terminal qualification
 
 On exact release candidate, record:
 
@@ -1048,7 +1178,7 @@ Exercise:
 
 Headless test evidence alone is not PHYSICAL-UI PASS.
 
-## 14.9 Human workflow
+## 14.10 Human workflow
 
 A person using only checked documentation must be able to:
 
