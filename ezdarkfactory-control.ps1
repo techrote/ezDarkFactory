@@ -9,7 +9,7 @@ $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 $ErrorRecordPreference = 'SilentlyContinue'
 try {
-    Import-Module (Join-Path $PSScriptRoot 'src/EzDarkFactory/EzDarkFactory.psd1') -Force -ErrorAction Stop
+    Import-Module (Join-Path $PSScriptRoot 'src/EzDarkFactory/Edf005.psm1') -Force -ErrorAction Stop
     if ($InitializeFactory) {
         if ($RequestFile -or $RequestJson) { throw 'InitializeFactory cannot be combined with a request.' }
         $value = Initialize-EzDarkFactoryIdentity -Root $PSScriptRoot
