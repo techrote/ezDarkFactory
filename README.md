@@ -4,10 +4,14 @@ A fresh-project, human-operated development VM factory derived from the EzVM env
 
 ## Status
 
-Planning programme only. No VM/runtime implementation has been imported yet.
+Planning programme published; VM/runtime implementation has not yet been imported.
 
-The authoritative implementation programme is in `docs/programme/IMPLEMENTATION-PROGRAMME.md`.
-Read `AGENTS.md` and `RAG.md` before changing the repository.
+Start with:
+
+- `AGENTS.md` — autonomous implementation/PR/merge contract;
+- `RAG.md` — project authority index;
+- `docs/programme/PLAN-REVIEW.md` — initial plan, review findings and improved plan;
+- `docs/programme/IMPLEMENTATION-PROGRAMME.md` — dependency graph and issues [#1](https://github.com/techrote/ezDarkFactory/issues/1) through [#12](https://github.com/techrote/ezDarkFactory/issues/12).
 
 ## Historical reconstruction
 
