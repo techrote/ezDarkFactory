@@ -198,6 +198,15 @@ function Resolve-EzDarkFactoryControlTarget {
     throw 'Instance ID is unknown or not adopted; no mutation was attempted.'
 }
 
+function Get-EzDarkFactoryControlRequestDigest {
+    param([object]$Request)
+    $payload = ConvertTo-Json -InputObject $Request -Depth 30 -Compress
+    $bytes = [Text.Encoding]::UTF8.GetBytes($payload)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try { return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-','').ToLowerInvariant() }
+    finally { $sha.Dispose() }
+}
+
 function Get-EzDarkFactoryControlOperationPath {
     param([string]$Root, [string]$OperationId)
     if ($OperationId -cnotmatch '^[a-f0-9]{32}$') { throw 'Operation ID must be 32 lowercase hex characters.' }
@@ -351,8 +360,11 @@ function Invoke-EzDarkFactoryControl {
         try {
             # Idempotency/recovery is checked BEFORE any command, including stale confirmations.
             $old = Get-EzDarkFactoryControlOperation -Root $Root -OperationId $Request.operation_id
+            $digest = Get-EzDarkFactoryControlRequestDigest -Request $Request
             if ($null -ne $old) {
-                if ($old.factory_id -cne $factoryId -or $old.command -cne $command -or $old.instance_id -cne $Request.instance_id) {
+                if ($old.factory_id -cne $factoryId -or $old.command -cne $command -or
+                    $old.request_sha256 -cne $digest -or $old.instance_id -cne $Request.instance_id -or
+                    $old.instance_generation -cne $Request.instance_generation) {
                     throw 'Operation ID was previously used with a different target or factory.'
                 }
                 return (New-EzDarkFactoryControlResponse -Request $Request -FactoryId $factoryId -State ([string]$old.state) -Data $old.result -Code ([string]$old.refusal_code) -Message ([string]$old.refusal_message))
@@ -376,6 +388,7 @@ function Invoke-EzDarkFactoryControl {
             [void][IO.Directory]::CreateDirectory($operationDir)
             $receipt = [pscustomobject][ordered]@{
                 schemaVersion = 1; factory_id = $factoryId; operation_id = [string]$Request.operation_id
+                request_sha256 = $digest
                 command = $command; instance_id = [string]$Request.instance_id
                 instance_generation = [string]$Request.instance_generation
                 expected_revision = [string]$Request.expected_revision
