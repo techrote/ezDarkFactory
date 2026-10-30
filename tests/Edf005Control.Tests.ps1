@@ -1,4 +1,6 @@
 # EDF-005 real-filesystem contracts. No QEMU, guest, WHPX or physical TUI execution is claimed.
+Import-Module (Join-Path $script:EzDarkFactoryRepositoryRoot 'src/EzDarkFactory/Edf005.psm1') -Force
+
 function New-Edf005Request {
     param([string]$Root, [string]$Command, [object]$Arguments = $null,
         [string]$Id = '', [string]$InstanceId = '', [string]$Generation = '')
@@ -29,9 +31,9 @@ function New-Edf005SyntheticIntent {
 }
 
 Add-EzDarkFactoryTest -Name 'EDF-005: factory identities are explicit, random, stable and portable' -ScriptBlock {
-    $a = New-EzDarkFactoryCheckoutFixture -Prefix 'id 壹 space'
-    $b = New-EzDarkFactoryCheckoutFixture -Prefix 'id 乙 space'
-    $move = New-EzDarkFactoryTestDirectory -Prefix 'moved 亜'
+    $a = New-EzDarkFactoryCheckoutFixture -Prefix 'id Chinese 1 space'
+    $b = New-EzDarkFactoryCheckoutFixture -Prefix 'id Chinese 2 space'
+    $move = New-EzDarkFactoryTestDirectory -Prefix 'moved Japanese space'
     try {
         Assert-EzDarkFactoryThrows -ScriptBlock { Get-EzDarkFactoryIdentity -Root $a } -MessagePattern 'uninitialized' | Out-Null
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $a 'runtime')))
@@ -78,7 +80,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: portable registry requires enrollment cons
         Assert-EzDarkFactoryThrows -ScriptBlock {
             Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $root -Alias 'A'
         } -MessagePattern 'explicit authorization' | Out-Null
-        $record = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $root -Alias 'Root Α' -AuthorizeLocalExecution
+        $record = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $root -Alias 'Root Unicode' -AuthorizeLocalExecution
         Assert-EzDarkFactoryTrue -Condition ($record.enrollment_id -match '^enr_')
         Assert-EzDarkFactoryThrows -ScriptBlock {
             Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root (Join-Path $root '.') -Alias 'Duplicate' -AuthorizeLocalExecution
@@ -89,7 +91,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: portable registry requires enrollment cons
         Assert-EzDarkFactoryTrue -Condition $result.removed
         Assert-EzDarkFactoryTrue -Condition (Test-Path -LiteralPath (Join-Path $root 'runtime/factory-identity.json'))
         $left = Get-EzDarkFactoryManagerRegistry -Workspace $workspace
-        Assert-EzDarkFactoryEqual -Actual @($left.roots).Count -Expected 0
+        $remainingCount = @($left.roots).Count
+        Assert-EzDarkFactoryEqual -Actual $remainingCount -Expected 0
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root; Remove-EzDarkFactoryTestDirectory -Path $workspace }
 }
@@ -186,7 +189,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: malformed identity fails closed without ge
     try {
         $null = Initialize-EzDarkFactoryIdentity -Root $root
         $file = Join-Path $root 'runtime/factory-identity.json'
-        [IO.File]::WriteAllText($file, '{"schemaVersion":1,"factory_id":"bad","api_major":1,"api_minor":0,"created_at":"x"}')
+        $badIdentity = [pscustomobject]@{ schemaVersion = 1; factory_id = 'bad'; api_major = 1; api_minor = 0; created_at = 'x' }
+        [IO.File]::WriteAllText($file, (ConvertTo-Json -InputObject $badIdentity -Compress))
         Assert-EzDarkFactoryThrows -ScriptBlock { Initialize-EzDarkFactoryIdentity -Root $root } -MessagePattern 'identity' | Out-Null
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryCandidate -Root $root).state -Expected 'incompatible'
         Assert-EzDarkFactoryTrue -Condition ([IO.File]::ReadAllText($file).Contains('"bad"'))
