@@ -49,11 +49,13 @@ The host manager does not rewrite durable VM JSON, QCOW2 metadata, process evide
 
 Every factory root must expose a stable factory identity through the accepted control/broker contract.
 
-The manager keeps its own registration record containing factory ID, current path, alias and capability/version information.
+The manager keeps registration records containing factory ID, current path, alias and capability/version information.
 
 A path is a locator, not stable identity.
 
-Cold relocation preserves factory identity. If two reachable registered locations present the same identity, the manager holds mutations until the user resolves which copy/location is authoritative.
+Factory identity is opaque and stable. It is preserved by ordinary relocation/move. If an archived/copy of a factory is intentionally turned into a second independently writable factory, an explicit fork/rekey operation creates a new factory identity first.
+
+If two reachable registered locations present the same identity, the manager holds mutations until the user resolves which copy/location is authoritative.
 
 ## Historical runtime seam
 
@@ -101,11 +103,13 @@ No root adapter may cause the UI event loop or unrelated factories to block.
 
 The manager maintains:
 
-- a factory registry;
+- a portable factory registry/workspace when multi-root convenience is desired;
 - UI/session state;
 - bounded operation journal;
 - per-root observation workers;
 - root-scoped operation coordination.
+
+No factory-critical state may exist only in a hidden machine-local application-data directory. A factory must remain directly openable and operable from its own transferred folder when the cross-factory manager workspace is absent.
 
 The manager may run independent operations across different roots subject to a global budget.
 
@@ -114,6 +118,20 @@ Within a factory, the underlying control plane remains the lifecycle/storage loc
 Manager restart never blindly replays mutations. Pending operations are reconciled.
 
 No permanent Windows service is required for v0.1.
+
+## Portable bundle invariant
+
+Each factory root is a self-contained portable unit.
+
+Everything required to identify, configure, start, stop, diagnose, recover and continue that factory travels inside the factory folder, apart from host prerequisites that checked-in setup/doctor scripts can validate or reacquire.
+
+Authoritative paths are root-relative where practical. Machine-specific absolute paths and transient process/QMP observations are treated as rebindable host state, not durable identity.
+
+The intended relocation workflow is: stop → portability check → zip/archive one factory folder → transfer/extract → run setup/doctor → open/start.
+
+A full stateful bundle may contain private keys and guest credentials and therefore must be treated as sensitive.
+
+Cross-factory manager layout/registry state may live in a separate explicit portable manager-workspace folder, preferably alongside the factories. It is optional and reconstructible.
 
 ## VM/storage invariants
 
@@ -154,7 +172,7 @@ Allowed:
 
 ```text
 TUI -> manager reducer/read model -> per-factory adapter -> factory control plane
-TUI -> manager registry/session/journal
+TUI -> portable manager workspace registry/session/journal
 factory control plane -> QEMU/storage/SSH/QMP
 guest profile -> baseline provisioning recipes
 reference demo -> isolated guest/reference installation
@@ -166,7 +184,7 @@ Forbidden:
 TUI -> direct QCOW2 mutation
 TUI -> direct instance.json rewrite
 TUI -> guessed PID kill
-manager registry -> lifecycle authority
+manager registry/workspace -> lifecycle authority
 path string -> stable factory identity
 reference demo -> project workspace authority
 guest/log/model output -> host command authority
