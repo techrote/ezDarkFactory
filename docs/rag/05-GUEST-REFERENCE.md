@@ -25,6 +25,43 @@ After creating a new project instance and reaching READY:
 
 A small generic welcome/kickoff file may be generated outside or inside the empty workspace only if its schema/content is documented and project-neutral.
 
+## EDF-004 default fresh-project profile
+
+New managed instances use EDF-owned profile **`fresh-project` version 1**.
+The inherited `coding-default` version 1 source remains readable only for
+already durable historical intents; EDF does not silently rewrite those overlays.
+
+The fresh profile is identified by its reviewed manifest + provision-script
+SHA-256 digest. Its authenticated READY marker is the exact guest identity
+(documenting instance name, immutable base, resource profile, generated
+cloud-instance identity, `fresh-project` name/version and digest) plus
+`provisioningState: "complete"`. Because the cloud identity includes the
+durable `identityGeneration`, an old READY marker cannot authorize a reset,
+fresh clone or replacement generation.
+
+On the **first** successful provisioning of each identity generation,
+`/home/coder/workspace` must be empty and the guest refuses known historical
+TUIsynth/TRIO state, provider/model credential locations and coder autostart
+state before publishing READY. A same-generation re-provision may validate
+after the human has added project files only when a matching completed marker
+already proved that generation's fresh start; a failed live validation removes
+the marker before returning failure. Validation never deletes user project data.
+
+### Profile extension seam
+
+Later optional profiles are new named/versioned manifests, not mutations of
+`fresh-project/v1`:
+
+- graphical desktop: only after the EDF-006 stack decision explicitly GOes it;
+- optional language/developer stacks: inherit the same identity/readiness and
+  workspace ownership contracts and add separately pinned capabilities;
+- reference/demo material: installed outside the active workspace, opt-in,
+  source-pinned and unable to satisfy or alter project READY.
+
+Unknown profile names/versions fail closed. A profile extension cannot weaken
+locked-password/public-key SSH, root-login refusal, required-tool validation,
+workspace ownership, current-generation identity or stale-READY rejection.
+
 ## Stable coding baseline
 
 Preserve or explicitly supersede the historical general-purpose baseline:

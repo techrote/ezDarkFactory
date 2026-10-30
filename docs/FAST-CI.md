@@ -65,3 +65,11 @@ EDF-003 acceptance additionally needs **all four** special CI lanes, for
 **nine** exact PR-head jobs and a fresh post-merge main run. Retained
 upstream DASH-08 TCG failures and unmeasured physical-WHPX status are not
 converted into software PASS.
+
+## EDF-004 focused guest contract
+
+EDF-004 adds two required Windows FAST-CI jobs (PS5.1 and pinned PS7.6.6)
+running `scripts/Invoke-Edf004Qualification.ps1`. They do not launch QEMU;
+they prove source/generated seed/readiness and reset/fresh-clone contracts.
+Together with the inherited nine jobs, EDF-004 acceptance requires **11**
+literal-head checks and the same 11 checks on actual merged `main`.

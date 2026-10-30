@@ -38,6 +38,12 @@ EDF003_SUPERSEDED_DESTINATIONS = frozenset({
     "src/EzDarkFactory/Keys.ps1",
     "src/EzDarkFactory/Runtime.ps1",
 })
+EDF004_SUPERSEDED_DESTINATIONS = frozenset({
+    "src/EzDarkFactory/Profiles.ps1",
+    "src/EzDarkFactory/Registry.ps1",
+    "tests/Registry.Tests.ps1",
+})
+LATER_SUPERSEDED_DESTINATIONS = EDF003_SUPERSEDED_DESTINATIONS | EDF004_SUPERSEDED_DESTINATIONS
 
 class ActiveImportTests(unittest.TestCase):
     @classmethod
@@ -85,8 +91,13 @@ class ActiveImportTests(unittest.TestCase):
                 current_blob = p.run_git(self.root, "rev-parse", "HEAD:" + destination).decode("ascii").strip()
                 self.assertEqual(p.run_git(self.root, "cat-file", "blob", current_blob),
                                  (self.root / destination).read_bytes())
-                if destination not in EDF003_SUPERSEDED_DESTINATIONS:
+                if destination not in LATER_SUPERSEDED_DESTINATIONS:
                     self.assertEqual(current_blob, historical_blob)
+                elif destination in EDF004_SUPERSEDED_DESTINATIONS:
+                    repairs = p.load_json(p.PROVENANCE / "edf004-fresh-profile.json")
+                    matches = [r for r in repairs["records"] if r["destination"] == destination]
+                    self.assertEqual(len(matches), 1)
+                    self.assertEqual(current_blob, matches[0]["destination_blob"])
                 elif destination in {"src/EzDarkFactory/Keys.ps1", "src/EzDarkFactory/Runtime.ps1"}:
                     repairs = p.load_json(p.PROVENANCE / "edf003-repairs.json")
                     matches = [r for r in repairs["records"] if r["destination"] == destination]
@@ -114,7 +125,7 @@ class ActiveImportTests(unittest.TestCase):
                         .replace("EZVM", "EDF").replace("ezvm", "ezdarkfactory")).encode("utf-8")
                 accepted_blob = p.run_git(self.root, "cat-file", "blob", record["destination_blob"])
                 self.assertEqual(accepted_blob, expected)
-                if record["destination"] not in EDF003_SUPERSEDED_DESTINATIONS:
+                if record["destination"] not in LATER_SUPERSEDED_DESTINATIONS:
                     self.assertEqual((self.root / record["destination"]).read_bytes(), expected)
 
     def test_source_does_not_claim_stable_0_1_release_or_host_runtime_qualification(self):

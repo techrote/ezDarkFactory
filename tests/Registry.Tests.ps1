@@ -113,7 +113,7 @@ Add-EzDarkFactoryTest -Name 'Registry: managed create persists complete relocata
         $intent = Get-EzDarkFactoryInstanceIntent -Root $fixture.Root -InstanceName 'agent-one'
         Assert-EzDarkFactoryEqual -Actual $intent.profile -Expected 'light'
         Assert-EzDarkFactoryEqual -Actual $intent.sshPort -Expected 22000
-        Assert-EzDarkFactoryEqual -Actual $intent.provisioningProfile -Expected 'coding-default'
+        Assert-EzDarkFactoryEqual -Actual $intent.provisioningProfile -Expected 'fresh-project'
         Assert-EzDarkFactoryEqual -Actual $intent.provisioningVersion -Expected 1
         $intentPath = (Get-EzDarkFactoryInstanceRuntimePaths -Root $fixture.Root -InstanceName 'agent-one').Intent
         $json = [IO.File]::ReadAllText($intentPath)

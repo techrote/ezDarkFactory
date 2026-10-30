@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "issue": "EDF-004",
+  "evidence_class": "SOURCE",
+  "baseline_commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+  "baseline_tree": "78e5ce0db9c32972451add22d28c7d19983775ee",
+  "edf002_accepted_commit": "978288496aa5d328f0d79712c74e69cf769689e4",
+  "fresh_profile": {
+    "name": "fresh-project",
+    "version": 1,
+    "workspacePolicy": "empty-at-first-ready",
+    "historicalWorkloadPolicy": "absent",
+    "referencePolicy": "isolated-opt-in"
+  },
+  "records": [
+    {
+      "source_repository": "techrote/ezvm",
+      "source_commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+      "source_path": "src/EzVm/Profiles.ps1",
+      "source_blob": "fa957411131d95bf3067cafb7018f090c91817b0",
+      "source_sha256": "939195272dc7da435291ace8cdf1151d37c91ad8d651132e050aba2bfaae9550",
+      "source_mode": "100644",
+      "edf002_accepted_commit": "978288496aa5d328f0d79712c74e69cf769689e4",
+      "edf002_accepted_destination": "src/EzDarkFactory/Profiles.ps1",
+      "edf002_accepted_blob": "3496fedcfb41e27ea99ca6fb6f984686c23b323c",
+      "destination": "src/EzDarkFactory/Profiles.ps1",
+      "destination_blob": "dc2301203d9b43226c488be31404a2b8f74a9e93",
+      "transformation": "reviewed-edf004-adaptation"
+    },
+    {
+      "source_repository": "techrote/ezvm",
+      "source_commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+      "source_path": "src/EzVm/Registry.ps1",
+      "source_blob": "9cb3751b808a26d0493c72989e3454db2c79a5ef",
+      "source_sha256": "6f363bcdaea73603fb7a18108635e41c77d88c58464db79361614266cfb793df",
+      "source_mode": "100644",
+      "edf002_accepted_commit": "978288496aa5d328f0d79712c74e69cf769689e4",
+      "edf002_accepted_destination": "src/EzDarkFactory/Registry.ps1",
+      "edf002_accepted_blob": "67d714bd5a7a52dde6a10d8a53c5fe8ae3027f81",
+      "destination": "src/EzDarkFactory/Registry.ps1",
+      "destination_blob": "7ada3f92c037862719a69311b7faf24b13488e1c",
+      "transformation": "reviewed-edf004-adaptation"
+    },
+    {
+      "source_repository": "techrote/ezvm",
+      "source_commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+      "source_path": "tests/Registry.Tests.ps1",
+      "source_blob": "f0981b0ed5b5951ee8abd68b560b348a654097c4",
+      "source_sha256": "b8304c3a71d0bb26ac35b7e251424caea19058c4b09a6d08ab039d9d34cd5e1c",
+      "source_mode": "100644",
+      "edf002_accepted_commit": "978288496aa5d328f0d79712c74e69cf769689e4",
+      "edf002_accepted_destination": "tests/Registry.Tests.ps1",
+      "edf002_accepted_blob": "6760f81f9ff4ce271377cee44d35fdb90dd69a1c",
+      "destination": "tests/Registry.Tests.ps1",
+      "destination_blob": "46a163527c00fc7149f287e34b42c90cede046ab",
+      "transformation": "reviewed-edf004-adaptation"
+    },
+    {
+      "source_repository": "techrote/ezvm",
+      "source_commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+      "source_path": "guest/profiles/coding-default/v1/profile.json",
+      "source_blob": "c0c02d7cfddb47626950a915d0340ee4b6aa6c34",
+      "source_sha256": "ca3e6e1edc8f9c48803e0e6b4536d5d76c6decee11e61e5d835c9d9f1142baf9",
+      "source_mode": "100644",
+      "edf002_accepted_commit": "978288496aa5d328f0d79712c74e69cf769689e4",
+      "edf002_accepted_destination": "guest/profiles/coding-default/v1/profile.json",
+      "edf002_accepted_blob": "c0c02d7cfddb47626950a915d0340ee4b6aa6c34",
+      "destination": "guest/profiles/fresh-project/v1/profile.json",
+      "destination_blob": "ff14118673174304e2101dd2c1b8105ed73695cf",
+      "transformation": "edf-owned-fresh-profile-v1"
+    },
+    {
+      "source_repository": "techrote/ezvm",
+      "source_commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+      "source_path": "guest/profiles/coding-default/v1/provision.sh",
+      "source_blob": "21f110202d16ed374526459cb135f7e250bd7901",
+      "source_sha256": "47733d6482da047e1569f3c113bcd985c5f00e44523ba904f1f3b05dfb13f7b4",
+      "source_mode": "100644",
+      "edf002_accepted_commit": "978288496aa5d328f0d79712c74e69cf769689e4",
+      "edf002_accepted_destination": "guest/profiles/coding-default/v1/provision.sh",
+      "edf002_accepted_blob": "e7d00174827b0fb5097eeb386f1ccaef906a4690",
+      "destination": "guest/profiles/fresh-project/v1/provision.sh",
+      "destination_blob": "cf47f72158d26483e04cec8124ebf3569bbb84a5",
+      "transformation": "edf-owned-fresh-profile-v1"
+    }
+  ],
+  "new_edf_source": [
+    "tests/Edf004FreshGuest.Tests.ps1",
+    "scripts/Invoke-Edf004Qualification.ps1",
+    ".github/workflows/edf004-fresh-guest.yml",
+    "docs/provenance/EDF-004-FRESH-GUEST.md",
+    "tests/test_edf004_profile.py"
+  ]
+}

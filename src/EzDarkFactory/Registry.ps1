@@ -204,7 +204,9 @@ function New-EzDarkFactoryManagedInstance {
     $paths = Get-EzDarkFactoryPaths -Root $Root
     $runtimePaths = Get-EzDarkFactoryInstanceRuntimePaths -Root $Root -InstanceName $InstanceName
     $resources = Resolve-EzDarkFactoryInstanceResources -Root $Root -Profile $Profile -Cpus $Cpus -MemoryMiB $MemoryMiB
-    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root
+    # EDF-004: every newly managed project starts from the EDF-owned fresh profile.
+    # Historical coding-default remains readable only for existing durable intents.
+    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root -Name 'fresh-project' -Version 1
     $base = Get-EzDarkFactoryPreparedBaseSelection -Root $Root -BaseId $BaseId -QemuImgRunner $QemuImgRunner
     if ($null -ne $Origin) { Assert-EzDarkFactoryInstanceOrigin -Origin $Origin -ExpectedBaseId $base.BaseId }
 
