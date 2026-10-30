@@ -21,7 +21,7 @@ The primary management interface is a **TUI with GUI-style workspace, pointer in
 
 The CLI/helper path remains a recovery and automation surface.
 
-This specification is subordinate to higher-priority project safety, lifecycle, storage, security, compatibility, repository, and issue requirements. Where those conflict with generic UI guidance, the project-specific rule here wins and the deviation is recorded.
+This specification is subordinate only to higher-priority project safety, lifecycle, storage, security, functional, compatibility, and repository requirements. Issue bodies must conform to this specification unless they explicitly amend it through reviewed project/spec changes. Where project-specific rules conflict with generic UI guidance, the project-specific rule here wins and the deviation is recorded.
 
 Writing a requirement here is **not** evidence that it is implemented or qualified.
 
