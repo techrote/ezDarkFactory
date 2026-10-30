@@ -10,8 +10,8 @@ namespace adaptation or EDF-003 source-selection records.
 - Accepted base main: `4ca42999081f6253e9701821f1c378f439fca9a9`.
 - Accepted EDF-003 technical merge: `d7b7debbaf66d5b50136342d26634ff05ea34d3f`.
 - Superseded current implementation blobs at base:
-  - `src/EzDarkFactory/Runtime.ps1`: Git blob to be verified from the base commit.
-  - `tests/Runtime.Tests.ps1`: Git blob to be verified from the base commit.
+  - `src/EzDarkFactory/Runtime.ps1`: `f4e9af5f0058fd3b7176650a774aea355baaf1ff`.
+  - `tests/Runtime.Tests.ps1`: `d298a546c1428b0c6d7d56c44d892eaf7b4eb43b`.
 - Original EDF-001 baseline and EDF-002/EDF-003 imported-source/blob/hash
   manifests remain immutable. This document records later deviations; it
   does not claim altered bytes match the original imported source.
