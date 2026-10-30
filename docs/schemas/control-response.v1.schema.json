@@ -12,7 +12,8 @@
     "instance_generation",
     "state",
     "data",
-    "refusal"
+    "refusal",
+    "progress"
   ],
   "properties": {
     "schemaVersion": {
@@ -61,6 +62,26 @@
         "object",
         "null"
       ]
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "terminal"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "accepted",
+            "completed",
+            "refused"
+          ]
+        },
+        "terminal": {
+          "type": "boolean"
+        }
+      }
     }
   }
 }
