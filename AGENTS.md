@@ -69,12 +69,15 @@ Every implementation issue is an end-to-end execution prompt. Do **not** stop af
 
 - Primary host: Windows x86-64.
 - Preserve the EzVM baseline's repository-local QEMU model, immutable managed base -> one mutable QCOW2 overlay, lifecycle locks, process-identity checks, relocation-safe state and localhost-only SSH forwarding unless an issue explicitly changes a contract with tests.
+- A working factory is a self-contained portable folder. No critical factory identity/configuration/recovery/key/VM state may exist only in hidden host-local application data.
 - Runtime images, QEMU/7-Zip payloads, keys, credentials, tokens, caches, downloaded model weights and generated VM state are never committed.
 - External acquisition is pinned and hash-verified.
 - UI code never edits instance JSON, process evidence, QCOW2 metadata or trust files directly. It calls typed control-plane/broker operations.
 - The primary UI is the host-side tile-native management TUI specified by `docs/rag/03-HUMAN-CONTROL-SURFACE.md`.
 - One manager may register and observe multiple local ezDarkFactory roots; each root remains its own lifecycle/storage/security authority.
 - The manager must not infer factory identity from path alone or silently mutate two reachable copies with the same factory identity.
+- Ordinary relocation preserves factory/instance identities; creating a second independently writable copy requires explicit fork/rekey.
+- Cross-factory manager registry/layout state is optional portable convenience state, not factory authority. A factory must remain directly operable by path without it.
 - No automatic paid inference, provider registration or credential import.
 - A clean project VM starts with an empty project workspace. Reference/demo content is isolated from the active workspace and is never the default working directory.
 - TUIsynth reference material must remain pinned, labelled historical/demo-only and unable to affect normal project creation.
