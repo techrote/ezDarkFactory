@@ -26,7 +26,7 @@ function New-Edf005SyntheticIntent {
         createdAt = [DateTime]::UtcNow.ToString('o'); provisioningProfile = 'fresh-project'
         provisioningVersion = 1; identityGeneration = [guid]::NewGuid().ToString('N')
     }
-    Write-EzDarkFactoryJson -Path (Join-Path $dir 'instance.json') -Value $intent -SchemaVersion 2
+    [IO.File]::WriteAllText((Join-Path $dir 'instance.json'), (ConvertTo-Json -InputObject $intent -Depth 8), (New-Object Text.UTF8Encoding($false)))
     return $intent
 }
 
@@ -118,7 +118,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: duplicate reachable identity conflicts and
         } -MessagePattern 'refuses conflict' | Out-Null
         $request = New-Edf005Request -Root $b -Command 'factory.rekey'
         $rekey = Invoke-EzDarkFactoryControl -Root $b -Request $request
-        Assert-EzDarkFactoryEqual -Actual $rekey.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $rekey.state -Expected 'completed' -Message ([string]$rekey.refusal.message)
         Assert-EzDarkFactoryTrue -Condition ($rekey.data.factory_id -cne $initial.factory_id)
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryIdentity -Root $a).factory_id -Expected $initial.factory_id
         Assert-EzDarkFactoryTrue -Condition (Test-Path -LiteralPath (Join-Path $b ('runtime/control/rekey-' + $request.operation_id + '.json')))
