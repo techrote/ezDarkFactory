@@ -490,7 +490,14 @@ function Invoke-EzDarkFactoryControl {
                     'instance.exec' {
                         $cfg = Get-EzDarkFactoryConfiguration -Root $Root
                         if ($a.argv -isnot [array] -or @($a.argv).Count -lt 1 -or @($a.argv).Count -gt 64) { throw 'Exec requires 1..64 typed argv strings.' }
-                        $data = Invoke-EzDarkFactoryExec -Root $Root -InstanceName $name -Command ([string[]]$a.argv) -TimeoutSeconds ([int]$cfg.timeouts.processSeconds)
+                        $executed = Invoke-EzDarkFactoryExec -Root $Root -InstanceName $name -Command ([string[]]$a.argv) -TimeoutSeconds ([int]$cfg.timeouts.processSeconds)
+                        # Guest output is untrusted and must not turn a root-local
+                        # operation record into an unbounded terminal transcript.
+                        $data = [pscustomobject]@{
+                            name = $name; exitCode = [int]$executed.exitCode
+                            stdout = Protect-EzDarkFactoryDiagnosticText -Text ([string]$executed.stdout) -MaximumCharacters 8192
+                            stderr = Protect-EzDarkFactoryDiagnosticText -Text ([string]$executed.stderr) -MaximumCharacters 8192
+                        }
                     }
                     'instance.copy_to' {
                         $cfg = Get-EzDarkFactoryConfiguration -Root $Root
