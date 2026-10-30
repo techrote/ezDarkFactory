@@ -118,7 +118,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: duplicate reachable identity conflicts and
         } -MessagePattern 'refuses conflict' | Out-Null
         $request = New-Edf005Request -Root $b -Command 'factory.rekey'
         $rekey = Invoke-EzDarkFactoryControl -Root $b -Request $request
-        Assert-EzDarkFactoryEqual -Actual $rekey.state -Expected 'completed' -Message ([string]$rekey.refusal.message)
+        $failureMessage = if ($null -eq $rekey.refusal) { 'Rekey did not complete.' } else { [string]$rekey.refusal.message }
+        Assert-EzDarkFactoryEqual -Actual $rekey.state -Expected 'completed' -Message $failureMessage
         Assert-EzDarkFactoryTrue -Condition ($rekey.data.factory_id -cne $initial.factory_id)
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryIdentity -Root $a).factory_id -Expected $initial.factory_id
         Assert-EzDarkFactoryTrue -Condition (Test-Path -LiteralPath (Join-Path $b ('runtime/control/rekey-' + $request.operation_id + '.json')))
