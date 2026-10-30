@@ -252,19 +252,6 @@ function Invoke-EzDarkFactoryCommand {
 
     $null = Get-EzDarkFactoryRoot -Path $Root
     $version = Get-EzDarkFactoryVersion
-    # EDF-005: an identity-enabled factory shares one root mutation gate with
-    # typed manager operations. Older roots retain direct CLI compatibility,
-    # but cannot be enrolled by the manager without explicit initialization.
-    $controlGate = $null
-    if ($command -in @('bootstrap','base acquire','base build','create','clone','reset','export','import',
-            'start','stop','exec','copy-to','copy-from')) {
-        $identityPath = Get-EzDarkFactoryIdentityPath -Root $Root
-        if (Test-Path -LiteralPath $identityPath) {
-            $null = Get-EzDarkFactoryIdentity -Root $Root
-            $controlGate = Enter-EzDarkFactoryControlLock -Root $Root
-        }
-    }
-    try {
     switch ($command) {
         'version' {
             $data = [pscustomobject][ordered]@{ name = 'ezdarkfactory'; version = $version }
@@ -371,8 +358,6 @@ function Invoke-EzDarkFactoryCommand {
         }
     }
     return New-EzDarkFactoryCommandResult -Success $true -Command $command -ExitCode 0 -Data $data
-    }
-    finally { if ($null -ne $controlGate) { $controlGate.Dispose() } }
 }
 
 function Write-EzDarkFactoryResult {
