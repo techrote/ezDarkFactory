@@ -1,0 +1,1798 @@
+function Get-EzDarkFactoryOpenSshTools {
+    [CmdletBinding()]
+    param()
+
+    $isWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+    $spec = [ordered]@{
+        Ssh = $(if ($isWindows) { 'ssh.exe' } else { 'ssh' })
+        Scp = $(if ($isWindows) { 'scp.exe' } else { 'scp' })
+        Keygen = $(if ($isWindows) { 'ssh-keygen.exe' } else { 'ssh-keygen' })
+    }
+    $resolved = [ordered]@{}
+    $missing = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($entry in $spec.GetEnumerator()) {
+        $command = @(Get-Command -Name $entry.Value -CommandType Application -ErrorAction SilentlyContinue | Select-Object -First 1)
+        if ($command.Count -eq 0) {
+            $resolved[$entry.Key] = $null
+            $missing.Add($entry.Value)
+            continue
+        }
+        $path = $command[0].Source
+        if ([string]::IsNullOrWhiteSpace($path)) { $path = $command[0].Path }
+        if ([string]::IsNullOrWhiteSpace($path)) {
+            $resolved[$entry.Key] = $null
+            $missing.Add($entry.Value)
+            continue
+        }
+        $resolved[$entry.Key] = [IO.Path]::GetFullPath($path)
+    }
+
+    $valid = $missing.Count -eq 0
+    $reason = if ($valid) {
+        'Windows OpenSSH client tooling required by ezdarkfactory is available.'
+    }
+    else {
+        'Missing required OpenSSH application(s): ' + ([string]::Join(', ', $missing.ToArray())) + '.'
+    }
+    return [pscustomobject][ordered]@{
+        Valid = $valid
+        Ssh = $resolved.Ssh
+        Scp = $resolved.Scp
+        Keygen = $resolved.Keygen
+        Missing = [string[]]$missing.ToArray()
+        Reason = $reason
+    }
+}
+
+function Assert-EzDarkFactoryOpenSshTools {
+    param([AllowNull()][object]$Tooling = $null)
+
+    if ($null -eq $Tooling) { $Tooling = Get-EzDarkFactoryOpenSshTools }
+    if ($null -eq $Tooling -or $Tooling.Valid -ne $true) {
+        $detail = if ($null -ne $Tooling -and -not [string]::IsNullOrWhiteSpace([string]$Tooling.Reason)) {
+            [string]$Tooling.Reason
+        } else {
+            'Required OpenSSH tooling could not be resolved.'
+        }
+        throw "$detail Install the Windows OpenSSH Client optional feature so ssh.exe, scp.exe and ssh-keygen.exe are available, then run '.\ezdarkfactory.ps1 doctor' again."
+    }
+    return $Tooling
+}
+
+function Get-EzDarkFactorySshPaths {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [string]$InstanceName
+    )
+
+    $paths = Get-EzDarkFactoryPaths -Root $Root
+    $knownHostsDirectory = Join-Path $paths.Keys 'known-hosts'
+    $instanceKnownHosts = $null
+    $accessState = $null
+    if (-not [string]::IsNullOrWhiteSpace($InstanceName)) {
+        Assert-EzDarkFactoryStorageInstanceName -Name $InstanceName
+        $runtimePaths = Get-EzDarkFactoryInstanceRuntimePaths -Root $Root -InstanceName $InstanceName
+        $instanceKnownHosts = Join-Path $knownHostsDirectory ($InstanceName + '.known_hosts')
+        $accessState = Join-Path $runtimePaths.Directory 'access.json'
+    }
+    return [pscustomobject][ordered]@{
+        KeysDirectory = [IO.Path]::GetFullPath($paths.Keys)
+        ControllerPrivateKey = [IO.Path]::GetFullPath((Join-Path $paths.Keys 'controller_ed25519'))
+        ControllerPublicKey = [IO.Path]::GetFullPath((Join-Path $paths.Keys 'controller_ed25519.pub'))
+        KnownHostsDirectory = [IO.Path]::GetFullPath($knownHostsDirectory)
+        InstanceKnownHosts = $(if ($null -ne $instanceKnownHosts) { [IO.Path]::GetFullPath($instanceKnownHosts) } else { $null })
+        AccessState = $(if ($null -ne $accessState) { [IO.Path]::GetFullPath($accessState) } else { $null })
+    }
+}
+
+function Write-EzDarkFactorySshTextAtomically {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [AllowEmptyString()][string]$Content = ''
+    )
+
+    $fullPath = Assert-EzDarkFactorySafePath -Path $Path -Description 'SSH state publication'
+    $directory = [IO.Path]::GetDirectoryName($fullPath)
+    $null = Assert-EzDarkFactorySafePath -Path $directory -Description 'SSH managed directory'
+    [void][IO.Directory]::CreateDirectory($directory)
+    $temporary = Join-Path $directory ('.' + [IO.Path]::GetFileName($fullPath) + '.tmp-' + [Guid]::NewGuid().ToString('N'))
+    try {
+        $encoding = New-Object Text.UTF8Encoding($false)
+        $stream = New-Object IO.FileStream($temporary, [IO.FileMode]::CreateNew, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try {
+            $bytes = $encoding.GetBytes($Content)
+            if ($bytes.Length -gt 0) { $stream.Write($bytes, 0, $bytes.Length) }
+            $stream.Flush($true)
+        }
+        finally { $stream.Dispose() }
+
+        $null = Assert-EzDarkFactorySafePath -Path $fullPath -Description 'SSH state publication'
+        if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
+            [IO.File]::Replace($temporary, $fullPath, [System.Management.Automation.Language.NullString]::Value)
+        }
+        else {
+            [IO.File]::Move($temporary, $fullPath)
+        }
+    }
+    catch {
+        if (Test-Path -LiteralPath $temporary) { Remove-Item -LiteralPath $temporary -Force -ErrorAction SilentlyContinue }
+        throw
+    }
+}
+
+function Get-EzDarkFactorySshSha256Hex {
+    param([Parameter(Mandatory = $true)][string]$Text)
+    $sha = [Security.Cryptography.SHA256]::Create()
+    try {
+        $bytes = (New-Object Text.UTF8Encoding($false)).GetBytes($Text)
+        return ([BitConverter]::ToString($sha.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant()
+    }
+    finally { $sha.Dispose() }
+}
+
+function Get-EzDarkFactoryIntentProfileName {
+    param(
+        [string]$Root,
+        [Parameter(Mandatory = $true)][object]$Intent
+    )
+    $profileProperty = $Intent.PSObject.Properties['profile']
+    if ($null -ne $profileProperty -and
+        $profileProperty.Value -is [string] -and
+        @('light', 'normal', 'heavy', 'custom') -ccontains [string]$profileProperty.Value) {
+        return [string]$profileProperty.Value
+    }
+
+    $configuration = Get-EzDarkFactoryConfiguration -Root $Root
+    foreach ($name in @('light', 'normal', 'heavy')) {
+        $profile = $configuration.profiles.$name
+        if ([int]$profile.cpus -eq [int]$Intent.cpus -and [int]$profile.memoryMiB -eq [int]$Intent.memoryMiB) {
+            return $name
+        }
+    }
+    return 'custom'
+}
+
+function ConvertTo-EzDarkFactoryYamlSingleQuoted {
+    param([AllowEmptyString()][string]$Value = '')
+    return "'" + $Value.Replace("'", "''") + "'"
+}
+
+function Get-EzDarkFactoryGuestHostname {
+    param([Parameter(Mandatory = $true)][string]$InstanceName)
+    Assert-EzDarkFactoryStorageInstanceName -Name $InstanceName
+    $label = ($InstanceName.ToLowerInvariant() -replace '[^a-z0-9-]', '-').Trim('-')
+    if ([string]::IsNullOrWhiteSpace($label)) { $label = 'instance' }
+    if ($label.Length -gt 42) { $label = $label.Substring(0, 42).TrimEnd('-') }
+    $suffix = (Get-EzDarkFactorySshSha256Hex -Text $InstanceName).Substring(0, 8)
+    return 'ezdarkfactory-' + $label + '-' + $suffix
+}
+
+function Get-EzDarkFactoryGuestCloudInstanceId {
+    param([Parameter(Mandatory = $true)][object]$Intent)
+    $identityText = [string]$Intent.name + '|' + [string]$Intent.baseId + '|' + [string]$Intent.createdAt
+    # Existing schema-1 guests keep their accepted cloud identity. Schema 2 has
+    # a durable generation so reset can rotate identity without changing the
+    # instance's creation time or depending on an absolute host path.
+    if ([int]$Intent.schemaVersion -eq 2) {
+        if ($Intent.identityGeneration -isnot [string] -or $Intent.identityGeneration -cnotmatch '^[a-f0-9]{32}$') {
+            throw 'Guest identity generation must contain exactly 32 lowercase hexadecimal characters.'
+        }
+        $identityText += '|' + [string]$Intent.identityGeneration
+    }
+    $hash = Get-EzDarkFactorySshSha256Hex -Text $identityText
+    return 'ezdarkfactory-' + ([string]$Intent.name).ToLowerInvariant() + '-' + $hash.Substring(0, 12)
+}
+
+function Get-EzDarkFactoryGuestMachineUuid {
+    param([Parameter(Mandatory = $true)][object]$Intent)
+    $identityText = 'ezdarkfactory-machine-v1|' + (Get-EzDarkFactoryGuestCloudInstanceId -Intent $Intent)
+    if ([int]$Intent.schemaVersion -eq 2) { $identityText += '|' + [string]$Intent.identityGeneration }
+    $hash = Get-EzDarkFactorySshSha256Hex -Text $identityText
+    return $hash.Substring(0, 8) + '-' + $hash.Substring(8, 4) + '-' + $hash.Substring(12, 4) + '-' + $hash.Substring(16, 4) + '-' + $hash.Substring(20, 12)
+}
+
+function Get-EzDarkFactoryGuestIdentityInitializer {
+    param(
+        [Parameter(Mandatory = $true)][object]$Intent,
+        [Parameter(Mandatory = $true)][string]$ControllerPublicKey
+    )
+    $machineUuid = Get-EzDarkFactoryGuestMachineUuid -Intent $Intent
+    $configuration = [ordered]@{
+        cloudInstanceId = Get-EzDarkFactoryGuestCloudInstanceId -Intent $Intent
+        machineUuid = $machineUuid
+        machineId = $machineUuid.Replace('-', '')
+        controllerPublicKey = $ControllerPublicKey
+    } | ConvertTo-Json -Compress
+    $script = @'
+#!/usr/bin/python3
+"""Initialize only ezdarkfactory's guest identity; preserve user workspace and login state."""
+import base64
+import hashlib
+import json
+import os
+import pwd
+import secrets
+import stat
+import subprocess
+import sys
+import tempfile
+
+EXPECTED = json.loads(base64.b64decode('__EDF_IDENTITY_CONFIG__'))
+FLAGS = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
+FIELDS = {'schemaVersion', 'cloudInstanceId', 'machineUuid', 'machineId',
+          'sshHostKeySha256', 'controllerPublicKeySha256', 'initializedBootId'}
+
+def directory(path, create=False):
+    fd = os.open('/', FLAGS)
+    try:
+        for part in path.strip('/').split('/'):
+            if create:
+                try:
+                    os.mkdir(part, 0o755, dir_fd=fd)
+                except FileExistsError:
+                    pass
+            child = os.open(part, FLAGS, dir_fd=fd)
+            info = os.fstat(child)
+            if info.st_uid != 0 or info.st_mode & 0o022:
+                os.close(child)
+                raise ValueError('unsafe root-owned guest identity directory')
+            os.close(fd)
+            fd = child
+        return fd
+    except BaseException:
+        os.close(fd)
+        raise
+
+def read_file(fd, name, limit=8192, missing=False):
+    try:
+        file_fd = os.open(name, os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)
+    except FileNotFoundError:
+        if missing:
+            return None
+        raise
+    try:
+        info = os.fstat(file_fd)
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022 or info.st_size > limit:
+            raise ValueError('guest identity evidence is not a bounded regular file')
+        with os.fdopen(file_fd, 'rb', closefd=False) as stream:
+            data = stream.read(limit + 1)
+        if len(data) > limit:
+            raise ValueError('guest identity evidence exceeds its size bound')
+        return data
+    finally:
+        os.close(file_fd)
+
+def replace_file(fd, name, data, mode, uid=0, gid=0):
+    try:
+        existing = os.stat(name, dir_fd=fd, follow_symlinks=False)
+        if not stat.S_ISREG(existing.st_mode):
+            raise ValueError('refusing non-regular guest identity destination')
+    except FileNotFoundError:
+        pass
+    temporary = '.ezdarkfactory-identity-' + secrets.token_hex(16)
+    created = False
+    try:
+        out = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, mode, dir_fd=fd)
+        created = True
+        try:
+            os.fchown(out, uid, gid)
+            os.fchmod(out, mode)
+            with os.fdopen(out, 'wb', closefd=False) as stream:
+                stream.write(data)
+                stream.flush()
+            os.fsync(out)
+        finally:
+            os.close(out)
+        os.replace(temporary, name, src_dir_fd=fd, dst_dir_fd=fd)
+        created = False
+        os.fsync(fd)
+    finally:
+        if created:
+            os.unlink(temporary, dir_fd=fd)
+
+def authorize_controller():
+    account = pwd.getpwnam('coder')
+    if account.pw_uid == 0 or account.pw_dir != '/home/coder':
+        raise ValueError('unexpected coder account identity')
+    homes = directory('/home')
+    home = ssh = None
+    try:
+        home = os.open('coder', FLAGS, dir_fd=homes)
+        if os.fstat(home).st_uid != account.pw_uid:
+            raise ValueError('coder home belongs to a different user')
+        try:
+            os.mkdir('.ssh', 0o700, dir_fd=home)
+            os.chown('.ssh', account.pw_uid, account.pw_gid, dir_fd=home, follow_symlinks=False)
+        except FileExistsError:
+            pass
+        ssh = os.open('.ssh', FLAGS, dir_fd=home)
+        if os.fstat(ssh).st_uid != account.pw_uid:
+            raise ValueError('coder SSH directory belongs to a different user')
+        os.fchmod(ssh, 0o700)
+        # Only managed inbound authorization changes. Outbound private keys,
+        # known_hosts, agent credentials and every workspace file are preserved.
+        replace_file(ssh, 'authorized_keys', (EXPECTED['controllerPublicKey'] + '\n').encode(), 0o600,
+                     account.pw_uid, account.pw_gid)
+    finally:
+        for fd in (ssh, home, homes):
+            if fd is not None:
+                os.close(fd)
+
+def initialize():
+    if os.geteuid() != 0:
+        raise ValueError('guest identity initialization requires root')
+    state = directory('/var/lib/ezdarkfactory', create=True)
+    etc = ssh = dbus = None
+    try:
+        try:
+            os.unlink('ready.json', dir_fd=state)
+        except FileNotFoundError:
+            pass
+        # A copied enabled service must not act as its source before new seed
+        # data arrives. QEMU supplies the destination's durable hardware UUID.
+        hardware_uuid = open('/sys/class/dmi/id/product_uuid', encoding='ascii').read().strip().lower()
+        if hardware_uuid != EXPECTED['machineUuid']:
+            raise ValueError('seed identity does not match destination hardware UUID; check cloud-init cache policy')
+        boot_id = open('/proc/sys/kernel/random/boot_id', encoding='ascii').read().strip()
+        etc = directory('/etc')
+        ssh = directory('/etc/ssh')
+        dbus = directory('/var/lib/dbus', create=True)
+        previous_bytes = read_file(state, 'guest-identity.json', missing=True)
+        previous = None if previous_bytes is None else json.loads(previous_bytes)
+        same_generation = isinstance(previous, dict) and previous.get('cloudInstanceId') == EXPECTED['cloudInstanceId']
+        public_hash = hashlib.sha256((EXPECTED['controllerPublicKey'] + '\n').encode()).hexdigest()
+        if same_generation:
+            if set(previous) != FIELDS or type(previous['schemaVersion']) is not int or previous['schemaVersion'] != 1:
+                raise ValueError('malformed current guest identity initialization marker')
+            if any(previous.get(key) != EXPECTED[key] for key in ('machineUuid', 'machineId')):
+                raise ValueError('current guest machine identity differs from durable intent')
+            if previous['controllerPublicKeySha256'] != public_hash:
+                raise ValueError('controller public identity changed without a new guest generation')
+            if read_file(etc, 'machine-id').decode('ascii').strip() != EXPECTED['machineId']:
+                raise ValueError('current machine-id no longer matches guest initialization')
+            if hashlib.sha256(read_file(ssh, 'ssh_host_ed25519_key.pub')).hexdigest() != previous['sshHostKeySha256']:
+                raise ValueError('current SSH host identity no longer matches guest initialization')
+        else:
+            # Keys are generated privately within the guest, never in NoCloud or
+            # host manifests. The marker is committed only after all files land.
+            with tempfile.TemporaryDirectory(prefix='.ezdarkfactory-host-identity-', dir='/etc/ssh') as temporary:
+                key = temporary + '/host_ed25519'
+                subprocess.run(['/usr/bin/ssh-keygen', '-q', '-t', 'ed25519', '-N', '', '-f', key],
+                               check=True, timeout=60, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                private_bytes = open(key, 'rb').read()
+                public_bytes = open(key + '.pub', 'rb').read()
+                replace_file(ssh, 'ssh_host_ed25519_key', private_bytes, 0o600)
+                replace_file(ssh, 'ssh_host_ed25519_key.pub', public_bytes, 0o644)
+            replace_file(etc, 'machine-id', (EXPECTED['machineId'] + '\n').encode('ascii'), 0o444)
+            try:
+                dbus_info = os.stat('machine-id', dir_fd=dbus, follow_symlinks=False)
+            except FileNotFoundError:
+                dbus_info = None
+            if dbus_info is not None and stat.S_ISLNK(dbus_info.st_mode):
+                if os.path.realpath('/var/lib/dbus/machine-id') != '/etc/machine-id':
+                    raise ValueError('DBus machine-id symlink points outside the managed machine identity')
+            else:
+                replace_file(dbus, 'machine-id', (EXPECTED['machineId'] + '\n').encode('ascii'), 0o444)
+            authorize_controller()
+            previous = dict(schemaVersion=1, cloudInstanceId=EXPECTED['cloudInstanceId'],
+                            machineUuid=EXPECTED['machineUuid'], machineId=EXPECTED['machineId'],
+                            sshHostKeySha256=hashlib.sha256(public_bytes).hexdigest(),
+                            controllerPublicKeySha256=public_hash, initializedBootId=boot_id)
+            replace_file(state, 'guest-identity.json', (json.dumps(previous, sort_keys=True) + '\n').encode(), 0o644)
+        for name in ('identity-failed.json', 'provisioning-failed'):
+            try:
+                os.unlink(name, dir_fd=state)
+            except FileNotFoundError:
+                pass
+        if previous['initializedBootId'] == boot_id:
+            # One reboot adopts the changed machine ID in all services. The
+            # persistent finalizer and marker make an interrupted attempt safe.
+            os.sync()
+            return 75
+        if open('/var/lib/dbus/machine-id', encoding='ascii').read().strip() != EXPECTED['machineId']:
+            raise ValueError('DBus machine-id no longer matches guest initialization')
+        authorize_controller()
+        return 0
+    finally:
+        for fd in (dbus, ssh, etc, state):
+            if fd is not None:
+                os.close(fd)
+
+try:
+    sys.exit(initialize())
+except Exception as error:
+    message = ('guest identity initialization failed: ' + str(error))[:1024]
+    try:
+        state_fd = directory('/var/lib/ezdarkfactory', create=True)
+        try:
+            record = {'schemaVersion': 1, 'cloudInstanceId': EXPECTED['cloudInstanceId'], 'error': message}
+            replace_file(state_fd, 'identity-failed.json', (json.dumps(record) + '\n').encode(), 0o644)
+        finally:
+            os.close(state_fd)
+    except Exception:
+        pass
+    print(message, file=sys.stderr)
+    sys.exit(1)
+'@
+    return $script.Replace('__EDF_IDENTITY_CONFIG__', [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($configuration))).Replace("`r`n", "`n") + "`n"
+}
+
+function New-EzDarkFactoryInstanceSeedData {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory = $true)][string]$InstanceName,
+        [Parameter(Mandatory = $true)][object]$Intent,
+        [Parameter(Mandatory = $true)][string]$ControllerPublicKey,
+        [string]$Profile
+    )
+
+    Assert-EzDarkFactoryStorageInstanceName -Name $InstanceName
+    Assert-EzDarkFactoryInstanceIntent -Intent $Intent -ExpectedName $InstanceName
+    if ($ControllerPublicKey -cnotmatch '^ssh-ed25519 [A-Za-z0-9+/]+={0,2}(?: [^\r\n]*)?$' -or
+        $ControllerPublicKey -match '(?i)PRIVATE KEY') {
+        throw 'Instance seed requires exactly one Ed25519 controller public key and must never receive private-key material.'
+    }
+    # Comments are not key material and can accidentally contain host paths or
+    # credentials. Only the algorithm and public-key bytes enter the guest seed.
+    $ControllerPublicKey = [string]::Join(' ', @($ControllerPublicKey -split ' ' | Select-Object -First 2))
+    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root -Name ([string]$Intent.provisioningProfile) -Version ([int]$Intent.provisioningVersion)
+    if ([string]::IsNullOrWhiteSpace($Profile)) {
+        $Profile = Get-EzDarkFactoryIntentProfileName -Root $Root -Intent $Intent
+    }
+    if ($Profile -cnotmatch '^[a-z0-9][a-z0-9._-]{0,31}$' -or $Profile -cne [string]$Intent.profile) {
+        throw "Instance resource profile marker '$Profile' does not match durable intent."
+    }
+
+    $hostname = Get-EzDarkFactoryGuestHostname -InstanceName $InstanceName
+    $cloudInstanceId = Get-EzDarkFactoryGuestCloudInstanceId -Intent $Intent
+    $identity = [pscustomobject][ordered]@{
+        schemaVersion = 2
+        instanceName = $InstanceName
+        baseId = [string]$Intent.baseId
+        profile = $Profile
+        cloudInstanceId = $cloudInstanceId
+        provisioningProfile = [string]$codingProfile.Name
+        provisioningVersion = [int]$codingProfile.Version
+        provisioningDigest = [string]$codingProfile.Digest
+    }
+    $identityJson = $identity | ConvertTo-Json -Compress
+
+    $userDataLines = @(
+        '#cloud-config',
+        'preserve_hostname: false',
+        ('hostname: ' + (ConvertTo-EzDarkFactoryYamlSingleQuoted $hostname)),
+        'ssh_pwauth: false',
+        'disable_root: true',
+        'ssh_deletekeys: true',
+        'ssh_genkeytypes: [ed25519]',
+        'users:',
+        '  - default',
+        '  - name: coder',
+        '    gecos: ezdarkfactory coding user',
+        '    homedir: /home/coder',
+        '    groups: [adm, sudo]',
+        "    sudo: ['ALL=(ALL:ALL) NOPASSWD:ALL']",
+        '    shell: /bin/bash',
+        '    lock_passwd: true',
+        '    ssh_authorized_keys:',
+        ('      - ' + (ConvertTo-EzDarkFactoryYamlSingleQuoted $ControllerPublicKey)),
+        'write_files:',
+        # Cache policy belongs to system configuration, not cloud-config user
+        # data. An unknown top-level key degrades cloud-init to status exit 2.
+        '  - path: /etc/cloud/cloud.cfg.d/99-ezdarkfactory-identity.cfg',
+        '    owner: root:root',
+        "    permissions: '0644'",
+        '    encoding: b64',
+        ('    content: ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("manual_cache_clean: false`n"))),
+        '  - path: /etc/ssh/sshd_config.d/00-ezdarkfactory-coding.conf',
+        '    owner: root:root',
+        "    permissions: '0644'",
+        '    content: |',
+        '      PasswordAuthentication no',
+        '      KbdInteractiveAuthentication no',
+        '      PubkeyAuthentication yes',
+        '      PermitRootLogin no',
+        '  - path: /etc/ezdarkfactory/identity.json',
+        '    owner: root:root',
+        "    permissions: '0644'",
+        '    content: |',
+        ('      ' + $identityJson),
+        '  - path: /etc/ezdarkfactory/profile.json',
+        '    owner: root:root',
+        "    permissions: '0644'",
+        '    encoding: b64',
+        ('    content: ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$codingProfile.ManifestJson))),
+        '  - path: /usr/local/sbin/ezdarkfactory-coding-profile',
+        '    owner: root:root',
+        "    permissions: '0755'",
+        '    encoding: b64',
+        ('    content: ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes([string]$codingProfile.Script)))
+    )
+    if ([int]$Intent.schemaVersion -eq 2) {
+        $initializer = Get-EzDarkFactoryGuestIdentityInitializer -Intent $Intent -ControllerPublicKey $ControllerPublicKey
+        $finalizer = @'
+#!/bin/sh
+set -eu
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+LC_ALL=C
+export PATH LC_ALL
+stage=cloud-init
+report_stage() {
+    printf 'EDF_GUEST_FINALIZE_STAGE=%s\n' "$stage" || true
+}
+report_exit() {
+    result=$?
+    if test "$result" -ne 0; then
+        printf 'EDF_GUEST_FINALIZE_FAILED=stage=%s;exit=%s\n' "$stage" "$result" >&2 || true
+    fi
+}
+trap report_exit 0
+report_stage
+if cloud-init status --wait >/var/log/ezdarkfactory-cloud-init-status.log 2>&1; then
+    :
+else
+    cloud_exit=$?
+    printf 'EDF_GUEST_CLOUD_INIT_EXIT=%s\n' "$cloud_exit" >&2 || true
+    exit 1
+fi
+stage=identity
+report_stage
+set +e
+/usr/local/sbin/ezdarkfactory-instance-identity
+identity_exit=$?
+set -e
+if test "$identity_exit" -eq 75; then
+    stage=reboot
+    report_stage
+    systemctl reboot
+    exit 0
+fi
+if test "$identity_exit" -ne 0; then
+    exit "$identity_exit"
+fi
+stage=ssh-policy
+report_stage
+if ! /usr/sbin/sshd -t || ! systemctl reload ssh; then
+    printf '%s\n' 'SSH policy activation failed' > /var/lib/ezdarkfactory/provisioning-failed
+    exit 1
+fi
+stage=coding-profile
+report_stage
+exec /usr/local/sbin/ezdarkfactory-coding-profile provision
+'@
+        $unit = @'
+[Unit]
+Description=ezdarkfactory guest identity and coding readiness
+After=cloud-final.service
+Wants=cloud-final.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/sbin/ezdarkfactory-instance-finalize
+TimeoutStartSec=180
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=cloud-init.target
+'@
+        foreach ($file in @(
+            @('/usr/local/sbin/ezdarkfactory-instance-identity', '0755', $initializer),
+            @('/usr/local/sbin/ezdarkfactory-instance-finalize', '0755', ($finalizer.Replace("`r`n", "`n") + "`n")),
+            @('/etc/systemd/system/ezdarkfactory-instance-finalize.service', '0644', ($unit.Replace("`r`n", "`n") + "`n"))
+        )) {
+            $userDataLines += @(
+                ('  - path: ' + $file[0]),
+                '    owner: root:root',
+                ("    permissions: '" + $file[1] + "'"),
+                '    encoding: b64',
+                ('    content: ' + [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($file[2])))
+            )
+        }
+        $userDataLines += @(
+            'runcmd:',
+            '  - [systemctl, daemon-reload]',
+            '  - [systemctl, enable, ezdarkfactory-instance-finalize.service]',
+            '  - [systemctl, start, --no-block, ezdarkfactory-instance-finalize.service]'
+        )
+    }
+    else {
+        # Schema-1 instances retain the accepted no-reboot bootstrap contract.
+        $userDataLines += @(
+        '  - path: /usr/local/sbin/ezdarkfactory-instance-finalize',
+        '    owner: root:root',
+        "    permissions: '0755'",
+        '    content: |',
+        '      #!/bin/sh',
+        '      set -eu',
+        '      export PATH=/usr/sbin:/usr/bin:/sbin:/bin',
+        '      install -d -m 0755 /var/lib/ezdarkfactory',
+        '      rm -f /var/lib/ezdarkfactory/ready.json',
+        '      if cloud-init status --wait >/var/log/ezdarkfactory-cloud-init-status.log 2>&1; then',
+        '        if ! /usr/sbin/sshd -t || ! systemctl reload ssh; then',
+        "          printf '%s\n' 'SSH policy activation failed' > /var/lib/ezdarkfactory/provisioning-failed",
+        '          exit 1',
+        '        fi',
+        '        exec /usr/local/sbin/ezdarkfactory-coding-profile provision',
+        '      else',
+        "        printf '%s\n' 'cloud-init failed' > /var/lib/ezdarkfactory/provisioning-failed",
+        '        exit 1',
+        '      fi',
+        'runcmd:',
+        '  - [systemd-run, --no-block, --unit=ezdarkfactory-instance-finalize, --collect, --property=Type=oneshot, /usr/local/sbin/ezdarkfactory-instance-finalize]'
+        )
+    }
+    $metaDataLines = @(
+        ('instance-id: ' + (ConvertTo-EzDarkFactoryYamlSingleQuoted $cloudInstanceId)),
+        ('local-hostname: ' + (ConvertTo-EzDarkFactoryYamlSingleQuoted $hostname))
+    )
+    # Guest scripts must use Unix newlines even when generated on Windows.
+    $userData = [string]::Join("`n", $userDataLines) + "`n"
+    $metaData = [string]::Join("`n", $metaDataLines) + "`n"
+    if (($userData + $metaData) -match '(?i)BEGIN .*PRIVATE KEY|OPENSSH PRIVATE KEY') {
+        throw 'Generated instance NoCloud data unexpectedly contains private-key material.'
+    }
+
+    return [pscustomobject][ordered]@{
+        UserData = $userData
+        MetaData = $metaData
+        InstanceName = $InstanceName
+        BaseId = [string]$Intent.baseId
+        Profile = $Profile
+        Hostname = $hostname
+        CloudInstanceId = $cloudInstanceId
+        Identity = $identity
+        CodingProfile = $codingProfile
+    }
+}
+
+function Enter-EzDarkFactorySshAllocationLock {
+    param([string]$Root, [ValidateRange(1, 30000)][int]$TimeoutMilliseconds = 5000)
+
+    $paths = Get-EzDarkFactoryPaths -Root $Root
+    $null = Assert-EzDarkFactoryStorageManagedPath -Path $paths.Locks -ContainmentRoot $paths.Runtime -SafetyRoot $paths.Root -Description 'SSH allocation lock directory'
+    $null = Assert-EzDarkFactorySafePath -Path $paths.Locks -Description 'SSH managed directory'
+    [void][IO.Directory]::CreateDirectory($paths.Locks)
+    $null = Assert-EzDarkFactoryStorageManagedPath -Path $paths.Locks -ContainmentRoot $paths.Runtime -SafetyRoot $paths.Root -Description 'SSH allocation lock directory' -RequireDirectory
+    $lockPath = Join-Path $paths.Locks 'ssh-port-allocation.lock'
+    $deadline = [DateTime]::UtcNow.AddMilliseconds($TimeoutMilliseconds)
+    while ($true) {
+        try {
+            $null = Assert-EzDarkFactoryStorageManagedPath -Path $lockPath -ContainmentRoot $paths.Locks -SafetyRoot $paths.Root -Description 'SSH allocation lock file'
+            return New-Object IO.FileStream($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+        }
+        catch [IO.IOException] {
+            if ([DateTime]::UtcNow -ge $deadline) {
+                throw 'Timed out waiting for the ezdarkfactory SSH port-allocation lock. Another instance start may still be publishing its localhost SSH endpoint.'
+            }
+            Start-Sleep -Milliseconds 50
+        }
+    }
+}
+
+function Test-EzDarkFactoryLoopbackPortAvailable {
+    param([Parameter(Mandatory = $true)][ValidateRange(1024, 65535)][int]$Port)
+    $listener = [Net.Sockets.TcpListener]::new([Net.IPAddress]::Loopback, $Port)
+    try {
+        $listener.Server.ExclusiveAddressUse = $true
+        $listener.Start()
+        return $true
+    }
+    catch [Net.Sockets.SocketException] { return $false }
+    finally {
+        try { $listener.Stop() } catch { }
+    }
+}
+
+function Get-EzDarkFactoryAvailableSshPort {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [scriptblock]$PortProbe,
+        [AllowEmptyCollection()][int[]]$ReservedPorts = @()
+    )
+
+    $configuration = Get-EzDarkFactoryConfiguration -Root $Root
+    $start = [int]$configuration.ssh.portRangeStart
+    $end = [int]$configuration.ssh.portRangeEnd
+    $reserved = @{}
+    foreach ($value in @($ReservedPorts)) { $reserved[[int]$value] = $true }
+
+    for ($port = $start; $port -le $end; $port++) {
+        if ($reserved.ContainsKey($port)) { continue }
+        $available = if ($null -ne $PortProbe) { [bool](& $PortProbe $port) } else { Test-EzDarkFactoryLoopbackPortAvailable -Port $port }
+        if ($available) { return $port }
+    }
+    throw "No unreserved loopback SSH port is available in configured range $start-$end. Stop an unused instance, free a conflicting local listener, or configure a different ezdarkfactory SSH range."
+}
+
+function Get-EzDarkFactoryNullKnownHostsPath {
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { return 'NUL' }
+    return '/dev/null'
+}
+
+function ConvertTo-EzDarkFactoryOpenSshConfigPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [switch]$ExpandTokens
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or $Path.IndexOf([char]0) -ge 0 -or $Path -match '[\r\n]') {
+        throw 'OpenSSH configuration paths must be non-empty single-line paths without NUL characters.'
+    }
+    # OpenSSH reparses -o values using its configuration grammar, even when
+    # the native process receives one complete argv token. Quote the scalar
+    # within that token so spaces and quotes cannot name extra trust files.
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { $Path = $Path.Replace('\', '/') }
+    if ($ExpandTokens) {
+        # UserKnownHostsFile expands percent tokens and ${environment} after
+        # parsing quotes. Percent has a literal escape; environment syntax does
+        # not, so refuse a path that would silently redirect managed trust.
+        if ($Path.Contains('${')) { throw 'OpenSSH known-hosts paths cannot contain ''${'' because it expands environment variables. Move the bundle to a path without that syntax.' }
+        $Path = $Path.Replace('%', '%%')
+    }
+    return '"' + $Path.Replace('\', '\\').Replace('"', '\"') + '"'
+}
+
+function ConvertTo-EzDarkFactoryPosixArgument {
+    param([AllowEmptyString()][string]$Value = '')
+    if ($Value.IndexOf([char]0) -ge 0) { throw 'Remote command arguments cannot contain NUL characters.' }
+    $single = [string][char]39
+    $double = [string][char]34
+    $escapedSingle = $single + $double + $single + $double + $single
+    return $single + $Value.Replace($single, $escapedSingle) + $single
+}
+
+function Join-EzDarkFactoryRemoteCommand {
+    param([Parameter(Mandatory = $true)][AllowEmptyCollection()][AllowEmptyString()][string[]]$Tokens)
+    if ($Tokens.Count -eq 0) { throw 'A remote command requires at least one token.' }
+    return [string]::Join(' ', @($Tokens | ForEach-Object { ConvertTo-EzDarkFactoryPosixArgument $_ }))
+}
+
+function New-EzDarkFactorySshCommandArguments {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$PrivateKey,
+        [Parameter(Mandatory = $true)][string]$KnownHosts,
+        [Parameter(Mandatory = $true)][ValidateRange(1024, 65535)][int]$Port,
+        [string]$User = 'coder',
+        [AllowEmptyCollection()][string[]]$RemoteCommand = @(),
+        [switch]$Batch,
+        [switch]$AcceptNewHostKey,
+        [ValidateRange(1, 60)][int]$ConnectTimeoutSeconds = 5
+    )
+
+    if ($User -cnotmatch '^[a-z_][a-z0-9_-]{0,31}$') { throw "SSH user '$User' is invalid." }
+    $strictHostKeyMode = if ($AcceptNewHostKey) { 'accept-new' } else { 'yes' }
+    $arguments = New-Object 'System.Collections.Generic.List[string]'
+    foreach ($pair in @(
+        @('-p', [string]$Port),
+        @('-i', [IO.Path]::GetFullPath($PrivateKey)),
+        @('-o', 'IdentitiesOnly=yes'),
+        @('-o', ('StrictHostKeyChecking=' + $strictHostKeyMode)),
+        @('-o', 'UpdateHostKeys=no'),
+        @('-o', 'HostKeyAlgorithms=ssh-ed25519'),
+        @('-o', 'HashKnownHosts=no'),
+        @('-o', ('UserKnownHostsFile=' + (ConvertTo-EzDarkFactoryOpenSshConfigPath -Path ([IO.Path]::GetFullPath($KnownHosts)) -ExpandTokens))),
+        @('-o', ('GlobalKnownHostsFile=' + (ConvertTo-EzDarkFactoryOpenSshConfigPath -Path (Get-EzDarkFactoryNullKnownHostsPath)))),
+        @('-o', 'PasswordAuthentication=no'),
+        @('-o', 'KbdInteractiveAuthentication=no'),
+        @('-o', 'PreferredAuthentications=publickey'),
+        @('-o', ('ConnectTimeout=' + $ConnectTimeoutSeconds)),
+        @('-o', 'ConnectionAttempts=1')
+    )) {
+        $arguments.Add($pair[0])
+        $arguments.Add($pair[1])
+    }
+    if ($Batch) {
+        $arguments.Add('-o')
+        $arguments.Add('BatchMode=yes')
+        $arguments.Add('-o')
+        $arguments.Add('NumberOfPasswordPrompts=0')
+    }
+    $arguments.Add(($User + '@127.0.0.1'))
+    if ($RemoteCommand.Count -gt 0) {
+        $arguments.Add((Join-EzDarkFactoryRemoteCommand -Tokens $RemoteCommand))
+    }
+    return $arguments.ToArray()
+}
+
+function New-EzDarkFactoryScpCommandArguments {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)][string]$PrivateKey,
+        [Parameter(Mandatory = $true)][string]$KnownHosts,
+        [Parameter(Mandatory = $true)][ValidateRange(1024, 65535)][int]$Port,
+        [Parameter(Mandatory = $true)][string]$Source,
+        [Parameter(Mandatory = $true)][string]$Destination
+    )
+
+    foreach ($value in @($Source, $Destination)) {
+        if ([string]::IsNullOrWhiteSpace($value) -or $value.IndexOf([char]0) -ge 0 -or $value -match '[\r\n]') {
+            throw 'SCP source and destination must be non-empty single-line paths without NUL characters.'
+        }
+    }
+    return @(
+        '-P', [string]$Port,
+        '-i', [IO.Path]::GetFullPath($PrivateKey),
+        '-o', 'IdentitiesOnly=yes',
+        '-o', 'BatchMode=yes',
+        '-o', 'NumberOfPasswordPrompts=0',
+        '-o', 'ConnectionAttempts=1',
+        '-o', 'ConnectTimeout=15',
+        '-o', 'StrictHostKeyChecking=yes',
+        '-o', 'UpdateHostKeys=no',
+        '-o', 'HostKeyAlgorithms=ssh-ed25519',
+        '-o', 'HashKnownHosts=no',
+        '-o', ('UserKnownHostsFile=' + (ConvertTo-EzDarkFactoryOpenSshConfigPath -Path ([IO.Path]::GetFullPath($KnownHosts)) -ExpandTokens)),
+        '-o', ('GlobalKnownHostsFile=' + (ConvertTo-EzDarkFactoryOpenSshConfigPath -Path (Get-EzDarkFactoryNullKnownHostsPath))),
+        '-o', 'PasswordAuthentication=no',
+        '-o', 'KbdInteractiveAuthentication=no',
+        '--',
+        $Source,
+        $Destination
+    )
+}
+
+function Get-EzDarkFactoryKnownHostKeyMaterial {
+    param([Parameter(Mandatory = $true)][string]$Line)
+    $trimmed = $Line.Trim()
+    $match = [regex]::Match($trimmed, '^(?<host>\S+)\s+(?<type>ssh-ed25519)\s+(?<key>[A-Za-z0-9+/]+={0,2})(?:\s+.*)?$')
+    if (-not $match.Success) { throw 'Expected one OpenSSH Ed25519 known-host line.' }
+    return [pscustomobject][ordered]@{
+        Host = $match.Groups['host'].Value
+        Type = $match.Groups['type'].Value
+        Key = $match.Groups['key'].Value
+        Material = $match.Groups['type'].Value + ' ' + $match.Groups['key'].Value
+    }
+}
+
+function New-EzDarkFactoryEmptyCandidateKnownHosts {
+    param(
+        [string]$Root,
+        [string]$InstanceName,
+        [string]$LaunchId
+    )
+
+    $paths = Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName
+    $null = Assert-EzDarkFactorySafePath -Path $paths.KnownHostsDirectory -Description 'SSH managed directory'
+    [void][IO.Directory]::CreateDirectory($paths.KnownHostsDirectory)
+    $candidate = Join-Path $paths.KnownHostsDirectory ('.' + $InstanceName + '.' + $LaunchId + '.candidate')
+    Write-EzDarkFactorySshTextAtomically -Path $candidate -Content ''
+    return [pscustomobject][ordered]@{
+        Candidate = [IO.Path]::GetFullPath($candidate)
+        Managed = $paths.InstanceKnownHosts
+    }
+}
+
+function Assert-EzDarkFactoryCandidateKnownHostsEntry {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][ValidateRange(1024, 65535)][int]$Port
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        throw 'SSH did not create the launch-local host-key candidate.'
+    }
+    $lines = @(((Read-EzDarkFactoryBoundedText -Path $Path -MaximumBytes 65536) -split '\r?\n') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and -not $_.TrimStart().StartsWith('#') })
+    if ($lines.Count -ne 1) {
+        throw 'Launch-local SSH host-key candidate must contain exactly one managed Ed25519 entry.'
+    }
+    $entry = Get-EzDarkFactoryKnownHostKeyMaterial -Line $lines[0]
+    $expectedHost = '[127.0.0.1]:' + $Port
+    if ($entry.Host -cne $expectedHost) {
+        throw "Launch-local SSH host-key candidate belongs to '$($entry.Host)', expected '$expectedHost'."
+    }
+    return $entry
+}
+
+function New-EzDarkFactoryCandidateKnownHosts {
+    param(
+        [string]$Root,
+        [string]$InstanceName,
+        [string]$LaunchId,
+        [ValidateRange(1024, 65535)][int]$Port,
+        [Parameter(Mandatory = $true)][string]$ScannedLine
+    )
+
+    $paths = Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName
+    $null = Assert-EzDarkFactorySafePath -Path $paths.KnownHostsDirectory -Description 'SSH managed directory'
+    [void][IO.Directory]::CreateDirectory($paths.KnownHostsDirectory)
+    $scanned = Get-EzDarkFactoryKnownHostKeyMaterial -Line $ScannedLine
+    $expectedHost = '[127.0.0.1]:' + $Port
+    if ($scanned.Host -cne $expectedHost) {
+        throw "Scanned SSH host-key entry belongs to '$($scanned.Host)', expected '$expectedHost'."
+    }
+
+    $existingMaterial = $null
+    $changed = $false
+    if (Test-Path -LiteralPath $paths.InstanceKnownHosts -PathType Leaf) {
+        $existingLines = @(((Read-EzDarkFactoryBoundedText -Path $paths.InstanceKnownHosts -MaximumBytes 65536) -split '\r?\n') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and -not $_.TrimStart().StartsWith('#') })
+        if ($existingLines.Count -ne 1) {
+            throw "Managed known-hosts state for instance '$InstanceName' is malformed; refusing to weaken host-key verification."
+        }
+        $existing = Get-EzDarkFactoryKnownHostKeyMaterial -Line $existingLines[0]
+        $existingMaterial = $existing.Material
+        $changed = $existing.Material -cne $scanned.Material
+    }
+
+    # A changed key is never trusted merely because keyscan observed it. Keep the
+    # existing managed entry untouched and use this launch-local candidate only
+    # for the authenticated identity/readiness proof. Promotion happens later.
+    $candidate = Join-Path $paths.KnownHostsDirectory ('.' + $InstanceName + '.' + $LaunchId + '.candidate')
+    Write-EzDarkFactorySshTextAtomically -Path $candidate -Content ($ScannedLine.Trim() + [Environment]::NewLine)
+    return [pscustomobject][ordered]@{
+        Candidate = [IO.Path]::GetFullPath($candidate)
+        Managed = $paths.InstanceKnownHosts
+        Material = $scanned.Material
+        ExistingMaterial = $existingMaterial
+        Changed = $changed
+    }
+}
+
+function Assert-EzDarkFactorySshAccessState {
+    param([Parameter(Mandatory = $true)][object]$Access, [string]$ExpectedName)
+    $expected = @('schemaVersion', 'instanceName', 'baseId', 'launchId', 'sshHost', 'sshPort', 'sshUser', 'state', 'cloudInstanceId', 'profile', 'provisioningProfile', 'provisioningVersion', 'provisioningDigest', 'readyAt')
+    if ($Access -isnot [pscustomobject]) { throw 'SSH access state must be a JSON object.' }
+    $actual = @($Access.PSObject.Properties.Name)
+    foreach ($name in $actual) { if ($expected -cnotcontains $name) { throw "SSH access state contains unknown field '$name'." } }
+    foreach ($name in $expected) { if ($actual -cnotcontains $name) { throw "SSH access state is missing required field '$name'." } }
+    Assert-EzDarkFactoryRuntimeInteger -Value $Access.schemaVersion -Description 'SSH access state schemaVersion; stop and restart to regenerate legacy access state' -Minimum 2 -Maximum 2
+    if ($Access.instanceName -cne $ExpectedName) { throw 'SSH access state belongs to a different instance.' }
+    if ($Access.baseId -isnot [string] -or $Access.baseId -cnotmatch '^base-[a-f0-9]{64}$') { throw 'SSH access baseId is invalid.' }
+    if ($Access.launchId -isnot [string] -or $Access.launchId -cnotmatch '^[a-f0-9]{32}$') { throw 'SSH access launchId is invalid.' }
+    if ($Access.sshHost -cne '127.0.0.1') { throw 'SSH access must bind exactly to 127.0.0.1.' }
+    Assert-EzDarkFactoryRuntimeInteger -Value $Access.sshPort -Description 'SSH access port' -Minimum 1024 -Maximum 65535
+    if ($Access.sshUser -cne 'coder') { throw 'SSH access user must be coder for the coding-default profile.' }
+    if (@('PROVISIONING', 'READY') -cnotcontains [string]$Access.state) { throw "SSH access state '$($Access.state)' is unsupported." }
+    if ($Access.cloudInstanceId -isnot [string] -or [string]::IsNullOrWhiteSpace($Access.cloudInstanceId)) { throw 'SSH access cloudInstanceId is invalid.' }
+    if ($Access.profile -isnot [string] -or $Access.profile -cnotmatch '^[a-z0-9][a-z0-9._-]{0,31}$') { throw 'SSH access profile is invalid.' }
+    if ($Access.provisioningProfile -isnot [string] -or $Access.provisioningProfile -cne 'coding-default') { throw 'SSH access provisioningProfile must be coding-default.' }
+    Assert-EzDarkFactoryRuntimeInteger -Value $Access.provisioningVersion -Description 'SSH access provisioningVersion' -Minimum 1 -Maximum 1
+    if ($Access.provisioningDigest -isnot [string] -or $Access.provisioningDigest -cnotmatch '^[a-f0-9]{64}$') { throw 'SSH access provisioningDigest must be a SHA256 identity.' }
+    Assert-EzDarkFactoryRuntimeTimestamp -Value $Access.readyAt -Description 'SSH access readyAt' -AllowEmpty
+    if ($Access.state -ceq 'READY' -and [string]::IsNullOrWhiteSpace([string]$Access.readyAt)) {
+        throw 'READY SSH access state requires readyAt.'
+    }
+}
+
+function Write-EzDarkFactorySshAccessState {
+    param([string]$Root, [string]$InstanceName, [Parameter(Mandatory = $true)][object]$Access)
+    Assert-EzDarkFactorySshAccessState -Access $Access -ExpectedName $InstanceName
+    $path = (Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName).AccessState
+    Write-EzDarkFactoryJson -Path $path -Value $Access -SchemaVersion 2
+}
+
+function Publish-EzDarkFactorySshLaunchAccess {
+    param(
+        [string]$Root,
+        [string]$InstanceName,
+        [Parameter(Mandatory = $true)][object]$ExpectedIntent,
+        [Parameter(Mandatory = $true)][object]$Access,
+        [Parameter(Mandatory = $true)][ValidateSet('PROVISIONING', 'READY')][string]$State,
+        [AllowNull()][object]$CandidateKnownHosts = $null,
+        [DateTime]$DeadlineUtc = [DateTime]::MinValue,
+        [scriptblock]$ProcessProvider
+    )
+
+    Assert-EzDarkFactoryInstanceIntent -Intent $ExpectedIntent -ExpectedName $InstanceName
+    Assert-EzDarkFactorySshAccessState -Access $Access -ExpectedName $InstanceName
+    if ($State -ceq 'READY' -and ($null -eq $CandidateKnownHosts -or $DeadlineUtc.Kind -ne [DateTimeKind]::Utc)) {
+        throw 'READY access publication requires authenticated host-key evidence and the original UTC readiness deadline.'
+    }
+
+    # SSH can finish after stop/reset/restart has replaced this launch. Only
+    # publication holds the lifecycle lock; waiting on a guest never blocks stop.
+    $lockTimeout = 5000
+    if ($State -ceq 'READY') {
+        $lockTimeout = [int][Math]::Max(1, [Math]::Min($lockTimeout, [Math]::Ceiling(($DeadlineUtc - [DateTime]::UtcNow).TotalMilliseconds)))
+    }
+    $lifecycleLock = Enter-EzDarkFactoryInstanceLifecycleLock -Root $Root -InstanceName $InstanceName -TimeoutMilliseconds $lockTimeout
+    try {
+        $currentIntent = Get-EzDarkFactoryInstanceIntent -Root $Root -InstanceName $InstanceName
+        if (($currentIntent | ConvertTo-Json -Depth 8 -Compress) -cne ($ExpectedIntent | ConvertTo-Json -Depth 8 -Compress)) {
+            throw "Instance '$InstanceName' durable intent changed before SSH access publication. Refusing stale readiness; retry start for the current instance generation."
+        }
+        $runtime = Get-EzDarkFactoryRuntimeStateFile -Root $Root -InstanceName $InstanceName
+        if ($null -eq $runtime -or $runtime.launchId -cne $Access.launchId) {
+            throw "Instance '$InstanceName' QEMU launch changed before SSH access publication. Refusing stale readiness; retry start for the current launch."
+        }
+        $status = Get-EzDarkFactoryInstanceStatus -Root $Root -InstanceName $InstanceName -ProcessProvider $ProcessProvider
+        if ($status.state -cne 'RUNNING') {
+            throw "Instance '$InstanceName' is no longer safely RUNNING before SSH access publication (state='$($status.state)'). Refusing stale readiness. $($status.reason)"
+        }
+
+        $knownHostsText = $null
+        if ($State -ceq 'READY') {
+            $null = Assert-EzDarkFactoryCandidateKnownHostsEntry -Path $CandidateKnownHosts.Candidate -Port ([int]$Access.sshPort)
+            $knownHostsText = (Read-EzDarkFactoryBoundedText -Path $CandidateKnownHosts.Candidate -MaximumBytes 65536)
+            # Lock acquisition and process reconciliation consume the same
+            # readiness budget as the live proof, before either file changes.
+            if ([DateTime]::UtcNow -ge $DeadlineUtc) {
+                throw 'Coding readiness proof exceeded the original deadline before access publication. Refusing READY.'
+            }
+        }
+        $Access.state = $State
+        $Access.readyAt = $(if ($State -ceq 'READY') { [DateTime]::UtcNow.ToString('o') } else { '' })
+        Assert-EzDarkFactorySshAccessState -Access $Access -ExpectedName $InstanceName
+        if ($State -ceq 'READY') {
+            $paths = Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName
+            Write-EzDarkFactorySshTextAtomically -Path $paths.InstanceKnownHosts -Content $knownHostsText
+        }
+        Write-EzDarkFactorySshAccessState -Root $Root -InstanceName $InstanceName -Access $Access
+    }
+    finally { $lifecycleLock.Dispose() }
+}
+
+function Get-EzDarkFactorySshAccessState {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory = $true)][string]$InstanceName,
+        [switch]$RequireReady,
+        [scriptblock]$ProcessProvider
+    )
+
+    $paths = Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName
+    if (-not (Test-Path -LiteralPath $paths.AccessState -PathType Leaf)) {
+        throw "Instance '$InstanceName' has no SSH access state. Start it through the coding-ready start path first."
+    }
+    $access = Read-EzDarkFactoryJson -Path $paths.AccessState -SchemaVersion 2
+    Assert-EzDarkFactorySshAccessState -Access $access -ExpectedName $InstanceName
+    $intent = Get-EzDarkFactoryInstanceIntent -Root $Root -InstanceName $InstanceName
+    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root -Name ([string]$intent.provisioningProfile) -Version ([int]$intent.provisioningVersion)
+    if ($access.baseId -cne $intent.baseId -or
+        $access.cloudInstanceId -cne (Get-EzDarkFactoryGuestCloudInstanceId -Intent $intent) -or
+        $access.profile -cne $intent.profile -or
+        [int]$access.sshPort -ne [int]$intent.sshPort -or
+        $access.provisioningProfile -cne $codingProfile.Name -or
+        [int]$access.provisioningVersion -ne $codingProfile.Version -or
+        $access.provisioningDigest -cne $codingProfile.Digest) {
+        throw "SSH access profile identity for instance '$InstanceName' no longer matches durable intent and reviewed source. Stop the instance and create a new named instance for the requested profile; do not rewrite an existing overlay's identity."
+    }
+    $runtime = Get-EzDarkFactoryRuntimeStateFile -Root $Root -InstanceName $InstanceName
+    if ($null -eq $runtime -or $runtime.launchId -cne $access.launchId) {
+        throw "SSH access state for instance '$InstanceName' is stale relative to the current QEMU launch."
+    }
+    $status = Get-EzDarkFactoryInstanceStatus -Root $Root -InstanceName $InstanceName -ProcessProvider $ProcessProvider
+    if ($status.state -cne 'RUNNING') {
+        throw "Instance '$InstanceName' is not safely RUNNING; current lifecycle state is '$($status.state)'."
+    }
+    if ($RequireReady -and $access.state -cne 'READY') {
+        throw "Instance '$InstanceName' has not reached authenticated SSH READY state."
+    }
+    return $access
+}
+
+function Test-EzDarkFactoryTcpEndpoint {
+    param(
+        [string]$HostAddress = '127.0.0.1',
+        [Parameter(Mandatory = $true)][ValidateRange(1024, 65535)][int]$Port,
+        [ValidateRange(1, 5000)][int]$TimeoutMilliseconds = 250
+    )
+
+    $client = New-Object Net.Sockets.TcpClient
+    $wait = $null
+    try {
+        $async = $client.BeginConnect($HostAddress, $Port, $null, $null)
+        $wait = $async.AsyncWaitHandle
+        if (-not $wait.WaitOne($TimeoutMilliseconds)) { return $false }
+        $client.EndConnect($async)
+        return $client.Connected
+    }
+    catch { return $false }
+    finally {
+        if ($null -ne $wait) { $wait.Dispose() }
+        $client.Dispose()
+    }
+}
+
+function ConvertFrom-EzDarkFactoryReadinessProbe {
+    [CmdletBinding()]
+    param(
+        [AllowEmptyString()][string]$StdOut = '',
+        [Parameter(Mandatory = $true)][string]$ExpectedInstanceName,
+        [Parameter(Mandatory = $true)][string]$ExpectedBaseId,
+        [Parameter(Mandatory = $true)][string]$ExpectedProfile,
+        [Parameter(Mandatory = $true)][string]$ExpectedCloudInstanceId,
+        [Parameter(Mandatory = $true)][string]$ExpectedProvisioningProfile,
+        [Parameter(Mandatory = $true)][ValidateRange(1, 2147483647)][int]$ExpectedProvisioningVersion,
+        [Parameter(Mandatory = $true)][ValidatePattern('^[a-f0-9]{64}$')][string]$ExpectedProvisioningDigest
+    )
+
+    if ($StdOut.Length -gt 65536) { throw 'Authenticated guest readiness evidence exceeds its bounded protocol size.' }
+    $evidence = @{}
+    $expectedFields = @('EDF_IDENTITY_B64', 'EDF_CLOUD_B64', 'EDF_CLOUD_EXIT', 'EDF_READY_B64', 'EDF_PROFILE_CHECK', 'EDF_PROFILE_ERROR_B64')
+    foreach ($line in @($StdOut -split '\r?\n')) {
+        if ($line.Length -eq 0) { continue }
+        $separator = $line.IndexOf('=')
+        if ($separator -lt 1) { throw 'Authenticated guest returned malformed readiness protocol evidence.' }
+        $key = $line.Substring(0, $separator)
+        if ($expectedFields -cnotcontains $key -or $evidence.ContainsKey($key)) {
+            throw 'Authenticated guest returned unexpected or duplicate readiness protocol fields.'
+        }
+        $evidence[$key] = $line.Substring($separator + 1)
+    }
+    foreach ($key in $expectedFields) {
+        if (-not $evidence.ContainsKey($key)) { throw "Authenticated guest readiness evidence is missing '$key'; legacy SSH-only readiness cannot grant coding READY." }
+    }
+    if (@('pending', 'pass', 'failed') -cnotcontains $evidence['EDF_PROFILE_CHECK']) { throw 'Authenticated guest returned an invalid coding profile check state.' }
+
+    $documents = @{}
+    foreach ($key in @('EDF_IDENTITY_B64', 'EDF_READY_B64', 'EDF_CLOUD_B64', 'EDF_PROFILE_ERROR_B64')) {
+        try {
+            $decoded = (New-Object Text.UTF8Encoding($false, $true)).GetString([Convert]::FromBase64String($evidence[$key]))
+            if ($decoded.Length -gt 8192) { throw 'decoded field exceeds 8192 characters' }
+            $documents[$key] = $decoded
+        }
+        catch { throw "Authenticated guest returned malformed bounded readiness evidence in '$key'." }
+    }
+    $identityFields = @('schemaVersion', 'instanceName', 'baseId', 'profile', 'cloudInstanceId', 'provisioningProfile', 'provisioningVersion', 'provisioningDigest')
+    $identity = $null
+    $readyMarker = $null
+    foreach ($key in @('EDF_IDENTITY_B64', 'EDF_READY_B64')) {
+        if ([string]::IsNullOrWhiteSpace($documents[$key])) { continue }
+        $document = ConvertFrom-EzDarkFactoryJsonText -Text $documents[$key] -SchemaVersion 2 -Description 'Authenticated guest identity/readiness marker'
+        $fields = $identityFields
+        if ($key -ceq 'EDF_READY_B64') { $fields = $identityFields + @('provisioningState') }
+        Assert-EzDarkFactoryRuntimeFields -Value $document -Expected $fields -Description 'Authenticated guest identity/readiness marker'
+        Assert-EzDarkFactoryRuntimeInteger -Value $document.provisioningVersion -Description 'Guest provisioningVersion' -Minimum 1 -Maximum 2147483647
+        foreach ($pair in @(
+            @('instanceName', $ExpectedInstanceName), @('baseId', $ExpectedBaseId),
+            @('profile', $ExpectedProfile), @('cloudInstanceId', $ExpectedCloudInstanceId),
+            @('provisioningProfile', $ExpectedProvisioningProfile), @('provisioningDigest', $ExpectedProvisioningDigest)
+        )) {
+            if ($document.($pair[0]) -isnot [string] -or $document.($pair[0]) -cne $pair[1]) {
+                throw "Authenticated guest identity mismatch for requested instance '$ExpectedInstanceName' ($($pair[0])). Refusing READY."
+            }
+        }
+        if ([int]$document.provisioningVersion -ne $ExpectedProvisioningVersion) { throw "Authenticated guest identity mismatch for requested coding profile version. Refusing READY." }
+        if ($key -ceq 'EDF_IDENTITY_B64') { $identity = $document }
+        else {
+            if ($document.provisioningState -isnot [string] -or $document.provisioningState -cne 'complete') {
+                throw 'Authenticated coding profile marker does not record complete provisioning. Refusing READY.'
+            }
+            $readyMarker = $document
+        }
+    }
+
+    $cloudStatus = $documents['EDF_CLOUD_B64'].Trim()
+    if ($evidence['EDF_CLOUD_EXIT'] -cne '0' -or $cloudStatus -match '(?im)^status:\s*error\b') {
+        throw "cloud-init reports failed provisioning for instance '$ExpectedInstanceName'. Inspect guest cloud-init logs before retrying."
+    }
+    if ($evidence['EDF_PROFILE_CHECK'] -ceq 'failed') {
+        $detail = $documents['EDF_PROFILE_ERROR_B64'].Trim()
+        if ($detail.Length -gt 2048) { $detail = $detail.Substring(0, 2048) }
+        throw "Coding profile validation failed for instance '$ExpectedInstanceName'. Refusing READY. $detail"
+    }
+
+    $cloudDone = $cloudStatus -cmatch '^status:\s*done\s*$'
+    $markerReady = $null -ne $readyMarker
+    $profileReady = $evidence['EDF_PROFILE_CHECK'] -ceq 'pass'
+    return [pscustomobject][ordered]@{
+        IdentityPresent = $null -ne $identity
+        CloudStatus = $cloudStatus
+        CloudDone = $cloudDone
+        MarkerReady = $markerReady
+        ProfileReady = $profileReady
+        Ready = ($null -ne $identity -and $cloudDone -and $markerReady -and $profileReady)
+        Identity = $identity
+        ReadyMarker = $readyMarker
+    }
+}
+
+function Get-EzDarkFactoryReadinessRemoteScript {
+    param(
+        [Parameter(Mandatory = $true)][ValidatePattern('^[a-f0-9]{64}$')][string]$ProvisioningDigest,
+        [AllowEmptyString()][string]$ExpectedCloudInstanceId = '',
+        [AllowEmptyString()][string]$ExpectedMachineUuid = ''
+    )
+    $initializationGate = ''
+    $initializationPostGate = ''
+    if ($ExpectedCloudInstanceId.Length -gt 0 -or $ExpectedMachineUuid.Length -gt 0) {
+        if ($ExpectedCloudInstanceId -cnotmatch '^[a-z0-9._-]{1,128}$' -or
+            $ExpectedMachineUuid -cnotmatch '^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$') {
+            throw 'Guest initialization probe requires the exact destination cloud identity and hardware UUID.'
+        }
+        $configuration = [ordered]@{
+            cloudInstanceId = $ExpectedCloudInstanceId
+            machineUuid = $ExpectedMachineUuid
+            machineId = $ExpectedMachineUuid.Replace('-', '')
+        } | ConvertTo-Json -Compress
+        # This is a host-generated, read-only preflight. The normal strict
+        # readiness parser never sees or accepts a copied source identity.
+        $gate = @'
+import base64, hashlib, json, os, re, stat, subprocess, sys
+expected = json.loads(base64.b64decode('__EDF_GATE_CONFIG__'))
+class Pending(Exception):
+    pass
+
+def read_regular(path):
+    parts = path.strip('/').split('/')
+    fd = os.open('/', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        for part in parts[:-1]:
+            child = os.open(part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=fd)
+            info = os.fstat(child)
+            if info.st_uid != 0 or info.st_mode & 0o022:
+                os.close(child)
+                raise ValueError('unsafe root-owned identity evidence directory')
+            os.close(fd)
+            fd = child
+        document = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW, dir_fd=fd)
+        try:
+            info = os.fstat(document)
+            if not stat.S_ISREG(info.st_mode) or info.st_uid != 0 or info.st_mode & 0o022 or info.st_size > 8192:
+                raise ValueError('invalid protected identity evidence')
+            data = os.read(document, 8193)
+            if len(data) > 8192:
+                raise ValueError('oversized protected identity evidence')
+            return data
+        finally:
+            os.close(document)
+    finally:
+        os.close(fd)
+
+def completed_finalizer():
+    # Unit runtime state is rebuilt each boot. A persistent ready.json alone
+    # cannot distinguish this boot from an earlier, identical guest generation.
+    fields = {'LoadState', 'ActiveState', 'SubState', 'Result', 'ExecMainCode',
+              'ExecMainStatus', 'ExecMainStartTimestampMonotonic', 'InvocationID'}
+    try:
+        result = subprocess.run(['/usr/bin/systemctl', 'show', '--no-pager', '--all',
+                                 '--property=' + ','.join(sorted(fields)),
+                                 'ezdarkfactory-instance-finalize.service'],
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                text=True, timeout=5, check=False)
+    except subprocess.TimeoutExpired:
+        raise Pending()
+    if len(result.stdout) > 8192:
+        raise ValueError('oversized guest finalizer status')
+    status = {}
+    for line in result.stdout.splitlines():
+        key, separator, value = line.partition('=')
+        if not separator or key not in fields or key in status:
+            raise ValueError('malformed guest finalizer status')
+        status[key] = value
+    if status.get('LoadState') == 'not-found' and result.returncode in (0, 4):
+        raise Pending()
+    if result.returncode != 0 or set(status) != fields or status['LoadState'] != 'loaded':
+        raise ValueError('could not inspect the current guest finalizer')
+    if status['ActiveState'] == 'failed' or status['Result'] != 'success':
+        raise ValueError('guest finalizer failed in the current boot')
+    if status['ActiveState'] != 'active' or status['SubState'] != 'exited':
+        raise Pending()
+    if status['ExecMainCode'] != '1' or status['ExecMainStatus'] != '0':
+        raise ValueError('guest finalizer did not exit successfully')
+    if not re.fullmatch('[1-9][0-9]*', status['ExecMainStartTimestampMonotonic']):
+        raise ValueError('guest finalizer lacks current-boot execution evidence')
+    if not re.fullmatch('[a-f0-9]{32}', status['InvocationID']) or status['InvocationID'] == '0' * 32:
+        raise ValueError('guest finalizer has an invalid invocation identifier')
+    try:
+        ready = read_regular('/var/lib/ezdarkfactory/ready.json')
+    except FileNotFoundError:
+        raise Pending()
+    return status['InvocationID'] + ':' + hashlib.sha256(ready).hexdigest()
+
+try:
+    if open('/sys/class/dmi/id/product_uuid', encoding='ascii').read().strip().lower() != expected['machineUuid']:
+        raise ValueError('authenticated endpoint has the wrong destination hardware UUID')
+    try:
+        failure = json.loads(read_regular('/var/lib/ezdarkfactory/identity-failed.json'))
+    except FileNotFoundError:
+        failure = None
+    if isinstance(failure, dict) and failure.get('cloudInstanceId') == expected['cloudInstanceId']:
+        raise ValueError(str(failure.get('error', 'guest identity initialization failed'))[:1024])
+    try:
+        marker = json.loads(read_regular('/var/lib/ezdarkfactory/guest-identity.json'))
+    except FileNotFoundError:
+        raise Pending()
+    if not isinstance(marker, dict):
+        raise ValueError('guest identity initialization evidence must contain a JSON object')
+    if marker.get('cloudInstanceId') != expected['cloudInstanceId']:
+        raise Pending()
+    # The initializer commits this marker after cloud-init write_files finishes.
+    # Checking it first avoids racing a source identity file being replaced.
+    try:
+        identity = json.loads(read_regular('/etc/ezdarkfactory/identity.json'))
+    except FileNotFoundError:
+        raise Pending()
+    if not isinstance(identity, dict):
+        raise ValueError('guest identity must contain a JSON object')
+    if identity.get('cloudInstanceId') != expected['cloudInstanceId']:
+        raise Pending()
+    fields = {'schemaVersion', 'cloudInstanceId', 'machineUuid', 'machineId', 'sshHostKeySha256',
+              'controllerPublicKeySha256', 'initializedBootId'}
+    if set(marker) != fields or type(marker['schemaVersion']) is not int or marker['schemaVersion'] != 1:
+        raise ValueError('malformed destination identity initialization marker')
+    if any(marker.get(key) != expected[key] for key in ('machineUuid', 'machineId')):
+        raise ValueError('destination machine identity differs from durable intent')
+    if not isinstance(marker['initializedBootId'], str) or not re.fullmatch('[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}', marker['initializedBootId']):
+        raise ValueError('invalid identity initialization boot identifier')
+    for key in ('sshHostKeySha256', 'controllerPublicKeySha256'):
+        if not isinstance(marker[key], str) or not re.fullmatch('[a-f0-9]{64}', marker[key]):
+            raise ValueError('invalid guest identity evidence digest')
+    boot_id = open('/proc/sys/kernel/random/boot_id', encoding='ascii').read().strip()
+    if marker['initializedBootId'] == boot_id:
+        raise Pending()
+    if read_regular('/etc/machine-id').decode('ascii').strip() != expected['machineId']:
+        raise ValueError('destination machine-id was not adopted')
+    dbus_path = '/var/lib/dbus/machine-id'
+    if os.path.islink(dbus_path):
+        if os.path.realpath(dbus_path) != '/etc/machine-id':
+            raise ValueError('DBus machine identity has an unexpected symlink target')
+    elif read_regular(dbus_path).decode('ascii').strip() != expected['machineId']:
+        raise ValueError('DBus machine identity was not adopted')
+    if hashlib.sha256(read_regular('/etc/ssh/ssh_host_ed25519_key.pub')).hexdigest() != marker['sshHostKeySha256']:
+        raise ValueError('destination SSH host identity differs from initialization')
+    print(boot_id + ':' + completed_finalizer())
+except Pending:
+    sys.exit(75)
+except Exception as error:
+    print(('guest identity initialization rejected: ' + str(error))[:2048], file=sys.stderr)
+    sys.exit(70)
+'@
+        $gate = $gate.Replace('__EDF_GATE_CONFIG__', [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($configuration))).Replace("`r`n", "`n")
+        $initializationGate = 'ezdarkfactory_guest_boot_gate() {' + "`n" +
+            '    sudo -n -- python3 -c ' + (ConvertTo-EzDarkFactoryPosixArgument -Value $gate) + "`n" +
+            '}' + "`n" +
+            'ezdarkfactory_boot_proof="$(ezdarkfactory_guest_boot_gate)"' + "`n" +
+            'identity_exit=$?' + "`n" +
+            'if test "$identity_exit" -eq 75; then' + "`n" +
+            "    printf '%s\n' 'EDF_GUEST_IDENTITY_PENDING=$ExpectedCloudInstanceId'" + "`n" +
+            '    exit 75' + "`n" +
+            'fi' + "`n" +
+            'if test "$identity_exit" -ne 0; then exit "$identity_exit"; fi' + "`n"
+        # The live profile check is intentionally substantial. Pin both the
+        # completed service invocation and ready bytes across that check so a
+        # concurrent finalizer restart cannot publish old captured evidence.
+        $initializationPostGate = 'if test "$profile_check" = pass; then' + "`n" +
+            '    ezdarkfactory_boot_proof_after="$(ezdarkfactory_guest_boot_gate)"' + "`n" +
+            '    identity_exit=$?' + "`n" +
+            '    if test "$identity_exit" -eq 75 || { test "$identity_exit" -eq 0 && test "$ezdarkfactory_boot_proof_after" != "$ezdarkfactory_boot_proof"; }; then' + "`n" +
+            "        printf '%s\n' 'EDF_GUEST_IDENTITY_PENDING=$ExpectedCloudInstanceId'" + "`n" +
+            '        exit 75' + "`n" +
+            '    fi' + "`n" +
+            '    if test "$identity_exit" -ne 0; then exit "$identity_exit"; fi' + "`n" +
+            'fi' + "`n"
+    }
+    $script = @'
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+LC_ALL=C
+export PATH LC_ALL
+__EDF_INITIALIZATION_GATE__
+identity_b64="$(head -c 8193 /etc/ezdarkfactory/identity.json 2>/dev/null | base64 -w0)"
+cloud_text="$(cloud-init status 2>/dev/null)"
+cloud_exit=$?
+cloud_b64="$(printf %s "$cloud_text" | base64 -w0)"
+ready_b64="$(head -c 8193 /var/lib/ezdarkfactory/ready.json 2>/dev/null | base64 -w0)"
+profile_check=pending
+profile_error=''
+if test -f /var/lib/ezdarkfactory/provisioning-failed; then
+    profile_check=failed
+    profile_error="$(head -c 2048 /var/lib/ezdarkfactory/provisioning-failed 2>/dev/null)"
+elif test "$cloud_exit" -eq 0 && test "$cloud_text" = 'status: done' && test -n "$ready_b64"; then
+    actual_digest="$({ printf 'profile.json\000'; cat /etc/ezdarkfactory/profile.json; printf '\000provision.sh\000'; cat /usr/local/sbin/ezdarkfactory-coding-profile; printf '\000'; } 2>/dev/null | sha256sum)"
+    if test "$actual_digest" != '__EDF_PROFILE_DIGEST__  -'; then
+        profile_check=failed
+        profile_error='coding profile source digest does not match the reviewed requested version'
+    elif profile_error="$(sudo -n -- timeout --signal=TERM --kill-after=5s 110s /usr/local/sbin/ezdarkfactory-coding-profile validate 2>&1)"; then
+        profile_check=pass
+    else
+        profile_check=failed
+    fi
+fi
+__EDF_INITIALIZATION_POST_GATE__
+profile_error_b64="$(printf %s "$profile_error" | head -c 2048 | base64 -w0)"
+printf 'EDF_IDENTITY_B64=%s\nEDF_CLOUD_B64=%s\nEDF_CLOUD_EXIT=%s\nEDF_READY_B64=%s\nEDF_PROFILE_CHECK=%s\nEDF_PROFILE_ERROR_B64=%s\n' "$identity_b64" "$cloud_b64" "$cloud_exit" "$ready_b64" "$profile_check" "$profile_error_b64"
+'@
+    return $script.Replace('__EDF_INITIALIZATION_GATE__', $initializationGate).Replace('__EDF_INITIALIZATION_POST_GATE__', $initializationPostGate).Replace('__EDF_PROFILE_DIGEST__', $ProvisioningDigest).Replace(([string][char]13 + [char]10), [string][char]10)
+}
+
+function Wait-EzDarkFactorySshReady {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory = $true)][string]$InstanceName,
+        [Parameter(Mandatory = $true)][object]$Intent,
+        [Parameter(Mandatory = $true)][object]$Access,
+        [Parameter(Mandatory = $true)][object]$Identity,
+        [Parameter(Mandatory = $true)][object]$Tooling,
+        [AllowNull()][object]$SeedServer = $null,
+        [ValidateRange(1, 3600)][int]$TimeoutSeconds = 60,
+        [DateTime]$DeadlineUtc = [DateTime]::MinValue,
+        [scriptblock]$PortProbe,
+        [scriptblock]$HostKeyScanner,
+        [scriptblock]$SshRunner,
+        [scriptblock]$SleepProvider,
+        [scriptblock]$ProcessProvider
+    )
+
+    Assert-EzDarkFactorySshAccessState -Access $Access -ExpectedName $InstanceName
+    Assert-EzDarkFactoryInstanceIntent -Intent $Intent -ExpectedName $InstanceName
+    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root -Name ([string]$Intent.provisioningProfile) -Version ([int]$Intent.provisioningVersion)
+    if ($Access.baseId -cne $Intent.baseId -or $Access.profile -cne $Intent.profile -or
+        [int]$Access.sshPort -ne [int]$Intent.sshPort -or
+        $Access.cloudInstanceId -cne (Get-EzDarkFactoryGuestCloudInstanceId -Intent $Intent) -or
+        $Access.provisioningProfile -cne $codingProfile.Name -or
+        [int]$Access.provisioningVersion -ne $codingProfile.Version -or
+        $Access.provisioningDigest -cne $codingProfile.Digest) {
+        throw 'SSH readiness access identity does not match the requested instance and coding profile.'
+    }
+    # Revalidation invalidates cached host READY before any fallible probe. A
+    # missing tool or mismatched marker must never leave old access authoritative.
+    Publish-EzDarkFactorySshLaunchAccess -Root $Root -InstanceName $InstanceName -ExpectedIntent $Intent -Access $Access -State PROVISIONING -ProcessProvider $ProcessProvider
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    if ($DeadlineUtc -ne [DateTime]::MinValue) {
+        if ($DeadlineUtc.Kind -ne [DateTimeKind]::Utc) { throw 'SSH readiness DeadlineUtc must use UTC.' }
+        if ($DeadlineUtc -lt $deadline) { $deadline = $DeadlineUtc }
+    }
+    $candidate = $null
+    $candidateAcceptNew = $false
+    $lastError = 'forwarded SSH port has not become reachable'
+    $authenticated = $false
+    $initializationEnabled = [int]$Intent.schemaVersion -eq 2
+    $remoteScript = if ($initializationEnabled) {
+        Get-EzDarkFactoryReadinessRemoteScript -ProvisioningDigest $codingProfile.Digest -ExpectedCloudInstanceId ([string]$Access.cloudInstanceId) -ExpectedMachineUuid (Get-EzDarkFactoryGuestMachineUuid -Intent $Intent)
+    } else { Get-EzDarkFactoryReadinessRemoteScript -ProvisioningDigest $codingProfile.Digest }
+    try {
+        while ([DateTime]::UtcNow -lt $deadline) {
+            if ($null -ne $SeedServer) {
+                try { $null = Invoke-EzDarkFactorySeedServerPending -Server $SeedServer -MaxRequests 8 }
+                catch { throw "Instance seed transport failed before readiness: $($_.Exception.Message)" }
+            }
+
+            $portReady = if ($null -ne $PortProbe) {
+                [bool](& $PortProbe '127.0.0.1' ([int]$Access.sshPort))
+            } else {
+                Test-EzDarkFactoryTcpEndpoint -Port ([int]$Access.sshPort) -TimeoutMilliseconds 250
+            }
+            if (-not $portReady) {
+                if ($null -ne $SleepProvider) { & $SleepProvider 100 } else { Start-Sleep -Milliseconds 100 }
+                continue
+            }
+
+            if ($null -eq $candidate) {
+                try {
+                    if ($null -ne $HostKeyScanner) {
+                        $remaining = [Math]::Max(1, [Math]::Min(5, [int][Math]::Ceiling(($deadline - [DateTime]::UtcNow).TotalSeconds)))
+                        $line = & $HostKeyScanner ([int]$Access.sshPort) $remaining
+                        $candidate = New-EzDarkFactoryCandidateKnownHosts -Root $Root -InstanceName $InstanceName -LaunchId ([string]$Access.launchId) -Port ([int]$Access.sshPort) -ScannedLine ([string]$line)
+                        $candidateAcceptNew = $false
+                    }
+                    else {
+                        $candidate = New-EzDarkFactoryEmptyCandidateKnownHosts -Root $Root -InstanceName $InstanceName -LaunchId ([string]$Access.launchId)
+                        $candidateAcceptNew = $true
+                    }
+                }
+                catch {
+                    if ($_.Exception.Message -match 'malformed.*known-hosts|belongs to') { throw }
+                    $lastError = $_.Exception.Message
+                    if ($null -ne $SleepProvider) { & $SleepProvider 100 } else { Start-Sleep -Milliseconds 100 }
+                    continue
+                }
+            }
+
+            # Completed coding profiles perform a real, bounded venv check.
+            # Its budget and SSH negotiation share the original total deadline.
+            $remainingSeconds = [int][Math]::Floor(($deadline - [DateTime]::UtcNow).TotalSeconds)
+            if ($remainingSeconds -lt 1) { break }
+            $remainingSeconds = [Math]::Min(120, $remainingSeconds)
+            $connectTimeoutSeconds = [Math]::Max(1, [Math]::Min(15, $remainingSeconds))
+            $arguments = New-EzDarkFactorySshCommandArguments -PrivateKey $Identity.PrivateKey -KnownHosts $candidate.Candidate -Port ([int]$Access.sshPort) -User ([string]$Access.sshUser) -Batch -RemoteCommand @('sh', '-lc', $remoteScript) -AcceptNewHostKey:$candidateAcceptNew -ConnectTimeoutSeconds $connectTimeoutSeconds
+            $authenticated = $false
+            try {
+                $result = if ($null -ne $SshRunner) {
+                    & $SshRunner $Tooling.Ssh $arguments $remainingSeconds
+                } else {
+                    Invoke-EzDarkFactoryProcess -FilePath $Tooling.Ssh -ArgumentList $arguments -TimeoutSeconds $remainingSeconds
+                }
+                if ($null -eq $result) { throw 'SSH readiness runner returned no result.' }
+                if ([int]$result.ExitCode -eq 0) {
+                    $null = Assert-EzDarkFactoryCandidateKnownHostsEntry -Path $candidate.Candidate -Port ([int]$Access.sshPort)
+                    $authenticated = $true
+                    $probe = ConvertFrom-EzDarkFactoryReadinessProbe -StdOut ([string]$result.StdOut) -ExpectedInstanceName $InstanceName -ExpectedBaseId ([string]$Intent.baseId) -ExpectedProfile ([string]$Access.profile) -ExpectedCloudInstanceId ([string]$Access.cloudInstanceId) -ExpectedProvisioningProfile $codingProfile.Name -ExpectedProvisioningVersion $codingProfile.Version -ExpectedProvisioningDigest $codingProfile.Digest
+                    if ($probe.Ready) {
+                        if ([DateTime]::UtcNow -ge $deadline) { throw "Coding readiness proof exceeded the $TimeoutSeconds second deadline. Refusing READY." }
+                        Publish-EzDarkFactorySshLaunchAccess -Root $Root -InstanceName $InstanceName -ExpectedIntent $Intent -Access $Access -State READY -CandidateKnownHosts $candidate -DeadlineUtc $deadline -ProcessProvider $ProcessProvider
+                        return $Access
+                    }
+                    $lastError = "authenticated SSH succeeded but coding readiness is incomplete (cloud='$($probe.CloudStatus)', marker=$($probe.MarkerReady), profile=$($probe.ProfileReady))."
+                }
+                elseif ($initializationEnabled -and [int]$result.ExitCode -eq 75 -and
+                    ([string]$result.StdOut).TrimEnd([char[]]"`r`n") -ceq ('EDF_GUEST_IDENTITY_PENDING=' + [string]$Access.cloudInstanceId)) {
+                    $lastError = 'destination guest identity initialization is pending; copied source READY cannot authorize access. Confirm cloud-init is enabled with automatic cache checking if this persists.'
+                    # The source host key can answer briefly before the new
+                    # seed rotates it. Discard only unpromoted launch evidence.
+                    $null = Assert-EzDarkFactorySafePath -Path $candidate.Candidate -Description 'SSH candidate cleanup'; Remove-Item -LiteralPath $candidate.Candidate -Force -ErrorAction SilentlyContinue
+                    $candidate = $null
+                }
+                elseif ([int]$result.ExitCode -eq 255 -or [int]$result.ExitCode -eq -1) {
+                    # OpenSSH starts with exit_status=-1 until the remote sends
+                    # an exit-status message. A guest reboot can close that
+                    # channel first: POSIX reports 255, while Windows preserves
+                    # the signed -1 value. Neither result proves readiness.
+                    $lastError = "SSH authentication/transport is not ready: $([string]$result.StdErr)"
+                    if ($initializationEnabled) {
+                        $null = Assert-EzDarkFactorySafePath -Path $candidate.Candidate -Description 'SSH candidate cleanup'; Remove-Item -LiteralPath $candidate.Candidate -Force -ErrorAction SilentlyContinue
+                        $candidate = $null
+                    }
+                }
+                else {
+                    throw "Authenticated SSH readiness probe exited unexpectedly with code $($result.ExitCode): $([string]$result.StdErr)"
+                }
+            }
+            catch {
+                if ($authenticated -or $_.Exception.Message -match 'identity mismatch|cloud-init reports failed|readiness probe exited unexpectedly') { throw }
+                $lastError = $_.Exception.Message
+            }
+
+            if ($null -ne $SleepProvider) { & $SleepProvider 100 } else { Start-Sleep -Milliseconds 100 }
+        }
+        throw "Instance '$InstanceName' did not reach authenticated SSH READY within $TimeoutSeconds seconds. Last readiness evidence: $lastError"
+    }
+    finally {
+        if ($null -ne $candidate -and (Test-Path -LiteralPath $candidate.Candidate)) {
+            $null = Assert-EzDarkFactorySafePath -Path $candidate.Candidate -Description 'SSH candidate cleanup'; Remove-Item -LiteralPath $candidate.Candidate -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Get-EzDarkFactorySeedServerLifetimeSeconds {
+    [CmdletBinding()]
+    param([ValidateRange(1, 3600)][int]$ReadyTimeoutSeconds)
+
+    # The seed transport is subordinate to the enclosing READY deadline. Give it
+    # a bounded grace period so its own deadline can never pre-empt and mask the
+    # parent readiness timeout/evidence due to scheduler or polling jitter.
+    return [int]$ReadyTimeoutSeconds + 30
+}
+
+function Start-EzDarkFactoryReadyInstance {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory = $true)][string]$InstanceName,
+        [ValidateSet('whpx', 'tcg')][string]$Accelerator = 'whpx',
+        [ValidateRange(1, 3600)][int]$ReadyTimeoutSeconds = 60,
+        [scriptblock]$QemuImgRunner,
+        [scriptblock]$QemuStatusProvider,
+        [scriptblock]$ProcessProvider,
+        [scriptblock]$ProcessLauncher,
+        [scriptblock]$QmpInvoker,
+        [scriptblock]$PortProbe,
+        [scriptblock]$HostKeyScanner,
+        [scriptblock]$SshRunner,
+        [scriptblock]$SleepProvider,
+        [AllowNull()][object]$Tooling = $null,
+        [AllowNull()][object]$ControllerIdentity = $null
+    )
+
+    Assert-EzDarkFactoryStorageInstanceName -Name $InstanceName
+    $intent = Get-EzDarkFactoryInstanceIntent -Root $Root -InstanceName $InstanceName
+    # Refuse unsupported legacy intent before key creation or any guest launch.
+    $null = Get-EzDarkFactoryCodingProfile -Root $Root -Name ([string]$intent.provisioningProfile) -Version ([int]$intent.provisioningVersion)
+    $Tooling = Assert-EzDarkFactoryOpenSshTools -Tooling $Tooling
+    if ($null -eq $ControllerIdentity) {
+        $ControllerIdentity = Get-EzDarkFactoryControllerSshIdentity -Root $Root -Tooling $Tooling
+    }
+    $profile = Get-EzDarkFactoryIntentProfileName -Root $Root -Intent $intent
+    $seed = New-EzDarkFactoryInstanceSeedData -Root $Root -InstanceName $InstanceName -Intent $intent -ControllerPublicKey $ControllerIdentity.PublicKeyText -Profile $profile
+    $deadline = [DateTime]::UtcNow.AddSeconds($ReadyTimeoutSeconds)
+    $seedLifetimeSeconds = Get-EzDarkFactorySeedServerLifetimeSeconds -ReadyTimeoutSeconds $ReadyTimeoutSeconds
+    $seedServer = Start-EzDarkFactorySeedServer -UserData $seed.UserData -MetaData $seed.MetaData -TimeoutSeconds $seedLifetimeSeconds
+    $allocationLock = $null
+    try {
+        $allocationLock = Enter-EzDarkFactorySshAllocationLock -Root $Root
+        $sshPort = Assert-EzDarkFactoryInstanceSshPortReservation -Root $Root -Intent $intent -PortProbe $PortProbe
+        $remaining = [Math]::Max(1, [int][Math]::Ceiling(($deadline - [DateTime]::UtcNow).TotalSeconds))
+        $started = Start-EzDarkFactoryInstance -Root $Root -InstanceName $InstanceName -Accelerator $Accelerator -StartupTimeoutSeconds $remaining -QemuImgRunner $QemuImgRunner -QemuStatusProvider $QemuStatusProvider -ProcessProvider $ProcessProvider -ProcessLauncher $ProcessLauncher -QmpInvoker $QmpInvoker -SshPort $sshPort -SeedHostPort ([int]$seedServer.Port) -SeedGuestAddress '10.0.2.100' -SeedGuestPort 8000 -ExpectedIntent $intent
+        $allocationLock.Dispose()
+        $allocationLock = $null
+
+        $access = [pscustomobject][ordered]@{
+            schemaVersion = 2
+            instanceName = $InstanceName
+            baseId = [string]$intent.baseId
+            launchId = [string]$started.launchId
+            sshHost = '127.0.0.1'
+            sshPort = [int]$sshPort
+            sshUser = 'coder'
+            state = 'PROVISIONING'
+            cloudInstanceId = $seed.CloudInstanceId
+            profile = $profile
+            provisioningProfile = [string]$seed.CodingProfile.Name
+            provisioningVersion = [int]$seed.CodingProfile.Version
+            provisioningDigest = [string]$seed.CodingProfile.Digest
+            readyAt = ''
+        }
+        Publish-EzDarkFactorySshLaunchAccess -Root $Root -InstanceName $InstanceName -ExpectedIntent $intent -Access $access -State PROVISIONING -ProcessProvider $ProcessProvider
+        $remaining = [int][Math]::Ceiling(($deadline - [DateTime]::UtcNow).TotalSeconds)
+        if ($remaining -lt 1) {
+            throw "Instance '$InstanceName' reached QEMU RUNNING but exhausted its $ReadyTimeoutSeconds second total readiness timeout before SSH qualification."
+        }
+        $ready = Wait-EzDarkFactorySshReady -Root $Root -InstanceName $InstanceName -Intent $intent -Access $access -Identity $ControllerIdentity -Tooling $Tooling -SeedServer $seedServer -TimeoutSeconds $remaining -DeadlineUtc $deadline -PortProbe $PortProbe -HostKeyScanner $HostKeyScanner -SshRunner $SshRunner -SleepProvider $SleepProvider -ProcessProvider $ProcessProvider
+        return [pscustomobject][ordered]@{
+            name = $InstanceName
+            state = 'READY'
+            pid = [int]$started.pid
+            accelerator = $Accelerator
+            sshHost = '127.0.0.1'
+            sshPort = [int]$ready.sshPort
+            sshUser = [string]$ready.sshUser
+            provisioningProfile = [string]$ready.provisioningProfile
+            provisioningVersion = [int]$ready.provisioningVersion
+            provisioningDigest = [string]$ready.provisioningDigest
+            workspace = [string]$seed.CodingProfile.Manifest.workspace
+            readyAt = [string]$ready.readyAt
+            serialLog = [string]$started.serialLog
+            qemuLog = [string]$started.qemuLog
+        }
+    }
+    finally {
+        if ($null -ne $allocationLock) { try { $allocationLock.Dispose() } catch { } }
+        if ($null -ne $seedServer) { try { Stop-EzDarkFactorySeedServer -Server $seedServer } catch { } }
+    }
+}
+
+function Resolve-EzDarkFactoryExecProcessResult {
+    param([Parameter(Mandatory = $true)][object]$Result)
+    if ($null -eq $Result -or $null -eq $Result.ExitCode) { throw 'SSH command runner returned no exit status.' }
+    if ([int]$Result.ExitCode -eq 255) {
+        throw "SSH transport/authentication failed: $([string]$Result.StdErr)"
+    }
+    return [pscustomobject][ordered]@{
+        exitCode = [int]$Result.ExitCode
+        stdout = [string]$Result.StdOut
+        stderr = [string]$Result.StdErr
+    }
+}
+
+function Invoke-EzDarkFactoryExec {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory = $true)][string]$InstanceName,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][string[]]$Command,
+        [ValidateRange(1, 3600)][int]$TimeoutSeconds = 60,
+        [scriptblock]$ProcessProvider,
+        [scriptblock]$SshRunner
+    )
+    if ($Command.Count -eq 0) { throw 'exec requires at least one command token after --.' }
+    $access = Get-EzDarkFactorySshAccessState -Root $Root -InstanceName $InstanceName -RequireReady -ProcessProvider $ProcessProvider
+    $tooling = Assert-EzDarkFactoryOpenSshTools
+    $identity = Get-EzDarkFactoryControllerSshIdentity -Root $Root -Tooling $tooling
+    $knownHosts = (Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName).InstanceKnownHosts
+    $arguments = New-EzDarkFactorySshCommandArguments -PrivateKey $identity.PrivateKey -KnownHosts $knownHosts -Port ([int]$access.sshPort) -User ([string]$access.sshUser) -Batch -RemoteCommand $Command
+    $result = if ($null -ne $SshRunner) {
+        & $SshRunner $tooling.Ssh $arguments $TimeoutSeconds
+    } else {
+        Invoke-EzDarkFactoryProcess -FilePath $tooling.Ssh -ArgumentList $arguments -TimeoutSeconds $TimeoutSeconds
+    }
+    $resolved = Resolve-EzDarkFactoryExecProcessResult -Result $result
+    return [pscustomobject][ordered]@{
+        name = $InstanceName
+        exitCode = $resolved.exitCode
+        stdout = $resolved.stdout
+        stderr = $resolved.stderr
+    }
+}
+
+function Invoke-EzDarkFactoryInteractiveNative {
+    param(
+        [Parameter(Mandatory = $true)][string]$FilePath,
+        [Parameter(Mandatory = $true)][string[]]$ArgumentList
+    )
+    $start = New-Object Diagnostics.ProcessStartInfo
+    $start.FileName = Resolve-EzDarkFactoryProcessFileSystemPath -Path $FilePath
+    $start.UseShellExecute = $false
+    if ($null -ne $start.PSObject.Properties['ArgumentList']) {
+        foreach ($argument in $ArgumentList) { $start.ArgumentList.Add($argument) }
+    }
+    else {
+        $escaped = New-Object 'System.Collections.Generic.List[string]'
+        foreach ($argument in $ArgumentList) { $escaped.Add((ConvertTo-EzDarkFactoryWindowsArgument -Argument $argument)) }
+        $start.Arguments = [string]::Join(' ', $escaped.ToArray())
+    }
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $start
+    try {
+        if (-not $process.Start()) { throw 'The operating system did not create the SSH client process.' }
+        $process.WaitForExit()
+        return [int]$process.ExitCode
+    }
+    finally { $process.Dispose() }
+}
+
+function Invoke-EzDarkFactorySsh {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory = $true)][string]$InstanceName,
+        [scriptblock]$ProcessProvider
+    )
+    $access = Get-EzDarkFactorySshAccessState -Root $Root -InstanceName $InstanceName -RequireReady -ProcessProvider $ProcessProvider
+    $tooling = Assert-EzDarkFactoryOpenSshTools
+    $identity = Get-EzDarkFactoryControllerSshIdentity -Root $Root -Tooling $tooling
+    $knownHosts = (Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName).InstanceKnownHosts
+    $arguments = New-EzDarkFactorySshCommandArguments -PrivateKey $identity.PrivateKey -KnownHosts $knownHosts -Port ([int]$access.sshPort) -User ([string]$access.sshUser)
+    return Invoke-EzDarkFactoryInteractiveNative -FilePath $tooling.Ssh -ArgumentList $arguments
+}
+
+function Invoke-EzDarkFactoryCopyToGuest {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory = $true)][string]$InstanceName,
+        [Parameter(Mandatory = $true)][string]$HostPath,
+        [Parameter(Mandatory = $true)][string]$GuestPath,
+        [ValidateRange(1, 3600)][int]$TimeoutSeconds = 60,
+        [scriptblock]$ProcessProvider,
+        [scriptblock]$ScpRunner
+    )
+    $fullHostPath = Assert-EzDarkFactorySafePath -Path $HostPath -Description 'Host transfer path'
+    if (Test-EzDarkFactoryStoragePathInside -Path $fullHostPath -Directory (Get-EzDarkFactoryPaths -Root $Root).Keys) {
+        throw 'Host controller-key state must not be transferred into a guest. Use guest-specific outbound credentials instead.'
+    }
+    if (-not (Test-Path -LiteralPath $fullHostPath -PathType Leaf)) {
+        throw "Host source file '$fullHostPath' does not exist; copy-to transfers one file."
+    }
+    $access = Get-EzDarkFactorySshAccessState -Root $Root -InstanceName $InstanceName -RequireReady -ProcessProvider $ProcessProvider
+    $tooling = Assert-EzDarkFactoryOpenSshTools
+    $identity = Get-EzDarkFactoryControllerSshIdentity -Root $Root -Tooling $tooling
+    $knownHosts = (Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName).InstanceKnownHosts
+    $remote = [string]$access.sshUser + '@127.0.0.1:' + $GuestPath
+    $arguments = New-EzDarkFactoryScpCommandArguments -PrivateKey $identity.PrivateKey -KnownHosts $knownHosts -Port ([int]$access.sshPort) -Source $fullHostPath -Destination $remote
+    $result = if ($null -ne $ScpRunner) { & $ScpRunner $tooling.Scp $arguments $TimeoutSeconds } else { Invoke-EzDarkFactoryProcess -FilePath $tooling.Scp -ArgumentList $arguments -TimeoutSeconds $TimeoutSeconds }
+    if ([int]$result.ExitCode -ne 0) { throw "copy-to failed with scp exit code $($result.ExitCode): $([string]$result.StdErr)" }
+    return [pscustomobject][ordered]@{ name = $InstanceName; direction = 'host-to-guest'; hostPath = $fullHostPath; guestPath = $GuestPath }
+}
+
+function Invoke-EzDarkFactoryCopyFromGuest {
+    [CmdletBinding()]
+    param(
+        [string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory = $true)][string]$InstanceName,
+        [Parameter(Mandatory = $true)][string]$GuestPath,
+        [Parameter(Mandatory = $true)][string]$HostPath,
+        [ValidateRange(1, 3600)][int]$TimeoutSeconds = 60,
+        [scriptblock]$ProcessProvider,
+        [scriptblock]$ScpRunner
+    )
+    $fullHostPath = Assert-EzDarkFactorySafePath -Path $HostPath -Description 'Host transfer path'
+    $parent = [IO.Path]::GetDirectoryName($fullHostPath)
+    if (-not (Test-Path -LiteralPath $parent -PathType Container)) {
+        throw "Host destination directory '$parent' does not exist."
+    }
+    if (Test-EzDarkFactoryStoragePathInside -Path $fullHostPath -Directory (Get-EzDarkFactoryPaths -Root $Root).Runtime) {
+        throw 'copy-from cannot replace managed runtime state, keys or immutable images. Choose a separate host output directory.'
+    }
+    if (Test-Path -LiteralPath $fullHostPath -PathType Container) { throw 'copy-from requires one explicit host filename, not a directory.' }
+    $access = Get-EzDarkFactorySshAccessState -Root $Root -InstanceName $InstanceName -RequireReady -ProcessProvider $ProcessProvider
+    $tooling = Assert-EzDarkFactoryOpenSshTools
+    $identity = Get-EzDarkFactoryControllerSshIdentity -Root $Root -Tooling $tooling
+    $knownHosts = (Get-EzDarkFactorySshPaths -Root $Root -InstanceName $InstanceName).InstanceKnownHosts
+    $remote = [string]$access.sshUser + '@127.0.0.1:' + $GuestPath
+    $temporary = Join-Path $parent ('.ezdarkfactory-copy-' + [Guid]::NewGuid().ToString('N') + '.tmp')
+    try {
+        $arguments = New-EzDarkFactoryScpCommandArguments -PrivateKey $identity.PrivateKey -KnownHosts $knownHosts -Port ([int]$access.sshPort) -Source $remote -Destination $temporary
+        $result = if ($null -ne $ScpRunner) { & $ScpRunner $tooling.Scp $arguments $TimeoutSeconds } else { Invoke-EzDarkFactoryProcess -FilePath $tooling.Scp -ArgumentList $arguments -TimeoutSeconds $TimeoutSeconds }
+        if ([int]$result.ExitCode -ne 0) { throw ("copy-from failed with scp exit code $($result.ExitCode): " + (Protect-EzDarkFactoryDiagnosticText $result.StdErr)) }
+        $null = Assert-EzDarkFactorySafePath -Path $temporary -Description 'Downloaded host file'
+        if (-not [IO.File]::Exists($temporary)) { throw 'copy-from did not produce a regular staged host file.' }
+        $null = Assert-EzDarkFactorySafePath -Path $fullHostPath -Description 'Host transfer publication'
+        if ([IO.File]::Exists($fullHostPath)) {
+            [IO.File]::Replace($temporary, $fullHostPath, [System.Management.Automation.Language.NullString]::Value)
+        }
+        else { [IO.File]::Move($temporary, $fullHostPath) }
+    }
+    finally {
+        if ([IO.File]::Exists($temporary)) {
+            try { $null = Assert-EzDarkFactorySafePath -Path $temporary -Description 'Transfer cleanup'; [IO.File]::Delete($temporary) } catch { }
+        }
+    }
+    return [pscustomobject][ordered]@{ name = $InstanceName; direction = 'guest-to-host'; guestPath = $GuestPath; hostPath = $fullHostPath }
+}

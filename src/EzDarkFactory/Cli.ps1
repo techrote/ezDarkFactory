@@ -1,0 +1,506 @@
+function Get-EzDarkFactoryVersion {
+    [CmdletBinding()]
+    param()
+    return $script:EzDarkFactoryVersion
+}
+
+function New-EzDarkFactoryCommandResult {
+    param(
+        [bool]$Success,
+        [AllowNull()][string]$Command,
+        [int]$ExitCode,
+        [AllowNull()][object]$Data = $null,
+        [string]$ErrorCode,
+        [string]$Message
+    )
+    $errorDetail = $null
+    if (-not $Success) {
+        $errorDetail = [pscustomobject][ordered]@{ code = $ErrorCode; message = (Protect-EzDarkFactoryDiagnosticText -Text $Message) }
+    }
+    return [pscustomobject][ordered]@{
+        schemaVersion = 1
+        success = $Success
+        command = $Command
+        exitCode = $ExitCode
+        data = $Data
+        error = $errorDetail
+    }
+}
+
+function New-EzDarkFactoryCliArgumentError {
+    param([string]$Command, [string]$Message, [string]$Code = 'invalid_arguments')
+    return New-EzDarkFactoryCommandResult -Success $false -Command $Command -ExitCode 2 -ErrorCode $Code -Message ($Message + ' Run .\ezdarkfactory.ps1 help for usage.')
+}
+
+function New-EzDarkFactoryRemoteCommandFailureResult {
+    param(
+        [Parameter(Mandatory = $true)][int]$ExitCode,
+        [AllowEmptyString()][string]$StdOut = '',
+        [AllowEmptyString()][string]$StdErr = ''
+    )
+    if ($ExitCode -eq 0) { throw 'A remote-command failure result requires a non-zero exit code.' }
+    $stderrText = (Protect-EzDarkFactoryDiagnosticText -Text $StdErr).Trim()
+    $stdoutText = (Protect-EzDarkFactoryDiagnosticText -Text $StdOut).Trim()
+    if ($stderrText.Length -gt 1536) { $stderrText = $stderrText.Substring(0, 1536) + '...' }
+    if ($stdoutText.Length -gt 512) { $stdoutText = $stdoutText.Substring(0, 512) + '...' }
+    $message = "Remote command exited with code $ExitCode."
+    if (-not [string]::IsNullOrWhiteSpace($stderrText)) { $message += " stderr: $stderrText" }
+    if (-not [string]::IsNullOrWhiteSpace($stdoutText)) { $message += " stdout: $stdoutText" }
+    return New-EzDarkFactoryCommandResult -Success $false -Command 'exec' -ExitCode $ExitCode -ErrorCode 'remote_command_failed' -Message $message
+}
+
+function Invoke-EzDarkFactoryCommand {
+    [CmdletBinding()]
+    param(
+        [AllowEmptyCollection()][AllowEmptyString()][string[]]$Arguments = @(),
+        [string]$Root = $script:EzDarkFactoryDefaultRoot
+    )
+
+    $tokens = New-Object 'System.Collections.Generic.List[string]'
+    $jsonCount = 0
+    $afterCommandSeparator = $false
+    foreach ($argument in $Arguments) {
+        if ($argument -ceq '--') {
+            $afterCommandSeparator = $true
+            $tokens.Add($argument)
+            continue
+        }
+        if (-not $afterCommandSeparator -and $argument -ieq '-Json') { $jsonCount++; continue }
+        $tokens.Add($argument)
+    }
+    if ($jsonCount -gt 1) {
+        return New-EzDarkFactoryCliArgumentError -Command $(if ($tokens.Count -gt 0) { $tokens[0].ToLowerInvariant() } else { 'help' }) -Message 'The -Json switch may be supplied at most once.'
+    }
+
+    $command = 'help'
+    $instanceName = $null
+    $remoteCommand = @()
+    $hostPath = $null
+    $guestPath = $null
+    $createProfile = ''
+    $createBaseId = ''
+    $createCpus = $null
+    $createMemoryMiB = $null
+    $destinationName = $null
+    $cloneMode = $null
+    $manifestPath = ''
+    $checkImage = $false
+    if ($tokens.Count -gt 0) {
+        $verb = $tokens[0].ToLowerInvariant()
+        switch ($verb) {
+            { $_ -in @('help', 'version', 'bootstrap', 'doctor') } {
+                if ($tokens.Count -ne 1) {
+                    return New-EzDarkFactoryCliArgumentError -Command $verb -Message "Command '$verb' does not accept positional arguments."
+                }
+                $command = $verb
+            }
+            'base' {
+                if ($tokens.Count -ne 2) {
+                    return New-EzDarkFactoryCliArgumentError -Command 'base' -Message 'The base command requires exactly one subcommand: acquire or build.'
+                }
+                $subcommand = $tokens[1].ToLowerInvariant()
+                if ($subcommand -notin @('acquire', 'build')) {
+                    return New-EzDarkFactoryCliArgumentError -Command 'base' -Message "Unknown base subcommand '$subcommand'." -Code 'unknown_command'
+                }
+                $command = 'base ' + $subcommand
+            }
+            'list' {
+                if ($tokens.Count -ne 1) {
+                    return New-EzDarkFactoryCliArgumentError -Command 'list' -Message "Command 'list' does not accept positional arguments."
+                }
+                $command = 'list'
+            }
+            { $_ -in @('create', 'import') } {
+                $minimumTokens = if ($verb -ceq 'import') { 3 } else { 2 }
+                if ($tokens.Count -lt $minimumTokens) {
+                    return New-EzDarkFactoryCliArgumentError -Command $verb -Message "Command '$verb' requires an instance name$(if ($verb -ceq 'import') { ' and QCOW2 image path' })."
+                }
+                $instanceName = $tokens[1]
+                try { Assert-EzDarkFactoryStorageInstanceName -Name $instanceName }
+                catch { return New-EzDarkFactoryCliArgumentError -Command $verb -Message $_.Exception.Message }
+                if ($verb -ceq 'import') {
+                    $hostPath = $tokens[2]
+                    if ([string]::IsNullOrWhiteSpace($hostPath)) { return New-EzDarkFactoryCliArgumentError -Command $verb -Message 'Import image path must not be empty.' }
+                }
+
+                $seen = @{}
+                $index = $minimumTokens
+                $allowedOptions = @('-profile', '-cpus', '-memorymib') + $(if ($verb -ceq 'import') { @('-manifestpath') } else { @('-baseid') })
+                while ($index -lt $tokens.Count) {
+                    $option = [string]$tokens[$index]
+                    $key = $option.ToLowerInvariant()
+                    if ($allowedOptions -cnotcontains $key) {
+                        return New-EzDarkFactoryCliArgumentError -Command $verb -Message "Unknown $verb option '$option'. Supported options: $($allowedOptions -join ', ')."
+                    }
+                    if ($seen.ContainsKey($key)) {
+                        return New-EzDarkFactoryCliArgumentError -Command $verb -Message "$verb option '$option' may be supplied at most once."
+                    }
+                    if ($index + 1 -ge $tokens.Count) {
+                        return New-EzDarkFactoryCliArgumentError -Command $verb -Message "$verb option '$option' requires a value."
+                    }
+                    $seen[$key] = $true
+                    $value = [string]$tokens[$index + 1]
+                    if ([string]::IsNullOrWhiteSpace($value)) { return New-EzDarkFactoryCliArgumentError -Command $verb -Message "Option '$option' requires a nonempty value." }
+                    switch ($key) {
+                        '-profile' { $createProfile = $value }
+                        '-baseid' { $createBaseId = $value }
+                        '-manifestpath' { $manifestPath = $value }
+                        '-cpus' {
+                            if ($value -cnotmatch '^[0-9]+$') {
+                                return New-EzDarkFactoryCliArgumentError -Command $verb -Message '-Cpus requires a positive integer.'
+                            }
+                            try { $createCpus = [int]$value }
+                            catch { return New-EzDarkFactoryCliArgumentError -Command $verb -Message '-Cpus is outside the supported integer range.' }
+                        }
+                        '-memorymib' {
+                            if ($value -cnotmatch '^[0-9]+$') {
+                                return New-EzDarkFactoryCliArgumentError -Command $verb -Message '-MemoryMiB requires a positive integer.'
+                            }
+                            try { $createMemoryMiB = [int]$value }
+                            catch { return New-EzDarkFactoryCliArgumentError -Command $verb -Message '-MemoryMiB is outside the supported integer range.' }
+                        }
+                    }
+                    $index += 2
+                }
+                $command = $verb
+            }
+            'clone' {
+                if ($tokens.Count -ne 5 -or $tokens[3] -ine '-Mode' -or $tokens[4].ToLowerInvariant() -cnotin @('fresh', 'stateful')) {
+                    return New-EzDarkFactoryCliArgumentError -Command 'clone' -Message 'Clone requires: clone <source> <destination> -Mode fresh|stateful. Choose the mode explicitly.'
+                }
+                $instanceName = $tokens[1]
+                $destinationName = $tokens[2]
+                try {
+                    Assert-EzDarkFactoryStorageInstanceName -Name $instanceName
+                    Assert-EzDarkFactoryStorageInstanceName -Name $destinationName
+                }
+                catch { return New-EzDarkFactoryCliArgumentError -Command 'clone' -Message $_.Exception.Message }
+                $cloneMode = $tokens[4].ToLowerInvariant()
+                $command = 'clone'
+            }
+            'export' {
+                if ($tokens.Count -ne 3 -or [string]::IsNullOrWhiteSpace($tokens[2])) {
+                    return New-EzDarkFactoryCliArgumentError -Command 'export' -Message 'Export requires: export <instance> <new-directory>.'
+                }
+                $instanceName = $tokens[1]
+                try { Assert-EzDarkFactoryStorageInstanceName -Name $instanceName }
+                catch { return New-EzDarkFactoryCliArgumentError -Command 'export' -Message $_.Exception.Message }
+                $hostPath = $tokens[2]
+                $command = 'export'
+            }
+            'diagnose' {
+                if ($tokens.Count -lt 2 -or $tokens.Count -gt 3 -or ($tokens.Count -eq 3 -and $tokens[2] -ine '-CheckImage')) {
+                    return New-EzDarkFactoryCliArgumentError -Command 'diagnose' -Message 'Use diagnose <name> [-CheckImage]. No repair or force options exist.'
+                }
+                $instanceName = $tokens[1]
+                try { Assert-EzDarkFactoryStorageInstanceName -Name $instanceName }
+                catch { return New-EzDarkFactoryCliArgumentError -Command 'diagnose' -Message $_.Exception.Message }
+                $checkImage = $tokens.Count -eq 3
+                $command = 'diagnose'
+            }
+            'portability' {
+                if ($tokens.Count -ne 2 -or $tokens[1] -ine 'check') {
+                    return New-EzDarkFactoryCliArgumentError -Command 'portability' -Message 'Portability requires exactly one subcommand: check.'
+                }
+                $command = 'portability check'
+            }
+            { $_ -in @('start', 'status', 'stop', 'ssh', 'reset') } {
+                if ($tokens.Count -ne 2) {
+                    return New-EzDarkFactoryCliArgumentError -Command $verb -Message "Command '$verb' requires exactly one instance name."
+                }
+                $instanceName = $tokens[1]
+                try { Assert-EzDarkFactoryStorageInstanceName -Name $instanceName }
+                catch { return New-EzDarkFactoryCliArgumentError -Command $verb -Message $_.Exception.Message }
+                $command = $verb
+            }
+            'exec' {
+                if ($tokens.Count -lt 4 -or $tokens[2] -cne '--') {
+                    return New-EzDarkFactoryCliArgumentError -Command 'exec' -Message "Command 'exec' requires: exec <instance> -- <command> [arguments]."
+                }
+                $instanceName = $tokens[1]
+                try { Assert-EzDarkFactoryStorageInstanceName -Name $instanceName }
+                catch { return New-EzDarkFactoryCliArgumentError -Command 'exec' -Message $_.Exception.Message }
+                $remoteCommand = @($tokens.ToArray()[3..($tokens.Count - 1)])
+                $command = 'exec'
+            }
+            { $_ -in @('copy-to', 'copy-from') } {
+                if ($tokens.Count -ne 4) {
+                    return New-EzDarkFactoryCliArgumentError -Command $verb -Message "Command '$verb' requires an instance name, guest path and host path in the documented direction."
+                }
+                $instanceName = $tokens[1]
+                try { Assert-EzDarkFactoryStorageInstanceName -Name $instanceName }
+                catch { return New-EzDarkFactoryCliArgumentError -Command $verb -Message $_.Exception.Message }
+                if ($verb -ceq 'copy-to') {
+                    $hostPath = $tokens[2]
+                    $guestPath = $tokens[3]
+                }
+                else {
+                    $guestPath = $tokens[2]
+                    $hostPath = $tokens[3]
+                }
+                $command = $verb
+            }
+            default {
+                return New-EzDarkFactoryCliArgumentError -Command $verb -Message "Unknown command '$verb'." -Code 'unknown_command'
+            }
+        }
+    }
+
+    if ($command -ceq 'ssh' -and $jsonCount -gt 0) {
+        return New-EzDarkFactoryCliArgumentError -Command 'ssh' -Message 'Interactive ssh cannot be combined with -Json because the child session owns the console streams.'
+    }
+
+    $null = Get-EzDarkFactoryRoot -Path $Root
+    $version = Get-EzDarkFactoryVersion
+    switch ($command) {
+        'version' {
+            $data = [pscustomobject][ordered]@{ name = 'ezdarkfactory'; version = $version }
+        }
+        'bootstrap' {
+            $data = Install-EzDarkFactoryQemuRuntime -Root $Root
+        }
+        'diagnose' {
+            $data = Get-EzDarkFactoryInstanceDiagnosis -Root $Root -InstanceName $instanceName -CheckImage:$checkImage
+        }
+        'doctor' {
+            $data = Get-EzDarkFactoryDoctorReport -Root $Root
+        }
+        'base acquire' {
+            $data = Invoke-EzDarkFactorySourceImageAcquire -Root $Root
+        }
+        'base build' {
+            $data = Invoke-EzDarkFactoryBaseBuild -Root $Root -Accelerator whpx
+        }
+        'create' {
+            $data = New-EzDarkFactoryManagedInstance -Root $Root -InstanceName $instanceName -BaseId $createBaseId -Profile $createProfile -Cpus $createCpus -MemoryMiB $createMemoryMiB
+        }
+        'clone' {
+            $data = Copy-EzDarkFactoryManagedInstance -Root $Root -SourceInstanceName $instanceName -DestinationInstanceName $destinationName -Mode $cloneMode
+        }
+        'reset' {
+            $data = Reset-EzDarkFactoryManagedInstance -Root $Root -InstanceName $instanceName
+        }
+        'export' {
+            $data = Export-EzDarkFactoryManagedInstance -Root $Root -InstanceName $instanceName -DestinationDirectory $hostPath
+        }
+        'import' {
+            $data = Import-EzDarkFactoryManagedInstance -Root $Root -InstanceName $instanceName -ImagePath $hostPath -ManifestPath $manifestPath -Profile $createProfile -Cpus $createCpus -MemoryMiB $createMemoryMiB
+        }
+        'portability check' {
+            $data = Test-EzDarkFactoryPortableBundle -Root $Root
+        }
+        'list' {
+            $items = @(Get-EzDarkFactoryManagedInstanceList -Root $Root)
+            $data = [pscustomobject][ordered]@{ count = $items.Count; instances = $items }
+        }
+        'status' {
+            $data = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $instanceName
+        }
+        'start' {
+            $configuration = Get-EzDarkFactoryConfiguration -Root $Root
+            $data = Start-EzDarkFactoryReadyInstance -Root $Root -InstanceName $instanceName -Accelerator whpx -ReadyTimeoutSeconds ([int]$configuration.timeouts.processSeconds)
+        }
+        'ssh' {
+            $exitCode = Invoke-EzDarkFactorySsh -Root $Root -InstanceName $instanceName
+            $data = [pscustomobject][ordered]@{ name = $instanceName; exitCode = [int]$exitCode }
+            return New-EzDarkFactoryCommandResult -Success $true -Command 'ssh' -ExitCode ([int]$exitCode) -Data $data
+        }
+        'exec' {
+            $configuration = Get-EzDarkFactoryConfiguration -Root $Root
+            $data = Invoke-EzDarkFactoryExec -Root $Root -InstanceName $instanceName -Command $remoteCommand -TimeoutSeconds ([int]$configuration.timeouts.processSeconds)
+            if ([int]$data.exitCode -ne 0) {
+                return New-EzDarkFactoryRemoteCommandFailureResult -ExitCode ([int]$data.exitCode) -StdOut ([string]$data.stdout) -StdErr ([string]$data.stderr)
+            }
+            return New-EzDarkFactoryCommandResult -Success $true -Command 'exec' -ExitCode 0 -Data $data
+        }
+        'copy-to' {
+            $configuration = Get-EzDarkFactoryConfiguration -Root $Root
+            $data = Invoke-EzDarkFactoryCopyToGuest -Root $Root -InstanceName $instanceName -HostPath $hostPath -GuestPath $guestPath -TimeoutSeconds ([int]$configuration.timeouts.processSeconds)
+        }
+        'copy-from' {
+            $configuration = Get-EzDarkFactoryConfiguration -Root $Root
+            $data = Invoke-EzDarkFactoryCopyFromGuest -Root $Root -InstanceName $instanceName -GuestPath $guestPath -HostPath $hostPath -TimeoutSeconds ([int]$configuration.timeouts.processSeconds)
+        }
+        'stop' {
+            $configuration = Get-EzDarkFactoryConfiguration -Root $Root
+            $data = Stop-EzDarkFactoryInstance -Root $Root -InstanceName $instanceName -ShutdownTimeoutSeconds ([int]$configuration.timeouts.processSeconds)
+        }
+        'help' {
+            $data = [pscustomobject][ordered]@{
+                name = 'ezdarkfactory'
+                version = $version
+                usage = '.\ezdarkfactory.ps1 <command> [arguments] [-Json]'
+                commands = @(
+                    [pscustomobject]@{ name = 'help'; description = 'Show available commands and usage.' }
+                    [pscustomobject]@{ name = 'version'; description = 'Show the control-plane version.' }
+                    [pscustomobject]@{ name = 'diagnose <name> [-CheckImage]'; description = 'Inspect failure and recovery evidence without repair; image checks require stopped ownership.' }
+                    [pscustomobject]@{ name = 'doctor'; description = 'Report Windows, WHPX, storage and managed-QEMU prerequisites.' }
+                    [pscustomobject]@{ name = 'bootstrap'; description = 'Install the reviewed QEMU runtime into this ezdarkfactory root without system installation.' }
+                    [pscustomobject]@{ name = 'base acquire'; description = 'Acquire and verify the pinned Ubuntu Noble amd64 source image.' }
+                    [pscustomobject]@{ name = 'base build'; description = 'Build and publish an immutable prepared coding base using WHPX.' }
+                    [pscustomobject]@{ name = 'create <name> [options]'; description = 'Create a named thin-overlay instance with a durable profile and localhost SSH reservation.' }
+                    [pscustomobject]@{ name = 'list'; description = 'Reconstruct and list named instances from durable instance.json authority.' }
+                    [pscustomobject]@{ name = 'status <name>'; description = 'Reconcile durable configuration, runtime and process evidence for one instance.' }
+                    [pscustomobject]@{ name = 'start <name>'; description = 'Start with WHPX, provision instance identity and wait for authenticated localhost SSH READY.' }
+                    [pscustomobject]@{ name = 'stop <name>'; description = 'Request graceful guest powerdown over host-local QMP and wait for exit.' }
+                    [pscustomobject]@{ name = 'reset <name>'; description = 'Replace a stopped instance overlay from its own immutable baseline and initialize a new guest identity.' }
+                    [pscustomobject]@{ name = 'clone <source> <destination> -Mode fresh|stateful'; description = 'Clone a stopped instance explicitly: same baseline with a fresh overlay, or an independent sensitive stateful snapshot.' }
+                    [pscustomobject]@{ name = 'export <name> <new-directory>'; description = 'Export a stopped instance as standalone disk.qcow2 and a provenance manifest. Treat the bundle as sensitive.' }
+                    [pscustomobject]@{ name = 'import <name> <image> [options]'; description = 'Validate a standalone QCOW2 and create a new instance on an immutable imported baseline. Options: -ManifestPath, -Profile, -Cpus, -MemoryMiB.' }
+                    [pscustomobject]@{ name = 'portability check'; description = 'Prove managed guests stopped and validate storage before or after copying the complete ezdarkfactory root.' }
+                    [pscustomobject]@{ name = 'ssh <name>'; description = 'Open an interactive managed-key SSH session over the localhost forward.' }
+                    [pscustomobject]@{ name = 'exec <name> -- <command>'; description = 'Run an argv-preserving non-interactive command over managed SSH and return its exit status.' }
+                    [pscustomobject]@{ name = 'copy-to <name> <host> <guest>'; description = 'Copy one host file into the guest using managed scp trust.' }
+                    [pscustomobject]@{ name = 'copy-from <name> <guest> <host>'; description = 'Copy one guest file to a host path using managed scp trust.' }
+                )
+                stage = 'Prepared coding bases, authenticated guest readiness, named instances, reset, explicit clones, standalone export/import and cold relocation are implemented. See docs/PORTABILITY.md for baseline and sensitive-state behavior.'
+            }
+        }
+    }
+    return New-EzDarkFactoryCommandResult -Success $true -Command $command -ExitCode 0 -Data $data
+}
+
+function Write-EzDarkFactoryResult {
+    [CmdletBinding()]
+    param([Parameter(Mandatory = $true)][object]$Result, [switch]$Json)
+
+    if ($Json) {
+        Write-Output ($Result | ConvertTo-Json -Depth 16 -Compress)
+        return
+    }
+    if (-not $Result.success) {
+        [Console]::Error.WriteLine("ezdarkfactory: $($Result.error.message)")
+        return
+    }
+    switch ($Result.command) {
+        'version' { Write-Output ("ezdarkfactory $($Result.data.version)") }
+        'bootstrap' {
+            $verb = if ($Result.data.idempotent) { 'Verified existing' } else { 'Installed' }
+            Write-Output ("$verb managed QEMU $($Result.data.version) (provider build $($Result.data.providerBuild))")
+            Write-Output ("  runtime: $($Result.data.runtimePath)")
+            Write-Output ("  qemu-system-x86_64: $($Result.data.qemuSystem)")
+            Write-Output ("  qemu-img: $($Result.data.qemuImg)")
+        }
+        'diagnose' {
+            Write-Output ("ezdarkfactory diagnose: $($Result.data.instanceName); state=$($Result.data.lifecycleState); imageCheck=$($Result.data.imageCheck); repairs=none")
+            foreach ($finding in $Result.data.findings) {
+                Write-Output ("  [$($finding.code)] $($finding.message)")
+                Write-Output ("    $($finding.remediation)")
+            }
+            foreach ($artifact in $Result.data.recoveryArtifacts) { Write-Output ("  preserved artifact: $artifact") }
+            Write-Output $Result.data.scope
+        }
+        'doctor' {
+            Write-Output ("ezdarkfactory doctor: $($Result.data.status)")
+            foreach ($check in $Result.data.checks) {
+                Write-Output (('  {0,-28} {1,-30} {2}' -f $check.name, $check.status, $check.message))
+                if (-not [string]::IsNullOrWhiteSpace($check.remediation)) {
+                    Write-Output ("    remediation: $($check.remediation)")
+                }
+            }
+            Write-Output ('  WHPX execution tested: false (doctor reports prerequisites only).')
+        }
+        'base acquire' {
+            $verb = if ($Result.data.downloaded) { 'Acquired' } else { 'Verified cached' }
+            Write-Output ("$verb Ubuntu source image:")
+            Write-Output ("  $($Result.data.path)")
+            Write-Output ("  SHA-256 $($Result.data.sha256)")
+            Write-Output ("  publication $($Result.data.publication)")
+        }
+        'base build' {
+            $verb = if ($Result.data.reused) { 'Verified existing' } else { 'Published' }
+            Write-Output ("$verb prepared base $($Result.data.baseId)")
+            Write-Output ("  image: $($Result.data.path)")
+            Write-Output ("  manifest: $($Result.data.manifestPath)")
+            Write-Output ("  SHA-256 $($Result.data.sha256)")
+            Write-Output ("  accelerator: $($Result.data.accelerator)")
+        }
+        { $_ -in @('create', 'clone', 'import') } {
+            Write-Output ("Created $($Result.data.name)")
+            Write-Output ("  profile: $($Result.data.profile) ($($Result.data.cpus) vCPU, $($Result.data.memoryMiB) MiB)")
+            Write-Output ("  base: $($Result.data.baseId) ($($Result.data.baseSelection))")
+            Write-Output ("  SSH reservation: 127.0.0.1:$($Result.data.sshPort)")
+            foreach ($warning in @($Result.data.warnings)) { Write-Output ("  warning: $warning") }
+            if ($Result.command -ceq 'clone') { Write-Output ("  clone mode: $($Result.data.mode); source: $($Result.data.sourceName)") }
+            if ($Result.command -cne 'create' -and $Result.data.sensitiveState) { Write-Output '  sensitive state: this immutable baseline may contain credentials and private guest data.' }
+        }
+        'reset' {
+            Write-Output ("Reset $($Result.data.name): CREATED")
+            Write-Output ("  baseline: $($Result.data.baseId) ($($Result.data.resetBaseline))")
+            if ($Result.data.sensitiveState) { Write-Output '  sensitive state: reset restores this snapshot baseline, including any credentials it already contains.' }
+            foreach ($artifact in @($Result.data.recoveryArtifact)) { Write-Output ("  retained cleanup artifact: $artifact") }
+        }
+        'export' {
+            Write-Output ("Exported standalone image: $($Result.data.Image)")
+            Write-Output ("  manifest: $($Result.data.ManifestPath)")
+            Write-Output ("  SHA-256 $($Result.data.Manifest.imageSha256)")
+            Write-Output '  sensitive state: bundle may contain credentials, tokens, source code and private guest data.'
+        }
+        'portability check' {
+            Write-Output ("Cold portability validated: $($Result.data.InstanceCount) stopped instances")
+            Write-Output ("  root: $($Result.data.Root)")
+            Write-Output '  Copy the complete root while all guests remain stopped; run portability check again at the destination.'
+        }
+        'list' {
+            if ([int]$Result.data.count -eq 0) {
+                Write-Output 'No managed instances.'
+            }
+            else {
+                foreach ($item in @($Result.data.instances)) {
+                    Write-Output (('{0,-24} {1,-10} {2,-7} {3,2} vCPU {4,6} MiB SSH {5}' -f $item.name, $item.state, $item.profile, $item.cpus, $item.memoryMiB, $item.sshPort))
+                }
+            }
+        }
+        'status' {
+            Write-Output ("$($Result.data.name): $($Result.data.state)")
+            Write-Output ("  $($Result.data.reason)")
+            if ($null -ne $Result.data.profile) { Write-Output ("  profile: $($Result.data.profile) ($($Result.data.cpus) vCPU, $($Result.data.memoryMiB) MiB)") }
+            if ($null -ne $Result.data.sshPort) { Write-Output ("  SSH reservation: 127.0.0.1:$($Result.data.sshPort)") }
+            if ($null -ne $Result.data.baseId) { Write-Output ("  base: $($Result.data.baseId)") }
+            if ($null -ne $Result.data.pid) { Write-Output ("  pid: $($Result.data.pid)") }
+            if ($null -ne $Result.data.accelerator) { Write-Output ("  accelerator: $($Result.data.accelerator)") }
+        }
+        'start' {
+            Write-Output ("Started $($Result.data.name)")
+            Write-Output ("  state: $($Result.data.state)")
+            Write-Output ("  pid: $($Result.data.pid)")
+            Write-Output ("  accelerator: $($Result.data.accelerator)")
+            Write-Output ("  SSH: $($Result.data.sshUser)@$($Result.data.sshHost):$($Result.data.sshPort)")
+            Write-Output ("  ready at: $($Result.data.readyAt)")
+            Write-Output ("  serial log: $($Result.data.serialLog)")
+            Write-Output ("  QEMU log: $($Result.data.qemuLog)")
+        }
+        'ssh' { }
+        'exec' {
+            if (-not [string]::IsNullOrEmpty([string]$Result.data.stdout)) { [Console]::Out.Write([string]$Result.data.stdout) }
+            if (-not [string]::IsNullOrEmpty([string]$Result.data.stderr)) { [Console]::Error.Write([string]$Result.data.stderr) }
+        }
+        'copy-to' {
+            Write-Output ("Copied host file to $($Result.data.name):$($Result.data.guestPath)")
+            Write-Output ("  source: $($Result.data.hostPath)")
+        }
+        'copy-from' {
+            Write-Output ("Copied guest file from $($Result.data.name):$($Result.data.guestPath)")
+            Write-Output ("  destination: $($Result.data.hostPath)")
+        }
+        'stop' {
+            if ($Result.data.alreadyStopped) { Write-Output ("$($Result.data.name) is already stopped.") }
+            else { Write-Output ("Stopped $($Result.data.name) gracefully.") }
+        }
+        'help' {
+            Write-Output ("ezdarkfactory $($Result.data.version)")
+            Write-Output ('Portable QEMU + QCOW2 coding-agent environments for Windows.')
+            Write-Output ('')
+            Write-Output ("Usage: $($Result.data.usage)")
+            Write-Output ('')
+            Write-Output ('Commands:')
+            foreach ($item in $Result.data.commands) {
+                Write-Output (('  {0,-18} {1}' -f $item.name, $item.description))
+            }
+            Write-Output ('')
+            Write-Output ('Use -Json for one structured result, including errors. Omitting the command shows this help.')
+            Write-Output ($Result.data.stage)
+        }
+        default { throw "No human-readable formatter is registered for '$($Result.command)'." }
+    }
+}

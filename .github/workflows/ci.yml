@@ -1,4 +1,4 @@
-name: EDF provenance
+name: EDF fast merge gate
 
 on:
   pull_request:
@@ -34,3 +34,57 @@ jobs:
           set -euo pipefail
           git rev-parse HEAD
           python tools/check.py --fetch --sources "$RUNNER_TEMP/edf-provenance-sources"
+
+  repository-contract:
+    name: Repository contract (Windows PowerShell 5.1)
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - name: Checkout literal PR head or merged main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # reviewed v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate source, programme, schemas and forbidden payloads
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\\scripts\\Invoke-CiCheck.ps1 -Check Repository -ExpectedMajor 5
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  control-plane:
+    name: Control plane (${{ matrix.label }})
+    runs-on: windows-2022
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: Windows PowerShell 5.1
+            major: 5
+          - label: PowerShell 7.6.6
+            major: 7
+    steps:
+      - name: Checkout literal PR head or merged main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # reviewed v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Acquire pinned PowerShell 7 by verified SHA-256
+        if: matrix.major == 7
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $executable = .\\scripts\\Install-TestPowerShell.ps1 -DestinationRoot $env:RUNNER_TEMP
+          ('EDF_TEST_POWERSHELL=' + $executable) | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Run inherited complete first-party harness (zero/all-skipped fails)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $executable = Join-Path $PSHOME 'powershell.exe'
+          if (${{ matrix.major }} -eq 7) { $executable = $env:EDF_TEST_POWERSHELL }
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Pinned test engine is missing.' }
+          & $executable -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\\scripts\\Invoke-CiCheck.ps1 -Check ControlPlane -ExpectedMajor ${{ matrix.major }}
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

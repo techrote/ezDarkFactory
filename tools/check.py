@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""EDF-001 SOURCE/FAST-CI merge gate. No VM, provider or upstream script execution."""
+"""EDF source/provenance FAST-CI merge gate. No VM, provider or upstream script execution."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def main() -> int:
         suite = unittest.defaultTestLoader.discover(str(p.ROOT / "tests"), pattern="test_*.py")
         p.require(suite.countTestCases() > 0, "zero tests discovered")
         result = unittest.TextTestRunner(verbosity=2).run(suite)
-        p.require(result.wasSuccessful() and not result.skipped, "tests failed or skipped; every EDF-001 test is required")
+        p.require(result.wasSuccessful() and not result.skipped, "tests failed or skipped; every EDF source/provenance test is required")
         p.run_git(p.ROOT, "diff", "--check")
         p.run_git(p.ROOT, "diff", "--cached", "--check")
         print(f"FAST-CI PASS: {result.testsRun} tests, 0 failures, 0 skips", flush=True)

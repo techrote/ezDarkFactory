@@ -71,3 +71,9 @@ ssh_host_*_key*
 *.log
 *.tmp
 *.bak
+# EDF-002 inherited source and VM exclusions
+/.ezdarkfactory/
+/.ezvm/
+/artifacts/
+/TestResults/
+/coverage/
