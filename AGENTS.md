@@ -70,31 +70,41 @@ Every implementation issue is an end-to-end execution prompt. Do **not** stop af
 - Runtime images, QEMU/7-Zip payloads, keys, credentials, tokens, caches, downloaded model weights and generated VM state are never committed.
 - External acquisition is pinned and hash-verified.
 - UI code never edits instance JSON, process evidence, QCOW2 metadata or trust files directly. It calls typed control-plane/broker operations.
+- The primary UI is the host-side tile-native management TUI specified by `docs/rag/03-HUMAN-CONTROL-SURFACE.md`.
+- One manager may register and observe multiple local ezDarkFactory roots; each root remains its own lifecycle/storage/security authority.
+- The manager must not infer factory identity from path alone or silently mutate two reachable copies with the same factory identity.
 - No automatic paid inference, provider registration or credential import.
 - A clean project VM starts with an empty project workspace. Reference/demo content is isolated from the active workspace and is never the default working directory.
 - TUIsynth reference material must remain pinned, labelled historical/demo-only and unable to affect normal project creation.
-- Opening a dashboard/view must not start a VM, worker, inference job or network mutation.
-- Destructive actions require explicit target identity, lifecycle validation and a human confirmation model defined by the control-surface contract.
+- Opening a dashboard/view or registering a factory must not start a VM, worker, inference job or network mutation.
+- Destructive actions require explicit target identity, lifecycle validation and the confirmation model defined by the host-manager specification.
 
-## GUI/TUI decision rule
+## Host management TUI direction
 
-The owner preference is a GUI, but GUI conversion is not allowed to silently replace the proven headless lifecycle with opaque state.
+The owner has selected a **host-side, GUI-like TUI manager** as the v0.1 primary interface.
 
-The feasibility issue must separately evaluate:
+This is no longer a GUI-vs-TUI product decision.
 
-1. host control GUI;
-2. interactive QEMU guest display/console;
-3. optional full guest desktop profile.
+Implementation work must preserve the semantic UI contract in `docs/rag/03-HUMAN-CONTROL-SURFACE.md`, including:
 
-A GUI path is accepted only if it remains portable, bounded, testable, cleanly packaged and does not weaken lifecycle/security contracts. If those criteria are not met, implement the comprehensive TUI fallback specified in `docs/rag/03-HUMAN-CONTROL-SURFACE.md`.
+- multiple registered local factory roots;
+- one semantic command layer;
+- persistent tile workspace;
+- mouse/keyboard command parity;
+- bounded asynchronous observation;
+- per-root operation ownership and reconciliation;
+- Windows Terminal native qualification;
+- CLI/helper recovery when the TUI cannot launch.
 
-The fallback is a product requirement, not a degraded placeholder.
+A future native GUI or remote-host adapter may reuse the semantic layer only through an explicit project/spec delta.
+
+QEMU graphical display and a guest desktop are not v0.1 management requirements.
 
 ## Testing truthfulness
 
 Fast CI must not claim physical WHPX, Windows Terminal, real GUI interaction, audio/MIDI, GPU/model or human usability evidence it did not execute.
 
-Use explicit labels such as PASS, FAIL, SKIP, UNMEASURED and HUMAN-PENDING. TCG orchestration evidence is not WHPX performance evidence. Headless UI simulation is not physical Windows UI acceptance.
+Use explicit labels such as PASS, FAIL, SKIP, UNMEASURED and HUMAN-PENDING. TCG orchestration evidence is not WHPX performance evidence. Headless UI simulation is not physical Windows Terminal acceptance.
 
 ## Secrets and reference data
 
