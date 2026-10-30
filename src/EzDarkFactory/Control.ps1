@@ -400,7 +400,9 @@ function Invoke-EzDarkFactoryControl {
             try {
                 $a = $Request.arguments
                 $data = $null
-                $name = $(if ($null -ne $target) { [string]$target.name } else { [string]$a.name })
+                $name = ''
+                if ($null -ne $target) { $name = [string]$target.name }
+                elseif ($command -in @('instance.create','instance.import')) { $name = [string]$a.name }
                 switch ($command) {
                     'factory.rekey' {
                         $preimage = Join-Path (Get-EzDarkFactoryPaths -Root $Root).Runtime ('control/rekey-' + $Request.operation_id + '.json')
