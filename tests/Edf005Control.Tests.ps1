@@ -492,3 +492,24 @@ Add-EzDarkFactoryTest -Name 'EDF-005: concurrent duplicate operation in same roo
         Remove-EzDarkFactoryTestDirectory -Path $root
     }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: diagnosed instance observations use public typed read-only lifecycle state' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'diagnostic observation'
+    try {
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'diagnosed'
+        $adopt = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='diagnosed'}) -Generation $intent.identityGeneration
+        $target = (Invoke-EzDarkFactoryControl -Root $root -Request $adopt).data
+        $baseline = Get-EzDarkFactoryControlRevision -Root $root
+        $req = New-Edf005Request -Root $root -Command 'instance.diagnose' -Arguments ([pscustomobject]@{name='diagnosed'}) -InstanceId $target.instance_id -Generation $target.instance_generation
+        $res = Invoke-EzDarkFactoryControl -Root $root -Request $req
+        Assert-EzDarkFactoryEqual -Actual $res.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $res.data.target.instance_id -Expected $target.instance_id
+        Assert-EzDarkFactoryTrue -Condition (-not $res.data.repair_attempted)
+        Assert-EzDarkFactoryTrue -Condition ($res.data.reason.Length -le 2048)
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlRevision -Root $root) -Expected $baseline
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $req.operation_id + '.json'))))
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
