@@ -31,8 +31,12 @@ Add-EzDarkFactoryTest -Name 'EDF: stopped root-local state and synthetic identit
         $movedConfiguration = Get-EzDarkFactoryConfiguration -Root $destination
         Assert-EzDarkFactoryEqual -Actual $movedConfiguration.profiles.normal.memoryMiB -Expected 12288
         Assert-EzDarkFactoryTrue -Condition (-not $paths.Runtime.StartsWith($original, [StringComparison]::OrdinalIgnoreCase))
-        $appData = [Environment]::GetFolderPath('LocalApplicationData')
-        Assert-EzDarkFactoryTrue -Condition ([string]::IsNullOrEmpty($appData) -or (-not $paths.Keys.StartsWith($appData, [StringComparison]::OrdinalIgnoreCase)))
+        # The fixture itself lives beneath the host's TEMP directory, which
+        # may be within LOCALAPPDATA. The invariant is ownership by this
+        # relocated root, not an arbitrary prefix exclusion of user-profile paths.
+        Assert-EzDarkFactoryEqual -Actual $paths.Keys -Expected (Join-Path $destination 'runtime/keys')
+        Assert-EzDarkFactoryTrue -Condition ($paths.Keys.StartsWith($destination, [StringComparison]::OrdinalIgnoreCase))
+        Assert-EzDarkFactoryTrue -Condition (-not $paths.Keys.StartsWith($original, [StringComparison]::OrdinalIgnoreCase))
     }
     finally {
         Remove-EzDarkFactoryTestDirectory -Path $original
