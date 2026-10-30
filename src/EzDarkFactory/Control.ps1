@@ -385,7 +385,9 @@ function Invoke-EzDarkFactoryControl {
                             $file = Assert-EzDarkFactorySafePath -Path (Join-Path $logs ($kind + '.log')) -Description 'Bounded guest log'
                             $value = if (Test-Path -LiteralPath $file -PathType Leaf) { Read-EzDarkFactoryBoundedText -Path $file } else { '' }
                             if ($value.Length -gt $maximum) { $value = $value.Substring($value.Length - $maximum) }
-                            $data = [pscustomobject]@{ target = $target; kind = $kind; text = Protect-EzDarkFactoryDiagnosticText -Text $value -MaximumCharacters 8192 }
+                            $clean = Protect-EzDarkFactoryDiagnosticText -Text $value -MaximumCharacters 8192
+                            if ($clean.Length -gt $maximum) { $clean = $clean.Substring(0, $maximum) }
+                            $data = [pscustomobject]@{ target = $target; kind = $kind; text = $clean }
                         }
                     }
                 }
