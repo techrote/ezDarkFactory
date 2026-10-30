@@ -382,3 +382,111 @@ Add-EzDarkFactoryTest -Name 'EDF-005: invalid command fields, unsupported minor 
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+# Process-boundary concurrency fixtures use the exact local module and independent
+# OS processes; they are not simulated QEMU or a mocked operation-success oracle.
+function Start-Edf005ControlChild {
+    param([string]$Root, [object]$Request, [string]$Workspace = '', [string]$EnrollmentId = '')
+    $module = Join-Path $Root 'src/EzDarkFactory/Edf005.psm1'
+    $payload = ConvertTo-Json -InputObject $Request -Depth 16 -Compress
+    $base64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($payload))
+    $cmd = '$ProgressPreference="SilentlyContinue"; Import-Module "' + $module +
+        '" -Force -ErrorAction Stop; $req=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String("' +
+        $base64 + '")) | ConvertFrom-Json; '
+    if ($Workspace) {
+        $cmd += '$response=Invoke-EzDarkFactoryManagerControl -Workspace "' + $Workspace +
+            '" -EnrollmentId "' + $EnrollmentId + '" -Request $req; '
+    }
+    else { $cmd += '$response=Invoke-EzDarkFactoryControl -Root "' + $Root + '" -Request $req; ' }
+    $cmd += '$response | ConvertTo-Json -Depth 16 -Compress'
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd))
+    $exe = if ($PSVersionTable.PSVersion.Major -eq 5) { Join-Path $PSHOME 'powershell.exe' } else { Join-Path $PSHOME 'pwsh.exe' }
+    $start = New-Object Diagnostics.ProcessStartInfo
+    $start.FileName = $exe
+    $start.Arguments = '-NoLogo -NoProfile -NonInteractive -EncodedCommand ' + $encoded
+    $start.WorkingDirectory = $Root
+    $start.UseShellExecute = $false; $start.CreateNoWindow = $true
+    $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
+    $process = New-Object Diagnostics.Process
+    $process.StartInfo = $start
+    if (-not $process.Start()) { throw 'Could not launch concurrent PowerShell child.' }
+    return $process
+}
+
+function Receive-Edf005ControlChild {
+    param([Diagnostics.Process]$Process)
+    $stdout = $Process.StandardOutput.ReadToEndAsync()
+    $stderr = $Process.StandardError.ReadToEndAsync()
+    if (-not $Process.WaitForExit(20000)) {
+        $Process.Kill()
+        throw 'Concurrent control child exceeded its bounded 20s deadline.'
+    }
+    if (-not $stdout.Wait(3000) -or -not $stderr.Wait(3000)) { throw 'Concurrent control child output did not drain.' }
+    if ($Process.ExitCode -ne 0) { throw ('Concurrent child exited '+ $Process.ExitCode + ': ' + $stderr.Result) }
+    return ($stdout.Result.Trim() | ConvertFrom-Json)
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute concurrently under bounded host budget' -ScriptBlock {
+    $a = New-EzDarkFactoryCheckoutFixture -Prefix 'concurrent root A'
+    $b = New-EzDarkFactoryCheckoutFixture -Prefix 'concurrent root B'
+    $workspace = New-EzDarkFactoryTestDirectory -Prefix 'concurrent manager'
+    $children = @()
+    try {
+        $originalA = Initialize-EzDarkFactoryIdentity -Root $a
+        $originalB = Initialize-EzDarkFactoryIdentity -Root $b
+        $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
+        $ra = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $a -Alias 'A' -AuthorizeLocalExecution
+        $rb = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $b -Alias 'B' -AuthorizeLocalExecution
+        $op = [guid]::NewGuid().ToString('N')
+        $requestA = New-Edf005Request -Root $a -Command 'factory.rekey' -Id $op
+        $requestB = New-Edf005Request -Root $b -Command 'factory.rekey' -Id $op
+        $children = @(
+            (Start-Edf005ControlChild -Root $a -Request $requestA -Workspace $workspace -EnrollmentId $ra.enrollment_id),
+            (Start-Edf005ControlChild -Root $b -Request $requestB -Workspace $workspace -EnrollmentId $rb.enrollment_id)
+        )
+        $first = Receive-Edf005ControlChild -Process $children[0]
+        $second = Receive-Edf005ControlChild -Process $children[1]
+        Assert-EzDarkFactoryEqual -Actual $first.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $second.state -Expected 'completed'
+        Assert-EzDarkFactoryTrue -Condition ($first.data.factory_id -cne $second.data.factory_id)
+        Assert-EzDarkFactoryTrue -Condition ($first.data.factory_id -cne $originalA.factory_id)
+        Assert-EzDarkFactoryTrue -Condition ($second.data.factory_id -cne $originalB.factory_id)
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperation -Root $a -OperationId $op).factory_id -Expected $originalA.factory_id
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperation -Root $b -OperationId $op).factory_id -Expected $originalB.factory_id
+    }
+    finally {
+        foreach ($process in $children) { if ($null -ne $process) { if (-not $process.HasExited) { $process.Kill() }; $process.Dispose() } }
+        Remove-EzDarkFactoryTestDirectory -Path $a
+        Remove-EzDarkFactoryTestDirectory -Path $b
+        Remove-EzDarkFactoryTestDirectory -Path $workspace
+    }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: concurrent duplicate operation in same root has one minted identity and one durable result' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'duplicate operation'
+    $children = @()
+    try {
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'duplicate'
+        $req = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='duplicate'}) -Generation $intent.identityGeneration
+        $children = @(
+            (Start-Edf005ControlChild -Root $root -Request $req),
+            (Start-Edf005ControlChild -Root $root -Request $req)
+        )
+        $one = Receive-Edf005ControlChild -Process $children[0]
+        $two = Receive-Edf005ControlChild -Process $children[1]
+        Assert-EzDarkFactoryEqual -Actual $one.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $two.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $one.data.instance_id -Expected $two.data.instance_id
+        $ref = Get-EzDarkFactoryInstanceRef -Root $root -Name 'duplicate'
+        Assert-EzDarkFactoryEqual -Actual $ref.instance_id -Expected $one.data.instance_id
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperation -Root $root -OperationId $req.operation_id).state -Expected 'completed'
+        $journal = @(Get-ChildItem -LiteralPath (Join-Path $root 'runtime/control/operations') -Filter '*.json')
+        Assert-EzDarkFactoryEqual -Actual $journal.Count -Expected 1
+    }
+    finally {
+        foreach ($process in $children) { if ($null -ne $process) { if (-not $process.HasExited) { $process.Kill() }; $process.Dispose() } }
+        Remove-EzDarkFactoryTestDirectory -Path $root
+    }
+}
