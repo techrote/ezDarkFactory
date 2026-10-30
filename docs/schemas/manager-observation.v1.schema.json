@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EDF-005 manager static-root observation; never assert VM runtime status from static data",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "enrollment_id",
+    "alias",
+    "canonical_path",
+    "factory_id",
+    "observed_factory_id",
+    "api",
+    "state",
+    "inventory_state",
+    "last_known",
+    "observed_at",
+    "reason"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "enrollment_id": {
+      "type": "string",
+      "pattern": "^enr_[a-f0-9]{32}$"
+    },
+    "alias": {
+      "type": "string"
+    },
+    "canonical_path": {
+      "type": "string"
+    },
+    "factory_id": {
+      "type": "string",
+      "pattern": "^fct_[a-f0-9]{32}$"
+    },
+    "observed_factory_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "api": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "major": {
+          "type": "integer"
+        },
+        "minor": {
+          "type": "integer"
+        }
+      }
+    },
+    "state": {
+      "enum": [
+        "current",
+        "stale",
+        "unknown",
+        "unreachable",
+        "incompatible",
+        "conflict"
+      ]
+    },
+    "inventory_state": {
+      "const": "unknown"
+    },
+    "last_known": {
+      "type": "object",
+      "required": [
+        "factory_id",
+        "api_major",
+        "api_minor",
+        "verified_at",
+        "freshness"
+      ],
+      "properties": {
+        "factory_id": {
+          "type": "string"
+        },
+        "api_major": {
+          "type": "integer"
+        },
+        "api_minor": {
+          "type": "integer"
+        },
+        "verified_at": {
+          "type": "string"
+        },
+        "freshness": {
+          "const": "stale"
+        }
+      }
+    },
+    "observed_at": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    }
+  }
+}
