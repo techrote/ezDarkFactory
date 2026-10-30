@@ -43,6 +43,17 @@ function Enter-EzDarkFactoryControlLock {
 
 function Assert-EzDarkFactoryColdFactory {
     param([string]$Root = $script:EzDarkFactoryDefaultRoot)
+    # A base-build QEMU may exist without an instance intent. Reuse the
+    # inherited cold-portability process-ownership rule before rekey/adoption.
+    $paths = Get-EzDarkFactoryPaths -Root $Root
+    foreach ($process in @(Get-EzDarkFactoryObservedQemuProcesses)) {
+        if ([string]::IsNullOrWhiteSpace([string]$process.ExecutablePath)) {
+            throw 'Cannot prove a cold factory while QEMU process executable ownership is unknown.'
+        }
+        if (Test-EzDarkFactoryStoragePathInside -Path $process.ExecutablePath -Directory $paths.Qemu) {
+            throw 'Factory identity change requires all managed QEMU processes, including base builders, to be stopped.'
+        }
+    }
     foreach ($intent in @(Get-EzDarkFactoryInstanceRegistry -Root $Root)) {
         $name = [string]$intent.name
         $paths = Get-EzDarkFactoryInstanceRuntimePaths -Root $Root -InstanceName $name
