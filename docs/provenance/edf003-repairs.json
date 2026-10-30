@@ -1,0 +1,185 @@
+{
+  "schemaVersion": 1,
+  "issue": "EDF-003",
+  "evidence_class": "SOURCE",
+  "original_historical_patch_bytes_recovered": false,
+  "historical_patch_equivalence_claimed": false,
+  "baseline": {
+    "src/EzVm/Keys.ps1": {
+      "commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+      "git_blob": "da6bcf712ff2b4fd05bb6d3ad8593389c7738f28",
+      "sha256": "7a76dd9b47b2c9665535e856f567faf309c489e9683738cf42b9e67c3d62ee1f"
+    },
+    "src/EzVm/Runtime.ps1": {
+      "commit": "b6abdf8c3edd61695db30894da991f275b39a699",
+      "git_blob": "59cae4784a0d36b7b3a964a0f495772fbf61f801",
+      "sha256": "b86122f56df1f849d0f5110828519718882e9ea4fd254bff0fb252c7b68a163b"
+    }
+  },
+  "source_revisions": {
+    "keys": "7b829f8352a9fa30c965e57386965767c5969e0d",
+    "runtime": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+    "runtime_upstream_pr": 45,
+    "runtime_upstream_merged": false,
+    "runtime_full_tcg_pass": false
+  },
+  "scope": "Only selected Keys owner/DACL and Runtime native process/one-deadline software repairs with synthetic, hosted ordinary-user and native child fixtures. No VM payload, historical private patch, TCG/WHPX or human acceptance.",
+  "records": [
+    {
+      "source_id": "ezvm-keys-repair",
+      "source_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+      "source_tree": "2aa3170d8ba0a60ae98bb07803f63d9c04d41de0",
+      "source_path": "src/EzVm/Keys.ps1",
+      "source_blob": "6dc9257a8dd8f078f95ae76066f798e888f99b2a",
+      "source_sha256": "89e437ce908695b9d90ddaa5cb590c3aa44c1a7c52d3696ebe9e7ae218f04fe5",
+      "mode": "100644",
+      "destination": "src/EzDarkFactory/Keys.ps1",
+      "destination_blob": "6949f6468954d25cb1d7e132edd3685a280ce9e9",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-runtime-repair",
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "source_path": "src/EzVm/Runtime.ps1",
+      "source_blob": "d84f0740a86652dd9c5b233110947081b2482117",
+      "source_sha256": "f1fa7c9fe92a8dba4f0ee3497050b1fd633886008b488582b32b00c3fe91b73d",
+      "mode": "100644",
+      "destination": "src/EzDarkFactory/Runtime.ps1",
+      "destination_blob": "f4e9af5f0058fd3b7176650a774aea355baaf1ff",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-runtime-repair",
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "source_path": "src/EzVm/RuntimeProcess.cs",
+      "source_blob": "649ea07a9a27977d3f4512dbe1ba0858fb3a2043",
+      "source_sha256": "5b91e6624487d1da8d54b0d78c8ccc4c128d9668a72515cea0b8be0a6958203d",
+      "mode": "100644",
+      "destination": "src/EzDarkFactory/RuntimeProcess.cs",
+      "destination_blob": "ddfd4c04ac6560777f39b488b6c5a90bf9a5e25f",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-keys-repair",
+      "source_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+      "source_tree": "2aa3170d8ba0a60ae98bb07803f63d9c04d41de0",
+      "source_path": "tests/PrivateAcl.Tests.ps1",
+      "source_blob": "2d4dd9fa183adc5768c3d24069d5ed44e8bb3a97",
+      "source_sha256": "1af21dfd0c8e47ea43757d0211ca4fdad803692d5bc89fdf1a26c868ff4f065c",
+      "mode": "100644",
+      "destination": "tests/PrivateAcl.Tests.ps1",
+      "destination_blob": "06424c60c7528fa50bd86adb8ace93dcb543b17d",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-runtime-repair",
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "source_path": "tests/Dash08Lifecycle.Tests.ps1",
+      "source_blob": "801000381f00e3acbcfef427dc27414d980868c2",
+      "source_sha256": "df87e5e8d87966b36ff4d02ea78d5fc2a98e153fdc76315dd98b023b3bf3a27d",
+      "mode": "100644",
+      "destination": "tests/Dash08Lifecycle.Tests.ps1",
+      "destination_blob": "e4f902c814782d680a33a4246c5df930e970b66e",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-runtime-repair",
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "source_path": "tests/fixtures/Dash08ProcessScenario.ps1",
+      "source_blob": "c3deef6c106d6dadb8b19da7b8d436e1fa8f725b",
+      "source_sha256": "a84e883f04349407773719664871f939ed0e66e67147a24ab6118409a848759e",
+      "mode": "100644",
+      "destination": "tests/fixtures/Dash08ProcessScenario.ps1",
+      "destination_blob": "ba1fb2434d1f7b2d6636b2174eea37c919884936",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-runtime-repair",
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "source_path": "tests/fixtures/Dash08VmLifetime.cs",
+      "source_blob": "57b4e659ab500384a6d553d66601e506bf72f704",
+      "source_sha256": "e4a9e0d37663241e57162da232e3a74c598042db2a5bd92972a43244359aa11f",
+      "mode": "100644",
+      "destination": "tests/fixtures/Dash08VmLifetime.cs",
+      "destination_blob": "57b4e659ab500384a6d553d66601e506bf72f704",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-runtime-repair",
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "source_path": "tests/fixtures/Dash08QmpServer.cs",
+      "source_blob": "d741f284e22c85967f342e1874e5c1d8d16565a6",
+      "source_sha256": "548330569f98910ed55f31cb719c270ff6f326858fddf7d35195b47ef0a6f06c",
+      "mode": "100644",
+      "destination": "tests/fixtures/Dash08QmpServer.cs",
+      "destination_blob": "d741f284e22c85967f342e1874e5c1d8d16565a6",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-keys-repair",
+      "source_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+      "source_tree": "2aa3170d8ba0a60ae98bb07803f63d9c04d41de0",
+      "source_path": "scripts/Invoke-PrivateAclQualification.ps1",
+      "source_blob": "76673a5fdd09d1e91c7c03aead863d1222eada13",
+      "source_sha256": "efec983f8c76f4fbb9d8a23c9f2125326d647ea208433c67eb4987dbc420fcd2",
+      "mode": "100644",
+      "destination": "scripts/Invoke-Edf003PrivateAclQualification.ps1",
+      "destination_blob": "95c0e78f6ca3a087cf0e60c34b6cac0c3745171b",
+      "transformation": "reviewed-adaptation"
+    },
+    {
+      "source_id": "ezvm-keys-repair",
+      "source_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+      "source_tree": "2aa3170d8ba0a60ae98bb07803f63d9c04d41de0",
+      "source_path": "scripts/Invoke-PrivateAclHosted.ps1",
+      "source_blob": "124df8c32e5d41a563f5aa72db172dee92c08172",
+      "source_sha256": "ebd39908ba32506b76b53e901338af2384fe2d84a60ca0604ba68c30dddfd45f",
+      "mode": "100644",
+      "destination": "scripts/Invoke-Edf003PrivateAclHosted.ps1",
+      "destination_blob": "dfecddced8669532562d6b2a5d763615a20e8aab",
+      "transformation": "reviewed-adaptation"
+    },
+    {
+      "source_id": "ezvm-keys-repair",
+      "source_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+      "source_tree": "2aa3170d8ba0a60ae98bb07803f63d9c04d41de0",
+      "source_path": "scripts/PrivateAclHostedSupport.ps1",
+      "source_blob": "8649c2408dddbb8888dd17a5e36f20a29dbd6604",
+      "source_sha256": "6f42b473a9a2c9d594aa284ee8c5ef69f2ee79ef09e6b65c93968d1cdb853799",
+      "mode": "100644",
+      "destination": "scripts/Edf003PrivateAclHostedSupport.ps1",
+      "destination_blob": "8649c2408dddbb8888dd17a5e36f20a29dbd6604",
+      "transformation": "exact-rebrand"
+    },
+    {
+      "source_id": "ezvm-keys-repair",
+      "source_commit": "7b829f8352a9fa30c965e57386965767c5969e0d",
+      "source_tree": "2aa3170d8ba0a60ae98bb07803f63d9c04d41de0",
+      "source_path": "tests/PrivateAclHosted.Tests.ps1",
+      "source_blob": "acec973052dd20ca6eef68a3e156c5e629b63db5",
+      "source_sha256": "838228bf65341d210ece7ca23d6c62138b2e02279f48192ef4e80e02ebe19e81",
+      "mode": "100644",
+      "destination": "tests/PrivateAclHosted.Tests.ps1",
+      "destination_blob": "a44f1bb6032d0ccec6c763367e6d7849a6eb4339",
+      "transformation": "reviewed-adaptation"
+    },
+    {
+      "source_id": "ezvm-runtime-repair",
+      "source_commit": "8d4bacbe74e8c4d83d3cec9845e8a6026c62fd46",
+      "source_tree": "ef550dcba1aa386500c50506d0af5aa3a8ac448f",
+      "source_path": "scripts/Invoke-Dash08Qualification.ps1",
+      "source_blob": "fa048fb27498bed06377df71e75c6347303018bb",
+      "source_sha256": "d645f460b677f2768bafd59bcdec99d2226698977e19b0e964901c5135069361",
+      "mode": "100644",
+      "destination": "scripts/Invoke-Edf003SoftwareQualification.ps1",
+      "destination_blob": "729fb36331751932d0944cc560a507b4801f85bd",
+      "transformation": "reviewed-adaptation"
+    }
+  ]
+}

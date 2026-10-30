@@ -88,3 +88,73 @@ jobs:
           if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) { throw 'Pinned test engine is missing.' }
           & $executable -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\\scripts\\Invoke-CiCheck.ps1 -Check ControlPlane -ExpectedMajor ${{ matrix.major }}
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  edf003-native:
+    name: EDF-003 native process (PowerShell ${{ matrix.major }})
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [5, 7]
+    steps:
+      - name: Checkout literal source commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # reviewed v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Acquire digest-verified pinned PowerShell 7
+        if: matrix.major == 7
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = .\\scripts\\Install-TestPowerShell.ps1 -DestinationRoot $env:RUNNER_TEMP
+          ('EDF_TEST_POWERSHELL=' + $exe) | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Execute 11 required real Windows native/deadline regression cases
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PSHOME 'powershell.exe'
+          if (${{ matrix.major }} -eq 7) { $exe = $env:EDF_TEST_POWERSHELL }
+          if (-not (Test-Path -LiteralPath $exe -PathType Leaf)) { throw 'Required test engine missing.' }
+          & $exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\\scripts\\Invoke-Edf003SoftwareQualification.ps1 -ExpectedMajor ${{ matrix.major }} -OutputDirectory (Join-Path $env:RUNNER_TEMP 'edf003-native-evidence')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain native source-matched software evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # reviewed v4
+        with:
+          name: edf003-native-ps${{ matrix.major }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/edf003-native-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  edf003-standard-user:
+    name: EDF-003 standard-user ACL (PowerShell ${{ matrix.major }})
+    runs-on: windows-2022
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [5, 7]
+    steps:
+      - name: Checkout literal source commit with parent baseline
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # reviewed v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Reproduce baseline DACL failure and qualify repair as temporary ordinary user
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\\scripts\\Invoke-Edf003PrivateAclHosted.ps1 -ExpectedMajor ${{ matrix.major }} -OutputDirectory (Join-Path $env:RUNNER_TEMP 'edf003-acl-evidence')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain red baseline, green ordinary-user, account cleanup receipts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # reviewed v4
+        with:
+          name: edf003-ordinary-user-ps${{ matrix.major }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/edf003-acl-evidence/
+          if-no-files-found: error
+          retention-days: 14
