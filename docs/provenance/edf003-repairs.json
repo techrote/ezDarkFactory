@@ -142,7 +142,7 @@
       "source_sha256": "ebd39908ba32506b76b53e901338af2384fe2d84a60ca0604ba68c30dddfd45f",
       "mode": "100644",
       "destination": "scripts/Invoke-Edf003PrivateAclHosted.ps1",
-      "destination_blob": "dfecddced8669532562d6b2a5d763615a20e8aab",
+      "destination_blob": "d78fced6967d3110b7324a90731f4a1702cbe5e8",
       "transformation": "reviewed-adaptation"
     },
     {

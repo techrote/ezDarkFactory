@@ -30,7 +30,7 @@ try {
     if (Test-Path -LiteralPath $fixture) { throw 'The fresh hosted fixture path already exists.' }
     [void][IO.Directory]::CreateDirectory($fixture)
     $password = ConvertTo-SecureString ([Guid]::NewGuid().ToString('N') + [Guid]::NewGuid().ToString('N') + '!aA7') -AsPlainText -Force
-    $account = New-LocalUser -Name ('ezdarkfactoryacl' + $lease.Substring(0, 12)) -Password $password -AccountExpires ([DateTime]::Now.AddHours(2)) -Description 'Disposable hosted EzVM ACL test fixture'
+    $account = New-LocalUser -Name ('edfACL' + $lease.Substring(0, 12)) -Password $password -AccountExpires ([DateTime]::Now.AddHours(2)) -Description 'Disposable hosted EzVM ACL test fixture'
     $usersSid = [Security.Principal.SecurityIdentifier]::new('S-1-5-32-545')
     if (@(Get-LocalGroupMember -SID $usersSid | Where-Object { $_.SID.Value -ceq $account.SID.Value }).Count -eq 0) {
         Add-LocalGroupMember -SID $usersSid -Member $account

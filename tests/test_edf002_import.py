@@ -30,6 +30,15 @@ REVIEWED_INTEGRATION_DESTINATIONS = frozenset({
     "tests/Repository.Tests.ps1",
 })
 
+EDF002_ACCEPTED_SOURCE = "978288496aa5d328f0d79712c74e69cf769689e4"
+# The accepted import inventory is immutable historical evidence, NOT a claim
+# that later explicitly reviewed repairs leave the live working file unchanged.
+EDF003_SUPERSEDED_DESTINATIONS = frozenset({
+    ".github/workflows/ci.yml",
+    "src/EzDarkFactory/Keys.ps1",
+    "src/EzDarkFactory/Runtime.ps1",
+})
+
 class ActiveImportTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -67,10 +76,26 @@ class ActiveImportTests(unittest.TestCase):
                 original = self.repo.file(record["source_commit"], record["source_path"])
                 self.assertEqual(hashlib.sha256(original).hexdigest(), record["source_sha256"])
                 self.assertTrue((self.root / destination).is_file(), destination)
-                blob = p.run_git(self.root, "rev-parse", "HEAD:" + destination).decode("ascii").strip()
-                self.assertEqual(blob, record["destination_blob"])
-                self.assertEqual(p.run_git(self.root, "cat-file", "blob", blob),
+                # Read the exact accepted EDF-002 import commit, not current
+                # HEAD: later issues explicitly supersede only scoped files.
+                historical_blob = p.run_git(self.root, "rev-parse",
+                    EDF002_ACCEPTED_SOURCE + ":" + destination).decode("ascii").strip()
+                self.assertEqual(historical_blob, record["destination_blob"])
+                historical_bytes = p.run_git(self.root, "cat-file", "blob", historical_blob)
+                current_blob = p.run_git(self.root, "rev-parse", "HEAD:" + destination).decode("ascii").strip()
+                self.assertEqual(p.run_git(self.root, "cat-file", "blob", current_blob),
                                  (self.root / destination).read_bytes())
+                if destination not in EDF003_SUPERSEDED_DESTINATIONS:
+                    self.assertEqual(current_blob, historical_blob)
+                elif destination in {"src/EzDarkFactory/Keys.ps1", "src/EzDarkFactory/Runtime.ps1"}:
+                    repairs = p.load_json(p.PROVENANCE / "edf003-repairs.json")
+                    matches = [r for r in repairs["records"] if r["destination"] == destination]
+                    self.assertEqual(len(matches), 1)
+                    self.assertEqual(current_blob, matches[0]["destination_blob"])
+                else:
+                    workflow = (self.root / destination).read_text(encoding="utf-8")
+                    self.assertIn("EDF-003 standard-user ACL", workflow)
+                    self.assertIn("EDF-003 native process", workflow)
 
     def test_identity_and_default_rebrand_are_byte_reproducible_without_code_execution(self):
         for record in self.active["records"]:
@@ -87,7 +112,10 @@ class ActiveImportTests(unittest.TestCase):
                     self.assertEqual(record["transform"], "namespace-rebrand-v1")
                     expected = (original.decode("utf-8").replace("EzVm", "EzDarkFactory")
                         .replace("EZVM", "EDF").replace("ezvm", "ezdarkfactory")).encode("utf-8")
-                self.assertEqual((self.root / record["destination"]).read_bytes(), expected)
+                accepted_blob = p.run_git(self.root, "cat-file", "blob", record["destination_blob"])
+                self.assertEqual(accepted_blob, expected)
+                if record["destination"] not in EDF003_SUPERSEDED_DESTINATIONS:
+                    self.assertEqual((self.root / record["destination"]).read_bytes(), expected)
 
     def test_source_does_not_claim_stable_0_1_release_or_host_runtime_qualification(self):
         module = (self.root / "src/EzDarkFactory/EzDarkFactory.psd1").read_text(encoding="utf-8")
