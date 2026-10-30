@@ -10,7 +10,7 @@
       "historical_source_path": "ezvm.ps1",
       "historical_source_blob": "b5062c63c856639150e6a5632415d965135e62ef",
       "edf002_accepted_blob": "46357444e46417539210c960157ed49ce2f283bf",
-      "edf005_current_blob": "9e24554cb3a8a9d4b6b6f0293551746594264ef7",
+      "edf005_current_blob": "f52b225394fc1c19f5d080776417d42b694a66ed",
       "classification": "reviewed-control-coordination-supersession",
       "review": "The original official CLI launcher is preserved at its EDF-002 accepted Git blob. This exact EDF-005 blob adds one optional root-scoped mutex for mutating official CLI commands on identity-initialized factories, shared with the typed control API. It does not alter legacy uninitialized roots, read-only CLI commands or the accepted lifecycle/storage implementation. All original source authentication and current-byte checks remain required; no provenance is backdated.",
       "tests": [
