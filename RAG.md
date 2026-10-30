@@ -11,9 +11,10 @@ This file is the entry point for project contracts. Issues incorporate this file
 5. [Lifecycle and security](docs/rag/04-LIFECYCLE-SECURITY.md) — VM ownership, storage, networking, destructive-action and secret contracts.
 6. [Guest profile and reference demo](docs/rag/05-GUEST-REFERENCE.md) — clean project environment and isolated TUIsynth reference/demo behavior.
 7. [Testing, CI and release](docs/rag/06-TESTING-CI-RELEASE.md) — merge gates, real-runtime lanes, human acceptance and packaging truthfulness.
-8. [Plan review](docs/programme/PLAN-REVIEW.md) — initial plan, review findings and improved plan.
-9. [Implementation programme](docs/programme/IMPLEMENTATION-PROGRAMME.md) — dependency graph and issue catalogue.
-10. [Status ledger](docs/programme/STATUS.md) — compact implementation status; GitHub issue/PR state remains authoritative.
+8. [Operator workflows](docs/rag/07-OPERATOR-WORKFLOWS.md) — first run, project kickoff, helpers, recovery and portability UX.
+9. [Plan review](docs/programme/PLAN-REVIEW.md) — initial plan, review findings and improved plan.
+10. [Implementation programme](docs/programme/IMPLEMENTATION-PROGRAMME.md) — dependency graph and issue catalogue.
+11. [Status ledger](docs/programme/STATUS.md) — compact implementation status; GitHub issue/PR state remains authoritative.
 
 ## Historical authority
 
