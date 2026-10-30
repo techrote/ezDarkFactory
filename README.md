@@ -1,6 +1,6 @@
 # ezDarkFactory
 
-A fresh-project, human-operated development VM factory derived from a pinned EzVM checkpoint.
+A fresh-project, human-operated development VM factory derived from the EzVM environment used for the original local TUIsynth/TRIO run.
 
 ## Status
 
@@ -9,15 +9,21 @@ Planning programme only. No VM/runtime implementation has been imported yet.
 The authoritative implementation programme is in `docs/programme/IMPLEMENTATION-PROGRAMME.md`.
 Read `AGENTS.md` and `RAG.md` before changing the repository.
 
-## Historical pins
+## Historical reconstruction
 
-- EzVM source baseline: `techrote/ezvm@7b829f8352a9fa30c965e57386965767c5969e0d` (2026-10-17 17:32:34 UTC).
-- Last observed TUIsynth implementation commit: `techrote/tuisynth-codex@357215781ba0b82694e62dd4d7ba1c3697ac3159` (2026-10-18 09:25:55 UTC), completing TRIO-016.
-- TRIO-017 remained open. ezDarkFactory is not a continuation of TRIO/TUIsynth.
-- TUIsynth may exist in the finished VM only as an isolated, pinned reference/demo corpus.
+- **VM source baseline:** `techrote/ezvm@b6abdf8c3edd61695db30894da991f275b39a699` (EzVM v0.1.0).
+- The October 2026 TRIO field-study explicitly records that the inspected development VM used that EzVM source **plus owner-local `Keys.ps1` and `Runtime.ps1` patches**.
+- **Original TUIsynth programme pin:** `techrote/tuisynth@e7060f6788421029ea9a1cb7cbee86a994c5b4d5`. Its own instructions state that subsequent implementation, testing, review and merges happened in **local Git inside the development VM**, without GitHub pushes.
+- The surviving field-study says the accepted local synth main ended at **whole/TRIO-001..007** and that a **later partial pause checkpoint** existed at a different commit/root. The exact local checkpoint SHA is not present in the currently connected public evidence and must not be invented.
+- `techrote/tuisynth-codex` and `techrote/tuisynth-claude` are comparison work and are **not authority for the original local development cutoff**.
+- ezDarkFactory is not a continuation of TUIsynth. TUIsynth may exist in the finished VM only as isolated, pinned reference/demo material.
+
+See `docs/rag/01-BASELINE-PROVENANCE.md` for the evidence boundary and reconstruction rules.
 
 ## Product direction
 
-The preferred human experience is a GUI where it can be delivered without weakening portability, deterministic VM state, automated qualification or clean-host operation. A dedicated feasibility gate decides whether a graphical guest/control surface is practical. If it is not, the required fallback is a comprehensive control and monitoring TUI, not a return to script-only operation.
+The preferred human experience is a GUI where it can be delivered without weakening portability, deterministic VM state, automated qualification or clean-host operation. A dedicated feasibility gate evaluates host GUI management, QEMU graphical console/display and an optional desktop guest profile independently.
+
+If a practical GUI path is not established, the required product is a comprehensive control and monitoring TUI, not a return to script-only operation.
 
 The authoritative VM lifecycle remains a testable control plane. Human UI code must call typed commands/broker interfaces; it must not edit instance JSON or QCOW2 state directly.
