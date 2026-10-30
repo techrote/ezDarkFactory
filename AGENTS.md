@@ -11,11 +11,13 @@ TUIsynth/TRIO is historical reference material only. No ezDarkFactory issue may 
 For every issue, use this order:
 
 1. current `main` source, tests and CI;
-2. the current GitHub issue body and all issue comments;
-3. this `AGENTS.md`;
-4. `RAG.md` and every RAG document listed by the issue;
+2. higher-priority repository safety, lifecycle/storage/security, functional and compatibility contracts in this `AGENTS.md` and `RAG.md`;
+3. the current GitHub issue body and all issue comments, provided they do not silently conflict with item 2;
+4. other RAG documents listed by the issue;
 5. `docs/programme/IMPLEMENTATION-PROGRAMME.md`;
 6. historical EzVM/TUIsynth material.
+
+For host-manager/UI work, `docs/rag/03-HUMAN-CONTROL-SURFACE.md` is the authoritative project-specific UI/UX and UI implementation contract. An issue may change it only through an explicit, reviewed specification amendment; stale issue wording does not override it.
 
 Never rely on a checkpoint in prose without rechecking current repository and issue state.
 
