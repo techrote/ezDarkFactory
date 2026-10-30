@@ -12,9 +12,10 @@ This file is the entry point for project contracts. Issues incorporate this file
 6. [Guest profile and reference demo](docs/rag/05-GUEST-REFERENCE.md) — clean project environment and isolated TUIsynth reference/demo behavior.
 7. [Testing, CI and release](docs/rag/06-TESTING-CI-RELEASE.md) — merge gates, real-runtime lanes, human acceptance and packaging truthfulness.
 8. [Operator workflows](docs/rag/07-OPERATOR-WORKFLOWS.md) — first run, project kickoff, helpers, recovery and portability UX.
-9. [Plan review](docs/programme/PLAN-REVIEW.md) — initial plan, review findings and improved plan.
-10. [Implementation programme](docs/programme/IMPLEMENTATION-PROGRAMME.md) — dependency graph and issue catalogue.
-11. [Status ledger](docs/programme/STATUS.md) — compact implementation status; GitHub issue/PR state remains authoritative.
+9. [Typed factory control and portable manager API](docs/rag/08-CONTROL-API.md) — EDF-005 versioned identity, command and observation seam, trust, collision and operation contracts.
+10. [Plan review](docs/programme/PLAN-REVIEW.md) — initial plan, review findings and improved plan.
+11. [Implementation programme](docs/programme/IMPLEMENTATION-PROGRAMME.md) — dependency graph and issue catalogue.
+12. [Status ledger](docs/programme/STATUS.md) — compact implementation status; GitHub issue/PR state remains authoritative.
 
 ## UI specification precedence
 
