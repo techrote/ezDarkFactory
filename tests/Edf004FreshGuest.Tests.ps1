@@ -74,6 +74,14 @@ Add-EzDarkFactoryTest -Name 'EDF-004: new managed instance defaults to fresh-pro
     finally { Remove-EzDarkFactoryBaseBuildFixture $f.Base }
 }
 
+Add-EzDarkFactoryTest -Name 'EDF-004: explicit stateful origins do not masquerade as fresh empty projects' -ScriptBlock {
+    $source = [IO.File]::ReadAllText((Join-Path $script:EzDarkFactoryRepositoryRoot 'src/EzDarkFactory/Registry.ps1'))
+    Assert-EzDarkFactoryTrue -Condition $source.Contains("$provisioningProfileName = 'fresh-project'")
+    Assert-EzDarkFactoryTrue -Condition $source.Contains("@('stateful-clone', 'import')")
+    Assert-EzDarkFactoryTrue -Condition $source.Contains("$provisioningProfileName = 'coding-default'")
+    Assert-EzDarkFactoryTrue -Condition ($source -notmatch "(?s)fresh-clone'.*provisioningProfileName = 'coding-default'") -Message 'Fresh clone must remain on the empty-workspace profile.'
+}
+
 Add-EzDarkFactoryTest -Name 'EDF-004: generated seed binds current base generation and fresh profile marker without private material' -ScriptBlock {
     $f = New-EzDarkFactoryEdf004Fixture
     try {

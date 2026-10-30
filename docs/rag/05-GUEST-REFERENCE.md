@@ -47,6 +47,11 @@ after the human has added project files only when a matching completed marker
 already proved that generation's fresh start; a failed live validation removes
 the marker before returning failure. Validation never deletes user project data.
 
+Explicit **stateful clone** and **import** are preservation operations, not
+fresh-project creation. They use the retained `coding-default/v1` validation
+contract so preserved workspace/authentication state is not misrepresented as
+empty. Ordinary create and **fresh clone** use `fresh-project/v1`.
+
 ### Profile extension seam
 
 Later optional profiles are new named/versioned manifests, not mutations of

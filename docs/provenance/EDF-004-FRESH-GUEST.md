@@ -47,6 +47,11 @@ tool/account/SSH/workspace-write checks run again. A missing/different marker
 does **not** bypass the empty-workspace first-READY requirement. Validation
 never recursively deletes or rewrites project content.
 
+Explicit stateful clone/import remain state-preservation operations and select
+the retained `coding-default/v1` contract; ordinary create and fresh clone
+select `fresh-project/v1`. This prevents a preserved workspace from being
+silently described as a freshly empty project.
+
 ## Base hygiene and extension seam
 
 Prepared-base construction remains unchanged and continues to remove SSH host

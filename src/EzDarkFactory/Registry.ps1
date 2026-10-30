@@ -204,11 +204,18 @@ function New-EzDarkFactoryManagedInstance {
     $paths = Get-EzDarkFactoryPaths -Root $Root
     $runtimePaths = Get-EzDarkFactoryInstanceRuntimePaths -Root $Root -InstanceName $InstanceName
     $resources = Resolve-EzDarkFactoryInstanceResources -Root $Root -Profile $Profile -Cpus $Cpus -MemoryMiB $MemoryMiB
-    # EDF-004: every newly managed project starts from the EDF-owned fresh profile.
-    # Historical coding-default remains readable only for existing durable intents.
-    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root -Name 'fresh-project' -Version 1
     $base = Get-EzDarkFactoryPreparedBaseSelection -Root $Root -BaseId $BaseId -QemuImgRunner $QemuImgRunner
     if ($null -ne $Origin) { Assert-EzDarkFactoryInstanceOrigin -Origin $Origin -ExpectedBaseId $base.BaseId }
+
+    # EDF-004: ordinary create and explicit fresh-clone start from the EDF-owned
+    # empty-workspace profile. Stateful clone/import are explicit preservation
+    # operations; they retain the state-compatible historical coding contract
+    # instead of falsely classifying preserved workspace state as a fresh project.
+    $provisioningProfileName = 'fresh-project'
+    if ($null -ne $Origin -and @('stateful-clone', 'import') -ccontains [string]$Origin.operation) {
+        $provisioningProfileName = 'coding-default'
+    }
+    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root -Name $provisioningProfileName -Version 1
 
     $null = Assert-EzDarkFactoryStorageManagedPath -Path $paths.Instances -ContainmentRoot $paths.Runtime -SafetyRoot $paths.Root -Description 'Managed instance root'
     $null = Assert-EzDarkFactorySafePath -Path $paths.Instances -Description 'Managed directory'
