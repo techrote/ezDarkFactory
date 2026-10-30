@@ -381,7 +381,16 @@ function Invoke-EzDarkFactoryControl {
                 $operationRoot = Join-Path (Get-EzDarkFactoryPaths -Root $Root).Runtime 'control/operations'
                 if (Test-Path -LiteralPath $operationRoot) {
                     $existing = @(Get-ChildItem -LiteralPath $operationRoot -Filter '*.json' -File -Force)
-                    if ($existing.Count -gt 0) { throw 'Rekey requires previous operations to be reconciled and explicitly archived first.' }
+                    foreach ($entry in $existing) {
+                        $full = Assert-EzDarkFactorySafePath -Path $entry.FullName -Description 'Prior operation reconciliation'
+                        $prior = Read-EzDarkFactoryJson -Path $full -SchemaVersion 1
+                        if ($prior.state -cnotin @('completed','refused')) {
+                            throw 'Rekey is blocked by an accepted/ambiguous prior operation. Reconcile it before copying/forking.'
+                        }
+                    }
+                    # Historical finalized receipts retain their original factory_id
+                    # and exact source context. They must never be rewritten as
+                    # results of the new fork identity.
                 }
             }
             $operationPath = Get-EzDarkFactoryControlOperationPath -Root $Root -OperationId $Request.operation_id
