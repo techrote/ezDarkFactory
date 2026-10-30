@@ -1,33 +1,46 @@
 # ezDarkFactory
 
-A fresh-project, human-operated development VM factory derived from the EzVM environment used for the original local TUIsynth/TRIO run.
+A Windows-first, portable development-VM factory for fresh projects, with one host-side management TUI capable of operating multiple local ezDarkFactory roots.
 
 ## Status
 
-Planning programme published; VM/runtime implementation has not yet been imported.
+Planning and authoritative specifications are published; VM/runtime and TUI implementation have not yet been imported.
 
 Start with:
 
 - `AGENTS.md` — autonomous implementation/PR/merge contract;
 - `RAG.md` — project authority index;
-- `docs/programme/PLAN-REVIEW.md` — initial plan, review findings and improved plan;
-- `docs/programme/IMPLEMENTATION-PROGRAMME.md` — dependency graph and issues [#1](https://github.com/techrote/ezDarkFactory/issues/1) through [#12](https://github.com/techrote/ezDarkFactory/issues/12).
+- `docs/rag/03-HUMAN-CONTROL-SURFACE.md` — authoritative multi-factory host-management TUI UI/UX and implementation specification;
+- `docs/programme/PLAN-REVIEW.md` — plan review and revised execution direction;
+- `docs/programme/IMPLEMENTATION-PROGRAMME.md` — dependency graph and issues #1–#12.
 
 ## Historical reconstruction
 
 - **VM source baseline:** `techrote/ezvm@b6abdf8c3edd61695db30894da991f275b39a699` (EzVM v0.1.0).
-- The October 2026 TRIO field-study explicitly records that the inspected development VM used that EzVM source **plus owner-local `Keys.ps1` and `Runtime.ps1` patches**.
-- **Original TUIsynth programme pin:** `techrote/tuisynth@e7060f6788421029ea9a1cb7cbee86a994c5b4d5`. Its own instructions state that subsequent implementation, testing, review and merges happened in **local Git inside the development VM**, without GitHub pushes.
-- The surviving field-study says the accepted local synth main ended at **whole/TRIO-001..007** and that a **later partial pause checkpoint** existed at a different commit/root. The exact local checkpoint SHA is not present in the currently connected public evidence and must not be invented.
-- `techrote/tuisynth-codex` and `techrote/tuisynth-claude` are comparison work and are **not authority for the original local development cutoff**.
-- ezDarkFactory is not a continuation of TUIsynth. TUIsynth may exist in the finished VM only as isolated, pinned reference/demo material.
+- The October 2026 TRIO field study records that the inspected development VM used that source plus owner-local `Keys.ps1` and `Runtime.ps1` patches.
+- **Original TUIsynth programme pin:** `techrote/tuisynth@e7060f6788421029ea9a1cb7cbee86a994c5b4d5`; later original implementation work occurred in local Git inside the VM.
+- The field study records accepted local synth main as `whole/TRIO-001..007` and a distinct later partial pause checkpoint. The exact local SHA is not currently established and must not be guessed.
+- `tuisynth-codex` and `tuisynth-claude` are comparison work, not original-development authority.
+- TUIsynth is reference/demo material only in ezDarkFactory.
 
-See `docs/rag/01-BASELINE-PROVENANCE.md` for the evidence boundary and reconstruction rules.
+See `docs/rag/01-BASELINE-PROVENANCE.md`.
 
-## Product direction
+## Primary host interface
 
-The preferred human experience is a GUI where it can be delivered without weakening portability, deterministic VM state, automated qualification or clean-host operation. A dedicated feasibility gate evaluates host GUI management, QEMU graphical console/display and an optional desktop guest profile independently.
+v0.1 uses a **tile-native, mouse-and-keyboard TUI GUI** on the Windows host.
 
-If a practical GUI path is not established, the required product is a comprehensive control and monitoring TUI, not a return to script-only operation.
+One manager process can explicitly register, observe, and safely operate multiple local ezDarkFactory roots. Each root remains authoritative for its own VM lifecycle, images, keys, storage locks, and control semantics.
 
-The authoritative VM lifecycle remains a testable control plane. Human UI code must call typed commands/broker interfaces; it must not edit instance JSON or QCOW2 state directly.
+The manager provides persistent tiles, semantic commands, menus/overlays, command palette, direct manipulation, bounded asynchronous observation, per-root operation reconciliation, logs/resources, and project/lifecycle/recovery workflows.
+
+A graphical QEMU console or guest desktop is not required for v0.1. Guest interaction can use the accepted managed SSH/external-terminal path.
+
+The authoritative VM lifecycle remains a testable control plane. The TUI calls typed broker/control operations and never edits instance JSON, QCOW2 state, process evidence, or trust files directly.
+
+## Shared UI specification pin
+
+The tailored host-manager specification is pinned to:
+
+`techrote/specdocz@2e95d6931cc23862a4176c9d8ccb4da78f00c265`.
+
+Future specdocz changes are reviewed as explicit deltas; they are not silently inherited.
