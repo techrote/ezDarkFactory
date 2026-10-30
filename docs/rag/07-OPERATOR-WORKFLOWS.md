@@ -7,66 +7,114 @@ status: authority
 
 ## Design rule
 
-A new operator should be able to succeed from the repository root without remembering the historical EzVM/TUIsynth workflow.
+A new operator should be able to succeed without remembering the historical EzVM/TUIsynth workflow.
 
-The selected primary UI handles normal use. Small scripts remain for first-run setup, direct recovery and automation-friendly operation.
+Normal human operation begins in the **host management TUI**. Small scripts remain for first-run setup, direct recovery and automation-friendly operation.
+
+One manager may control multiple explicitly registered local factory roots.
 
 ## Required helper surface
 
 Final names may change during implementation, but the product must provide obvious equivalents to:
 
-- **setup/doctor** — verify host prerequisites and acquire verified optional UI/runtime dependencies;
-- **bootstrap** — obtain reviewed QEMU/extractor and pinned guest source;
-- **build-base** — build/reuse the reviewed clean prepared base;
-- **new-project** — create a fresh named instance and optional project source;
-- **start** — start and reach READY;
-- **open** — open the selected primary human interface/guest interaction path;
+- **manager setup/doctor** — verify manager runtime/Windows Terminal prerequisites and host-manager state;
+- **factory bootstrap** — obtain reviewed QEMU/extractor and pinned guest source for a selected factory;
+- **factory build-base** — build/reuse the reviewed clean prepared base in the selected factory;
+- **manager open** — launch the host management TUI;
+- **factory register** — validate/register a local factory root without VM/storage mutation;
+- **new-project** — create a fresh named instance/project in an explicitly selected factory;
+- **start** — start and reach READY in the selected factory;
+- **open-shell** — launch/present the exact managed SSH/external-terminal path;
 - **stop** — graceful stop;
 - **status/diagnose** — read-only status and bounded diagnostics;
 - **backup/export** — explicit sensitive stateful export where requested;
 - **fresh-clone** — clean project clone from immutable baseline;
 - **recover** — guide/refuse based on lifecycle/transaction evidence; never guess.
 
-Helpers call the authoritative control plane/broker. They do not duplicate storage logic.
+Helpers call the authoritative per-factory control/broker path. They do not duplicate storage logic.
 
 ## First-run workflow
 
 The README must support:
 
-1. obtain/clone ezDarkFactory;
+1. obtain/clone ezDarkFactory source/tooling;
 2. open normal unelevated PowerShell;
-3. run doctor;
-4. resolve explicit Windows prerequisites;
-5. bootstrap verified dependencies;
-6. acquire/build the clean guest base;
-7. create one project VM;
-8. start to READY;
-9. open the selected GUI/TUI/guest interaction;
-10. verify the empty workspace;
-11. optionally initialise/clone a project;
-12. stop cleanly.
+3. verify host and manager prerequisites;
+4. set up the pinned manager TUI runtime;
+5. launch the host management TUI;
+6. register an existing compatible factory root or create/bootstrap the first factory root;
+7. run factory doctor and resolve explicit Windows prerequisites;
+8. bootstrap verified VM dependencies for that factory;
+9. acquire/build the clean guest base;
+10. create a fresh project VM in the selected factory;
+11. start to READY;
+12. open the exact managed guest shell path;
+13. verify the empty workspace;
+14. optionally initialise/clone/copy a project;
+15. stop cleanly.
 
 The guide states disk/download estimates before large acquisition where practical.
 
+A second local factory root can then be registered into the same manager without changing the first factory's authority.
+
 ## Everyday workflow
 
-Human chooses a project/instance, observes its current state, starts it if stopped, opens guest interaction, works, then either leaves it running deliberately or stops it.
+The operator:
 
-The UI always makes that final state clear.
+1. opens the host manager;
+2. sees all registered roots and freshness/error/conflict state;
+3. selects the intended factory and project/instance;
+4. observes current lifecycle/readiness/resource state;
+5. starts it if stopped;
+6. opens guest interaction;
+7. works;
+8. either leaves it running deliberately or stops it.
+
+The TUI always makes factory identity and final VM state clear.
+
+## Factory registration workflow
+
+Registration is read-only with respect to factory VM/storage state.
+
+The operator selects/enters a local root, reviews:
+
+- stable factory ID;
+- path;
+- alias;
+- product/control version;
+- compatibility;
+- duplicate identity/conflict warnings.
+
+Only the manager registry is changed after confirmation.
+
+Unregistering a root removes it from the manager registry. It never deletes the root.
 
 ## Fresh project kickoff
 
-The kickoff wizard/helper asks only for information needed now:
+The project wizard/helper asks only for information needed now:
 
+- target factory;
 - project/instance name;
 - resource profile or accepted default;
 - optional source choice: empty / clone URL / local copy;
-- optional graphical guest profile if supported;
 - optional later tool/agent setup.
 
-It previews actions before mutation.
+It previews the exact target and action before mutation.
 
 It does not ask for TUIsynth, provider or model details unless the human explicitly enters the relevant optional flow.
+
+The default source is **empty workspace**.
+
+## Guest interaction
+
+The v0.1 manager does not require an embedded terminal emulator.
+
+Open-shell uses the selected factory's typed attach descriptor and either:
+
+- launches a separate qualified Windows Terminal/SSH session; or
+- displays/copies the exact command when automatic launch is unavailable.
+
+Logs remain read-only and never capture guest input.
 
 ## Reference/demo workflow
 
@@ -83,29 +131,34 @@ Launching it cannot alter the current project workspace.
 
 ## Recovery workflow
 
-On UNKNOWN/ambiguous state:
+On UNKNOWN/CONFLICT/ambiguous state:
 
-1. stop offering destructive storage actions;
-2. show exact observed/persisted identities and last error;
+1. suppress destructive storage actions for the affected target;
+2. show exact factory/instance identity plus observed/persisted discrepancy;
 3. run only bounded diagnostics;
-4. give the operator the checked-in recovery path;
+4. show the checked-in recovery path;
 5. preserve evidence until ownership is reconciled.
 
 Do not instruct users to delete PID/runtime files as a generic fix.
 
+Failure in one factory does not hide or disable safe operations for unrelated factories.
+
 ## Portability workflow
 
-Before moving the bundle:
+Before moving a factory bundle:
 
-- stop every managed VM positively;
+- stop every VM in that factory positively;
 - run portability validation;
 - state which runtime/generated files are included;
 - warn that stateful overlays may include credentials;
 - copy the complete intended bundle;
+- update/validate the manager's root locator;
+- detect the preserved factory identity;
+- ensure old and new reachable locations are not simultaneously treated as independent writable factories;
 - run doctor/portability checks at destination;
 - start one selected VM and verify identity/READY.
 
-The old source copy remains stopped while the same bundle identity is in use elsewhere.
+The old source copy remains stopped while the same factory identity is in use elsewhere.
 
 ## Documentation set
 
@@ -114,7 +167,8 @@ By EDF-008/EDF-010 the repository contains:
 - root README quick start;
 - first-run guide;
 - operator guide;
-- GUI/TUI controls reference;
+- host-manager controls/keymap reference;
+- factory registration guide;
 - guest/project guide;
 - reference/demo guide;
 - portability/backup guide;
@@ -129,7 +183,7 @@ Commands in docs are exercised by tests where practical. Stale screenshots are n
 Human-facing errors contain:
 
 - operation;
-- target;
+- factory/target;
 - actual failed stage;
 - preserved state;
 - safe next action.
