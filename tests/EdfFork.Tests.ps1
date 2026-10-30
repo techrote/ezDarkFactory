@@ -31,7 +31,8 @@ Add-EzDarkFactoryTest -Name 'EDF: stopped root-local state and synthetic identit
         $movedConfiguration = Get-EzDarkFactoryConfiguration -Root $destination
         Assert-EzDarkFactoryEqual -Actual $movedConfiguration.profiles.normal.memoryMiB -Expected 12288
         Assert-EzDarkFactoryTrue -Condition (-not $paths.Runtime.StartsWith($original, [StringComparison]::OrdinalIgnoreCase))
-        Assert-EzDarkFactoryTrue -Condition (-not $paths.Keys.Contains([Environment]::GetFolderPath('LocalApplicationData')))
+        $appData = [Environment]::GetFolderPath('LocalApplicationData')
+        Assert-EzDarkFactoryTrue -Condition ([string]::IsNullOrEmpty($appData) -or (-not $paths.Keys.StartsWith($appData, [StringComparison]::OrdinalIgnoreCase)))
     }
     finally {
         Remove-EzDarkFactoryTestDirectory -Path $original

@@ -11,7 +11,7 @@ function New-EzDarkFactoryRepositoryFixture {
 
     $root = New-EzDarkFactoryTestDirectory -Prefix 'tracked repository fixture'
     try {
-        foreach ($relative in @('.github', '.gitattributes', '.gitignore', 'README.md', 'AGENTS.md', 'THIRD-PARTY-NOTICES.md', 'docs', 'ezdarkfactory.ps1', 'src', 'config', 'manifests', 'guest', 'tests', 'scripts', 'tools')) {
+        foreach ($relative in @('.github', '.gitattributes', '.gitignore', 'README.md', 'AGENTS.md', 'RAG.md', 'THIRD-PARTY-NOTICES.md', 'docs', 'ezdarkfactory.ps1', 'src', 'config', 'manifests', 'guest', 'tests', 'scripts', 'tools')) {
             Copy-Item -LiteralPath (Join-Path $script:EzDarkFactoryRepositoryRoot $relative) -Destination $root -Recurse -Force
         }
         if ($UseCrlf) {

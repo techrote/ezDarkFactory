@@ -343,7 +343,7 @@
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
       "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
-      "destination_blob": "6ac6fac7a518e457f76d151dd33d3aa281cf7133"
+      "destination_blob": "7155cbccb218365f0e89d874aeb5bad288509834"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -369,7 +369,7 @@
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
       "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
-      "destination_blob": "adbee003af47170409eae99c500708ece29c2aec"
+      "destination_blob": "d340e3f1f052152649bc6e5625c16c8979bf0739"
     },
     {
       "source_repository": "techrote/ezvm",
@@ -993,7 +993,7 @@
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
       "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
-      "destination_blob": "9ce90a75a0301963bf058e50f40196a5b11eef7d"
+      "destination_blob": "a7093079108d51dc228dba0b5aef75dd87535e12"
     },
     {
       "source_repository": "techrote/ezvm",

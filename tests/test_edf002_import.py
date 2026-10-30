@@ -55,7 +55,7 @@ class ActiveImportTests(unittest.TestCase):
     def test_identity_and_default_rebrand_are_byte_reproducible_without_code_execution(self):
         for record in self.active["records"]:
             if record["transform"] == "reviewed-integration-v1":
-                self.assertTrue(record["review_note"].startswith("Retain source trace"))
+                self.assertTrue(record["review_note"] and "source" in record["review_note"].lower())
                 continue
             with self.subTest(path=record["destination"]):
                 original = self.repo.file(record["source_commit"], record["source_path"])

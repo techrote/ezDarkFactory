@@ -19,8 +19,8 @@ $manifestPath = Join-Path $rootPath 'src/EzDarkFactory/EzDarkFactory.psd1'
 $moduleData = Import-PowerShellDataFile -LiteralPath $manifestPath
 $projectVersion = [string]$moduleData.PrivateData.EzDarkFactoryVersion
 if ([string]::IsNullOrWhiteSpace($Version)) { $Version = $projectVersion }
-if ($Version -cne $projectVersion -or $moduleData.ModuleVersion.ToString() -cne ($Version -replace '-dev
-    throw "Release version '$Version' must match both ModuleVersion and EzDarkFactoryVersion '$projectVersion'."
+if ($Version -cne $projectVersion -or $moduleData.ModuleVersion.ToString() -cne ($Version -replace '-dev$', '')) {
+    throw "Development source version '$Version' must match both module and EzDarkFactoryVersion '$projectVersion'."
 }
 if ($Version -cne '0.0.0-dev') {
     throw 'Only the EDF-002 unqualified development source ZIP may be generated; public release qualification is reserved for EDF-012.'
