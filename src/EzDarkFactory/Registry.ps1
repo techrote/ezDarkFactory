@@ -204,9 +204,17 @@ function New-EzDarkFactoryManagedInstance {
     $paths = Get-EzDarkFactoryPaths -Root $Root
     $runtimePaths = Get-EzDarkFactoryInstanceRuntimePaths -Root $Root -InstanceName $InstanceName
     $resources = Resolve-EzDarkFactoryInstanceResources -Root $Root -Profile $Profile -Cpus $Cpus -MemoryMiB $MemoryMiB
-    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root
     $base = Get-EzDarkFactoryPreparedBaseSelection -Root $Root -BaseId $BaseId -QemuImgRunner $QemuImgRunner
     if ($null -ne $Origin) { Assert-EzDarkFactoryInstanceOrigin -Origin $Origin -ExpectedBaseId $base.BaseId }
+
+    # EDF-004: only a clean prepared (schema-1) base may claim the
+    # empty-first-READY fresh-project profile. Derived/imported schema-2 bases
+    # intentionally preserve guest state and therefore use the state-compatible
+    # historical coding contract, regardless of whether the operator reached
+    # that base through stateful clone, import, or an explicit sensitive BaseId.
+    $validatedBase = Test-EzDarkFactoryPreparedBase -Root $Root -BaseId $base.BaseId -QemuImgRunner $QemuImgRunner
+    $provisioningProfileName = if ([int]$validatedBase.Manifest.schemaVersion -eq 1) { 'fresh-project' } else { 'coding-default' }
+    $codingProfile = Get-EzDarkFactoryCodingProfile -Root $Root -Name $provisioningProfileName -Version 1
 
     $null = Assert-EzDarkFactoryStorageManagedPath -Path $paths.Instances -ContainmentRoot $paths.Runtime -SafetyRoot $paths.Root -Description 'Managed instance root'
     $null = Assert-EzDarkFactorySafePath -Path $paths.Instances -Description 'Managed directory'

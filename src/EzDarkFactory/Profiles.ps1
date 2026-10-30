@@ -6,12 +6,12 @@ function Get-EzDarkFactoryCodingProfile {
         [int]$Version = 1
     )
 
-    if ($Name -cne 'coding-default' -or $Version -ne 1) {
-        throw "Guest provisioning profile '$Name' version '$Version' is unsupported. Create a new named instance with coding-default version 1; existing legacy overlays are not silently upgraded or reset."
+    if (@('coding-default', 'fresh-project') -cnotcontains $Name -or $Version -ne 1) {
+        throw "Guest provisioning profile '$Name' version '$Version' is unsupported. Create a new named instance with fresh-project version 1; existing coding-default version 1 overlays remain readable and are not silently upgraded or reset."
     }
 
     $paths = Get-EzDarkFactoryPaths -Root $Root
-    $directory = Join-Path $paths.Root 'guest/profiles/coding-default/v1'
+    $directory = Join-Path $paths.Root ('guest/profiles/' + $Name + '/v1')
     $manifestPath = Join-Path $directory 'profile.json'
     $scriptPath = Join-Path $directory 'provision.sh'
     foreach ($path in @($manifestPath, $scriptPath)) {
@@ -21,12 +21,14 @@ function Get-EzDarkFactoryCodingProfile {
     }
 
     $manifest = Read-EzDarkFactoryJson -Path $manifestPath -SchemaVersion 1
-    Assert-EzDarkFactoryBaseRecipeFields -Value $manifest -Expected @(
-        'schemaVersion', 'name', 'version', 'user', 'home', 'workspace', 'privilege', 'requiredCommands'
-    ) -Description 'Coding profile'
+    $expectedFields = @('schemaVersion', 'name', 'version', 'user', 'home', 'workspace', 'privilege', 'requiredCommands')
+    if ($Name -ceq 'fresh-project') {
+        $expectedFields += @('workspacePolicy', 'historicalWorkloadPolicy', 'referencePolicy')
+    }
+    Assert-EzDarkFactoryBaseRecipeFields -Value $manifest -Expected $expectedFields -Description 'Coding profile'
     Assert-EzDarkFactoryBaseRecipeInteger -Value $manifest.version -Minimum 1 -Maximum 1 -Description 'Coding profile version'
     foreach ($entry in @(
-        @('name', 'coding-default'),
+        @('name', $Name),
         @('user', 'coder'),
         @('home', '/home/coder'),
         @('workspace', '/home/coder/workspace'),
@@ -34,7 +36,19 @@ function Get-EzDarkFactoryCodingProfile {
     )) {
         $value = $manifest.($entry[0])
         if ($value -isnot [string] -or $value -cne $entry[1]) {
-            throw "Coding profile $($entry[0]) must be exactly '$($entry[1])' for coding-default version 1."
+            throw "Coding profile $($entry[0]) must be exactly '$($entry[1])' for $Name version 1."
+        }
+    }
+    if ($Name -ceq 'fresh-project') {
+        foreach ($entry in @(
+            @('workspacePolicy', 'empty-at-first-ready'),
+            @('historicalWorkloadPolicy', 'absent'),
+            @('referencePolicy', 'isolated-opt-in')
+        )) {
+            $value = $manifest.($entry[0])
+            if ($value -isnot [string] -or $value -cne $entry[1]) {
+                throw "Fresh-project profile $($entry[0]) must be exactly '$($entry[1])'."
+            }
         }
     }
 

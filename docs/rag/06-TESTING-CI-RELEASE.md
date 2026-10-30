@@ -102,6 +102,23 @@ jobs are required for EDF-003 PR head and actual merged main. No source
 test can establish WHPX, real QEMU/Ubuntu guest readiness, physical Windows
 Terminal or human use. Preserve failed original and retry receipts.
 
+### EDF-004 fresh-project qualification
+
+EDF-004 adds two exact-head focused Windows FAST-CI jobs:
+`EDF-004 fresh guest contract (PowerShell 5)` and
+`EDF-004 fresh guest contract (PowerShell 7)`. They exercise the EDF-owned
+profile schema, default managed-instance selection, generated identity/seed,
+first-generation empty-workspace and contamination-refusal source contracts,
+base hygiene, reset/fresh-clone identity rotation expectations and stale READY
+boundaries. Both are required in addition to the inherited nine EDF-003-era
+checks for EDF-004 PR-head and post-merge acceptance.
+
+These are deterministic host-side/source tests and do **not** constitute
+TCG-RUNTIME or WHPX-RUNTIME. EDF-004 may merge without a real guest because the
+current programme reserves real supported-host runtime qualification for
+EDF-011; any actual TCG observation must be labelled separately and cannot
+substitute for WHPX.
+
 ## Historical regression fixtures
 
 EDF-003 retains safe negative fixtures for:

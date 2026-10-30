@@ -1,0 +1,49 @@
+name: EDF-004 fresh guest contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  fresh-guest:
+    name: EDF-004 fresh guest contract (PowerShell ${{ matrix.major }})
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [5, 7]
+    steps:
+      - name: Checkout literal source commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # reviewed v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Acquire verified pinned PowerShell 7
+        if: matrix.major == 7
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = .\scripts\Install-TestPowerShell.ps1 -DestinationRoot $env:RUNNER_TEMP
+          ('EDF_TEST_POWERSHELL=' + $exe) | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Run source and generation-focused fresh guest qualification
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PSHOME 'powershell.exe'
+          if (${{ matrix.major }} -eq 7) { $exe = $env:EDF_TEST_POWERSHELL }
+          & $exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\scripts\Invoke-Edf004Qualification.ps1 -ExpectedMajor ${{ matrix.major }} -OutputDirectory (Join-Path $env:RUNNER_TEMP 'edf004-evidence')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain exact-source focused receipt
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # reviewed v4
+        with:
+          name: edf004-fresh-guest-ps${{ matrix.major }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/edf004-evidence/
+          if-no-files-found: error
+          retention-days: 14

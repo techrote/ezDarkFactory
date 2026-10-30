@@ -1,11 +1,8 @@
 # Reset, clone and move coding environments
 
-> **EDF-002 source adaptation (0.0.0-dev):** This document preserves the
-> reviewed EzVM baseline procedure as a future operator reference. It is **not**
-> a claim that an ezDarkFactory guest, WHPX, release, multi-factory manager or
-> human workflow passed qualification. EDF-003/004 repair and guest-profile
-> work, and later physical/release gates, remain outstanding. Runtime
-> disks/credentials from the historical lab are never imported.
+> **EDF-004 source contract (0.0.0-dev):** Clean prepared bases and sensitive
+> snapshot/import bases now select distinct provisioning semantics. This remains
+> SOURCE/FAST-CI evidence, not real guest/WHPX/physical/human qualification.
 
 
 ezdarkfactory keeps each instance's mutable disk above one immutable managed base. The
@@ -86,9 +83,11 @@ Clone mode is explicit:
 .\ezdarkfactory.ps1 clone work saved-work -Mode stateful
 ~~~
 
-Both modes derive CPU/RAM configuration and the coding profile from the source,
-and allocate a distinct named instance and localhost SSH reservation. An
-existing destination is refused.
+Both modes derive CPU/RAM configuration from the source and allocate a distinct
+named instance and localhost SSH reservation. Provisioning identity follows the
+validated base: a schema-1 clean prepared base uses `fresh-project/v1`; a
+schema-2 derived/imported sensitive base uses state-compatible
+`coding-default/v1`. An existing destination is refused.
 
 Fresh mode creates an empty overlay against the same base. Stateful mode
 flattens the stopped source chain into a standalone, content-addressed derived
@@ -133,9 +132,9 @@ preserved.
 
 An arbitrary standalone QCOW2 can be structurally importable without being a
 usable coding guest. ezdarkfactory does not install Ubuntu, cloud-init or development
-tools into an unrelated imported operating system. Boot and READY still require
-the supported Ubuntu/cloud-init/`coding-default` environment and the live
-identity/profile checks. Exporting a working ezdarkfactory coding guest is the normal
+tools into an unrelated imported operating system. Boot and READY still require the supported Ubuntu/cloud-init environment and
+the exact live profile identity: imported/state-preserving bases use
+`coding-default/v1`; only clean prepared bases claim `fresh-project/v1`. Exporting a working ezdarkfactory coding guest is the normal
 round-trip path. An imported image's software and contents retain the trust of
 their source; digest validation is not malware scanning.
 
