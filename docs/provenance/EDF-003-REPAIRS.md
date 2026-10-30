@@ -109,6 +109,69 @@ No zero/all-skipped suite qualifies. Hosted Windows account creation is
 deliberately gated to `GITHUB_ACTIONS=true` and
 `RUNNER_ENVIRONMENT=github-hosted` and must never run on the owner's host.
 
-**Status when authored:** implementation staged; CI/merge/post-merge receipts
-pending. The final issue/PR handoff must bind exact final source/tree, raw
-receipt hashes where retained, all failures and the final gate disposition.
+## Executed EDF source qualification — first complete green head
+
+The first **fully green nine-job** exact-head run occurred on 30 October 2026:
+[EDF-003 run 41112542355](https://github.com/techrote/ezDarkFactory/actions/runs/41112542355)
+at source commit `6c850db5fda925bd06d1960c4cd5c88407dbd5c4`, Git tree
+`62ffb05d1fa9714d04ff8f6e2fdead0874cd31c4`.
+It is a verified **pre-merge software checkpoint**, not the final revision
+of this documentation change. The new report commit, if different, needs its
+own complete exact-head and post-merge qualification before issue closure.
+
+| Hosted lane / exact source | Executed result |
+| --- | --- |
+| Python provenance on Ubuntu 24.04 and Windows Server 2022 | Each 44 PASS, 0 FAIL, 0 SKIP; all 144 original source records authenticated; 131 safe tracked EDF sources |
+| PowerShell 5.1 source contract | PASS; tracked-source, JSON, PowerShell parsing, secret/binary/VM-state guards |
+| Full Windows PowerShell 5.1 control plane | 372 PASS, 0 FAIL, 0 SKIP |
+| Full pinned PowerShell 7.6.6 control plane | 372 PASS, 0 FAIL, 0 SKIP |
+| Real native Windows process/deadline PS5.1 + PS7.6.6 | 11/11 PASS in each engine, no software skips, T04 physical WHPX SKIP |
+| Disposable ordinary non-admin Windows DACL PS5.1 + PS7.6.6 | 4 mandatory baseline negative cases each reproduced `SeSecurityPrivilege` on the old EDF-002 source; then 372 PASS, 0 FAIL, 0 SKIP using the repaired source in the **same non-admin user class** |
+
+I independently downloaded and inspected the four retained **original ZIP**
+artifacts from that run, checked their ZIP SHA-256 against the GitHub job logs,
+and inspected JSON source commit, source tree, child exit, privilege class,
+case outcomes and cleanup. The baseline source ID is
+`d49affee3624b81f952f68cb9c7ca5149d85e015`, tree
+`a28a054ffd1296c51b5f7e0bbe33248aae5edb8a`.
+Both ordinary-user receipts record no administrator membership and no
+audit/ownership/backup/restore privileges, `sourceUnchanged=true`,
+`outcome=pass`, child exit zero, temporary account removed and isolated
+fixture removed. The four baseline negative cases are recorded individually,
+not inferred from a suite count.
+
+| Original evidence | Hosted ZIP artifact ID | ZIP SHA-256 | Inside JSON SHA-256 |
+| --- | ---: | --- | --- |
+| PS5.1 ordinary-user DACL | [13003549179](https://github.com/techrote/ezDarkFactory/actions/runs/41112542355/artifacts/13003549179) | `080ab8bcd38391762c443d44c651bdcb77b3ed89e39b0ff171165a28a3c83524` | `ada1e66cab823dfadeabb66a2fc44fecc627c376d4ec075ae3f83e3147cf1209` |
+| PS7.6.6 ordinary-user DACL | [13006225232](https://github.com/techrote/ezDarkFactory/actions/runs/41112542355/artifacts/13006225232) | `d8c29d26f29234bff493b2f9d160712c39650c1f318c4ce60c6660bf4be7f29c` | `2f44318e57005f99625f1f42d24ccfec2b0ef78ce85c8767e86f6b51762199b5` |
+| PS5.1 native process/QMP | [13002404859](https://github.com/techrote/ezDarkFactory/actions/runs/41112542355/artifacts/13002404859) | `43b5b1816b99caded6e3b3e0918add926306a7894a3c6e44be3e5b7178e7973f` | `4af371fb2b3be07342b9861ba24b66ef500307cce1673d8dd68e8830fef5eba1` |
+| PS7.6.6 native process/QMP | [13004935831](https://github.com/techrote/ezDarkFactory/actions/runs/41112542355/artifacts/13004935831) | `3e377517748d269a42878ff33dab93bacae28a3f83b149c7fedafa2ac3eec126` | `3977853babff4ca2ff88ae8cd655bf9e2b0c25ee283e6c118e954ea04e86a9fb` |
+
+Reproduction entry points (from an exact-source checkout):
+
+```powershell
+python tools/check.py --fetch --sources .provenance-cache
+.\scripts\Invoke-CiCheck.ps1 -Check Repository -ExpectedMajor 5
+.\scripts\Invoke-CiCheck.ps1 -Check ControlPlane -ExpectedMajor 5
+.\scripts\Invoke-Edf003SoftwareQualification.ps1 -ExpectedMajor 5 -OutputDirectory "$env:TEMP\edf003-native-ps5-new"
+```
+
+Run the full control plane and native qualification separately in verified
+PowerShell 7.6.6 with `-ExpectedMajor 7`. The disposable ordinary-user
+account harness runs **only** on a GitHub-hosted ephemeral Windows runner,
+and its qualification child validates token privileges before comparing
+legacy/repaired ACL behavior. It is not a local owner setup command.
+
+### Preserved negative evidence
+
+The earliest authored-head run [41111788727](https://github.com/techrote/ezDarkFactory/actions/runs/41111788727)
+was RED: EDF-002's historical-import verifier initially assumed original
+Keys/Runtime/CI current blobs could never change, and the hosted ordinary-user
+account was named with a 28-character expanded prefix beyond Windows' limit.
+These were corrected with immutable EDF-002 accepted-commit verification,
+explicit EDF-003 supersession mapping, full checkout history and a bounded
+18-character disposable test username. Later real Windows source/negative
+tests passed; no assertion was deleted, skipped or xfailed. The upstream
+DASH-08 real TCG failure and the unmeasured physical WHPX gate remain unchanged.
+
+**Status:** complete pre-merge software evidence above; final exact-head source/merge/post-merge acceptance must be appended to issue #3 once green, without treating historical upstream TCG or physical-WHPX as PASS.
