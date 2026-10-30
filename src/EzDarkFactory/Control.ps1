@@ -144,7 +144,7 @@ function Get-EzDarkFactoryInstanceRef {
     if (Test-Path -LiteralPath $file) {
         $ref = Read-EzDarkFactoryJson -Path $file -SchemaVersion 1
         $keys = @($ref.PSObject.Properties | ForEach-Object { $_.Name })
-        if ($keys.Count -ne 3 -or @('schemaVersion', 'instance_id', 'created_at' | Where-Object { $keys -cnotcontains $_ }).Count -gt 0 -or
+        if ($keys.Count -ne 3 -or @(@('schemaVersion', 'instance_id', 'created_at') | Where-Object { $keys -cnotcontains $_ }).Count -gt 0 -or
             $ref.instance_id -isnot [string] -or $ref.instance_id -cnotmatch '^ins_[a-f0-9]{32}$') {
             throw "Instance '$Name' has incompatible control identity; no silent replacement is allowed."
         }
@@ -238,6 +238,10 @@ function Assert-EzDarkFactoryControlRequest {
     if ($fields.Count -ne $expected.Count -or @($expected | Where-Object { $fields -cnotcontains $_ }).Count -ne 0) {
         throw 'Control request has missing or unknown envelope fields.'
     }
+    if (@($Request.api.PSObject.Properties | ForEach-Object { $_.Name }).Count -ne 2 -or
+        @(@('major','minor') | Where-Object { @($Request.api.PSObject.Properties.Name) -cnotcontains $_ }).Count -gt 0) {
+        throw 'Control API version must have exactly major and minor.'
+    }
     if ($Request.schemaVersion -isnot [int] -or $Request.schemaVersion -ne 1 -or
         $null -eq $Request.api -or $Request.api.major -isnot [int] -or $Request.api.minor -isnot [int] -or
         $Request.api.major -ne 1 -or $Request.api.minor -gt 0 -or $Request.api.minor -lt 0) {
@@ -250,6 +254,33 @@ function Assert-EzDarkFactoryControlRequest {
         $Request.instance_id -isnot [string] -or $Request.instance_generation -isnot [string] -or
         $Request.arguments -isnot [pscustomobject]) {
         throw 'Control request identity, operation ID or typed fields are malformed.'
+    }
+    $argumentFields = @{
+        'factory.info' = @(); 'factory.doctor' = @(); 'factory.portability' = @(); 'factory.rekey' = @()
+        'instance.list' = @(); 'operation.get' = @('operation_id')
+        'instance.get' = @('name'); 'instance.resources' = @('name')
+        'instance.readiness' = @('name'); 'instance.diagnose' = @('name')
+        'instance.shell_descriptor' = @('name'); 'instance.logs' = @('name','kind','maximum_characters')
+        'instance.adopt' = @('name'); 'instance.create' = @('name','profile','base_id')
+        'instance.import' = @('name','image_path','manifest_path','profile')
+        'instance.start' = @('name'); 'instance.stop' = @('name'); 'instance.reset' = @('name')
+        'instance.clone' = @('name','destination_name','mode')
+        'instance.export' = @('name','destination_directory')
+        'instance.exec' = @('name','argv')
+        'instance.copy_to' = @('name','host_path','guest_path')
+        'instance.copy_from' = @('name','host_path','guest_path')
+    }
+    if (-not $argumentFields.ContainsKey($Request.command)) { throw 'Unknown control command.' }
+    $actualArgs = @($Request.arguments.PSObject.Properties | ForEach-Object { $_.Name })
+    $requiredArgs = @($argumentFields[[string]$Request.command])
+    if ($actualArgs.Count -ne $requiredArgs.Count -or
+        @($requiredArgs | Where-Object { $actualArgs -cnotcontains $_ }).Count -gt 0) {
+        throw 'Typed arguments must have exactly the declared fields.'
+    }
+    if ($Request.command -ceq 'instance.exec' -and
+        (@($Request.arguments.argv).Count -gt 64 -or
+         @($Request.arguments.argv | Where-Object { $_ -isnot [string] -or $_.Length -gt 4096 }).Count -gt 0)) {
+        throw 'Exec argv must be bounded strings.'
     }
     if (@($Request.capabilities).Count -gt 32 -or @($Request.capabilities | Where-Object { $_ -isnot [string] -or $_ -cnotmatch '^[a-z_.]{1,64}$' }).Count -gt 0) {
         throw 'Capabilities must be a bounded array of declared capability IDs.'
