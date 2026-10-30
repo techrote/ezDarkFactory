@@ -47,6 +47,22 @@ Reset, clone, export/import and any future disk growth require positive stopped 
 
 Do not modify a backing base. Do not copy a live overlay as a clean backup. Interrupted mutation preserves enough transaction evidence to diagnose/recover without guessing.
 
+## Portable working-bundle security
+
+A normal working factory is intentionally portable as one folder.
+
+Factory identity, instance state, mutable overlays, controller SSH material required for continued access, recovery evidence, and configuration required for operation remain below the factory root.
+
+A ZIP/copy used to move a factory preserves its factory/instance identities. Destination setup/doctor revalidates host-specific prerequisites, runtime endpoints and private-key ACLs for the current Windows user.
+
+Copied PIDs, host process observations, QMP endpoints and old ACL metadata are never treated as current destination authority.
+
+A stateful working bundle may contain credentials/private keys and MUST be labelled sensitive before archive/export/transfer.
+
+If a copied bundle is to become a second simultaneously writable factory rather than a move/backup, an explicit fork/rekey operation must assign a new factory identity before normal mutation.
+
+No critical factory secret/state may be moved into hidden host-local application data merely to simplify the manager.
+
 ## Private key and ACL behavior
 
 Controller SSH private state is generated runtime data. It must be accessible only to the intended current user under the supported Windows policy.
@@ -54,6 +70,16 @@ Controller SSH private state is generated runtime data. It must be accessible on
 EDF-003 must test the historical standard-user DACL failure and the selected replacement behavior. Later EzVM fixes are evidence/candidate source, not inherited PASS.
 
 No test may use a real user's key as a fixture.
+
+## Host-manager execution trust
+
+Discovery of candidate factory folders is static/read-only.
+
+The manager MUST NOT execute scripts or binaries from an unregistered candidate merely because it resembles an ezDarkFactory root.
+
+Enrollment explicitly grants authority to invoke that root's reviewed local control plane as the current user.
+
+The v0.1 manager has no analytics/telemetry and requires no inbound network listener.
 
 ## Network boundary
 
