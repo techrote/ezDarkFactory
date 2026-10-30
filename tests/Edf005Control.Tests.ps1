@@ -212,3 +212,129 @@ Add-EzDarkFactoryTest -Name 'EDF-005: candidate and typed reads do not create op
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $a }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: finalized previous operation remains historical when a copied factory is explicitly rekeyed' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'historical ops'
+    try {
+        $old = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'copied-project'
+        $adopt = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='copied-project'}) -Generation $intent.identityGeneration
+        $res = Invoke-EzDarkFactoryControl -Root $root -Request $adopt
+        Assert-EzDarkFactoryEqual -Actual $res.state -Expected 'completed'
+        $fork = New-Edf005Request -Root $root -Command 'factory.rekey'
+        $result = Invoke-EzDarkFactoryControl -Root $root -Request $fork
+        Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'completed'
+        Assert-EzDarkFactoryTrue -Condition ($result.data.factory_id -cne $old.factory_id)
+        $previous = Get-EzDarkFactoryControlOperation -Root $root -OperationId $adopt.operation_id
+        Assert-EzDarkFactoryEqual -Actual $previous.factory_id -Expected $old.factory_id
+        Assert-EzDarkFactoryEqual -Actual $previous.state -Expected 'completed'
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: accepted ambiguous operation blocks rekey and cannot be blindly replayed' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture
+    try {
+        $identity = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'ambiguous'
+        $adopt = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='ambiguous'}) -Generation $intent.identityGeneration
+        $ok = Invoke-EzDarkFactoryControl -Root $root -Request $adopt
+        Assert-EzDarkFactoryEqual -Actual $ok.state -Expected 'completed'
+        $operationPath = Join-Path $root ('runtime/control/operations/' + $adopt.operation_id + '.json')
+        $record = Get-EzDarkFactoryControlOperation -Root $root -OperationId $adopt.operation_id
+        $record.state = 'accepted'; $record.result = $null; $record.finished_at = $null
+        [IO.File]::WriteAllText($operationPath, (ConvertTo-Json -InputObject $record -Depth 20), (New-Object Text.UTF8Encoding($false)))
+        $again = Invoke-EzDarkFactoryControl -Root $root -Request $adopt
+        Assert-EzDarkFactoryEqual -Actual $again.state -Expected 'accepted'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperation -Root $root -OperationId $adopt.operation_id).state -Expected 'accepted'
+        $rekey = New-Edf005Request -Root $root -Command 'factory.rekey'
+        $refusal = Invoke-EzDarkFactoryControl -Root $root -Request $rekey
+        Assert-EzDarkFactoryEqual -Actual $refusal.state -Expected 'refused'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryIdentity -Root $root).factory_id -Expected $identity.factory_id
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $rekey.operation_id + '.json'))))
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: out-of-band instance generation change invalidates stale manager confirmation' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture
+    try {
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'outofband'
+        $adopt = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='outofband'}) -Generation $intent.identityGeneration
+        $adopted = Invoke-EzDarkFactoryControl -Root $root -Request $adopt
+        Assert-EzDarkFactoryEqual -Actual $adopted.state -Expected 'completed'
+        $reference = $adopted.data
+        $stale = New-Edf005Request -Root $root -Command 'instance.stop' -Arguments ([pscustomobject]@{name='outofband'}) -InstanceId $reference.instance_id -Generation $reference.instance_generation
+        $intent.identityGeneration = [guid]::NewGuid().ToString('N')
+        [IO.File]::WriteAllText((Join-Path $root 'runtime/instances/outofband/instance.json'), (ConvertTo-Json -InputObject $intent -Depth 8), (New-Object Text.UTF8Encoding($false)))
+        $attempt = Invoke-EzDarkFactoryControl -Root $root -Request $stale
+        Assert-EzDarkFactoryEqual -Actual $attempt.state -Expected 'refused'
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $stale.operation_id + '.json'))))
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryInstanceRef -Root $root -Name 'outofband').instance_generation -Expected $intent.identityGeneration
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: bounded guest log sanitizes control sequences without executing guest text' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture
+    try {
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'logreader'
+        $adopt = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='logreader'}) -Generation $intent.identityGeneration
+        $ref = (Invoke-EzDarkFactoryControl -Root $root -Request $adopt).data
+        $logs = Join-Path $root 'runtime/instances/logreader/logs'
+        [void][IO.Directory]::CreateDirectory($logs)
+        [IO.File]::WriteAllText((Join-Path $logs 'serial.log'), ('prefix' + [char]27 + '[31m' + ('q' * 15000)), (New-Object Text.UTF8Encoding($false)))
+        $args = [pscustomobject]@{ name = 'logreader'; kind = 'serial'; maximum_characters = 256 }
+        $request = New-Edf005Request -Root $root -Command 'instance.logs' -Arguments $args -InstanceId $ref.instance_id -Generation $ref.instance_generation
+        $result = Invoke-EzDarkFactoryControl -Root $root -Request $request
+        Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'completed'
+        Assert-EzDarkFactoryTrue -Condition ($result.data.text.Length -le 256)
+        Assert-EzDarkFactoryTrue -Condition (-not $result.data.text.Contains([string][char]27))
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root 'runtime/control/operations')))
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: Unicode root path, missing root and peer isolation are static-only observations' -ScriptBlock {
+    $a = New-EzDarkFactoryCheckoutFixture -Prefix ('unicode-' + [string][char]0x4e9c)
+    $b = New-EzDarkFactoryCheckoutFixture -Prefix 'unaffected factory'
+    $workspace = New-EzDarkFactoryTestDirectory
+    try {
+        $ia = Initialize-EzDarkFactoryIdentity -Root $a
+        $ib = Initialize-EzDarkFactoryIdentity -Root $b
+        $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
+        $null = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $a -Alias 'missing' -AuthorizeLocalExecution
+        $null = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $b -Alias 'healthy' -AuthorizeLocalExecution
+        Remove-EzDarkFactoryTestDirectory -Path $a
+        $seen = @(Get-EzDarkFactoryManagerObservations -Workspace $workspace)
+        $missing = @($seen | Where-Object { $_.factory_id -ceq $ia.factory_id })[0]
+        $healthy = @($seen | Where-Object { $_.factory_id -ceq $ib.factory_id })[0]
+        Assert-EzDarkFactoryEqual -Actual $missing.state -Expected 'unreachable'
+        Assert-EzDarkFactoryEqual -Actual $healthy.state -Expected 'current'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryIdentity -Root $b).factory_id -Expected $ib.factory_id
+    }
+    finally {
+        Remove-EzDarkFactoryTestDirectory -Path $a
+        Remove-EzDarkFactoryTestDirectory -Path $b
+        Remove-EzDarkFactoryTestDirectory -Path $workspace
+    }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: second PowerShell process reads relocated factory without a manager or TUI' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'process boundary'
+    try {
+        $identity = Initialize-EzDarkFactoryIdentity -Root $root
+        $module = Join-Path $script:EzDarkFactoryRepositoryRoot 'src/EzDarkFactory/Edf005.psm1'
+        $safeModule = $module.Replace("'", "''")
+        $safeRoot = $root.Replace("'", "''")
+        $command = "Import-Module '$safeModule' -Force -ErrorAction Stop; " +
+            "if ((Get-EzDarkFactoryIdentity -Root '$safeRoot').factory_id -cne '$($identity.factory_id)') { throw 'wrong factory' }; Write-Output 'EDF005_CHILD_PASS'"
+        $child = Invoke-EzDarkFactoryTestPowerShell -CommandText $command -WorkingDirectory $root
+        Assert-EzDarkFactoryEqual -Actual $child.ExitCode -Expected 0 -Message $child.StandardError
+        Assert-EzDarkFactoryTrue -Condition $child.StandardOutput.Contains('EDF005_CHILD_PASS')
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
