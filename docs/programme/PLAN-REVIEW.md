@@ -12,89 +12,96 @@ The owner request can be summarised as:
 6. use the result for fresh projects, with TUIsynth retained only as reference/demo;
 7. express the work as an autonomous issue-based programme with RAG authority, PRs, automated checks and merge completion.
 
-That product direction is retained.
+## Review findings retained from the first planning pass
 
-## Review finding: GitHub is not the original TUIsynth implementation history
+### GitHub is not the original TUIsynth implementation history
 
 The original TUIsynth programme deliberately moved implementation into local Git inside the development VM. The public repository at `e7060f6...` describes that local-only workflow.
 
 The surviving EzVM field-study establishes accepted local main as `whole/TRIO-001..007` and records a distinct later partial pause checkpoint, but the connected public evidence does not expose the exact local Git SHA/tree.
 
-**Improvement:** never substitute `tuisynth-codex` or another comparison fork. Record the logical stop state and unresolved exact local hash honestly. The new factory does not need TUIsynth implementation bytes as its active workload.
+**Disposition:** never substitute `tuisynth-codex` or another comparison fork. Record the logical stop state and unresolved exact local hash honestly.
 
-## Review finding: the VM source baseline is identifiable separately
+### The VM source baseline is identifiable separately
 
-The same field-study explicitly says the inspected local EzVM source was `b6abdf8...` plus owner-local `Keys.ps1` and `Runtime.ps1` patches.
+The field-study says the inspected local EzVM source was `b6abdf8...` plus owner-local `Keys.ps1` and `Runtime.ps1` patches.
 
-**Improvement:** reconstruct the VM from exact EzVM v0.1.0 source and auditable provisioning, not from a copied historical disk. Treat the two local patches as behavior to reconcile. Use later public EzVM repairs as candidate evidence, not as permission to move the baseline silently.
+**Disposition:** reconstruct from exact source/provisioning and reconcile the two patch classes through evidence rather than copying a historical authenticated disk.
 
-## Review finding: copying the historical VM image is the wrong trust boundary
+### Copying the historical VM image is the wrong trust boundary
 
-The lab VM accumulated experiments, project state and potentially credentials. A bit-for-bit disk copy would make TUIsynth state the default and would be difficult to audit or distribute safely.
+The lab VM accumulated experiments, project state and potentially credentials.
 
-**Improvement:** reproduce the environment recipe: verified QEMU, clean Ubuntu source, prepared base, coding profile, resource model and needed lifecycle fixes. Keep historical overlays out of the product.
+**Disposition:** reproduce the environment recipe; keep historical overlays out of the product.
 
-## Review finding: “make it GUI” contains three different engineering tasks
+### The UI must not become a second VM manager
 
-A host manager GUI, a QEMU graphical console and a full guest Linux desktop have different dependencies, risks and benefits.
+A UI that edits `instance.json`, launches QEMU independently or kills stale PIDs would regress EzVM safety.
 
-The historical source explicitly uses `-display none` and creates no host window, but lifecycle/QMP/SSH are already separated.
+**Disposition:** all management UI actions use typed factory control/broker operations.
 
-**Improvement:** qualify those three options independently. The GUI preference remains real, but no GUI is accepted merely because a window can be made to appear.
+### TUIsynth can contaminate fresh-project semantics
 
-## Review finding: the UI must not become a second VM manager
+**Disposition:** empty active project workspace is tested; TUIsynth remains separate reference/demo material.
 
-A GUI/TUI that edits `instance.json`, launches QEMU separately or kills PIDs from a stale screen would regress the strongest EzVM properties.
+### GUI and VM claims need different evidence classes
 
-**Improvement:** add a typed local broker/read model above the authoritative PowerShell control plane. Every UI uses that seam.
+**Disposition:** SOURCE, FAST-CI, TCG-RUNTIME, WHPX-RUNTIME, PHYSICAL-UI and HUMAN-USABILITY remain separate.
 
-## Review finding: the old dashboard is useful research, not the finished product
+### Human operation needs recovery paths
 
-EzVM's read-only dashboard and TRIO field study capture useful interaction, observation and recovery lessons. They also include TRIO-specific adapters and unfinished control proposals.
+**Disposition:** diagnostics, identity, logs, portability, sensitive-state warnings and CLI recovery are first-class.
 
-**Improvement:** reuse concepts deliberately; do not import the TRIO dashboard as an orchestration dependency. ezDarkFactory's first UI scope is VM/project human operation, not worker/provider fleet control.
+## Owner direction update — host-side tile-native manager
 
-## Review finding: a fallback decided too late could leave no usable interface
+On 30 October 2026 the owner selected a **host-side management TUI with GUI-like tile/mouse interaction** as the primary UI direction.
 
-If the programme spends most of its effort on a graphical desktop and later discovers unacceptable portability or maintenance cost, a last-minute TUI would be poor.
+The key rationale is that one host manager can operate multiple independent ezDarkFactory roots from one interface and gives a cleaner foundation for later extension than coupling management to one guest GUI.
 
-**Improvement:** helper/CLI and typed control primitives are completed before the GUI decision. EDF-007 then implements the selected primary UI against a fixed parity matrix. The TUI fallback is fully specified in advance.
+This supersedes the earlier plan to choose between host GUI and TUI at EDF-006.
 
-## Review finding: TUIsynth can contaminate “fresh project” semantics accidentally
+### Consequences
 
-Cloning a historical guest or installing reference source in the normal workspace could cause scripts, agents and humans to treat TUIsynth as the current task.
+- V0.1 primary UI is a tile-native Windows Terminal TUI.
+- Multi-factory root registration/identity/observation is a core requirement.
+- Each factory remains independently authoritative for VM/storage/security.
+- QEMU graphical console and guest desktop are not v0.1 management requirements.
+- EDF-006 selects/qualifies the TUI implementation stack and multi-root adapter mechanics rather than deciding GUI vs TUI.
+- EDF-007 implements the production multi-factory host manager.
+- A future native GUI or remote-host adapter must be an explicit project/spec delta and should reuse semantic commands/adapters where appropriate.
+- Embedded arbitrary PTY is not required for v0.1; external managed SSH/Windows Terminal attach is sufficient.
 
-**Improvement:** make an empty project workspace a tested invariant. Reference/demo material has a distinct root, source pin and launcher. No historical queue/session/provider state is present.
+## specdocz tailoring decision
 
-## Review finding: GUI and VM claims need different evidence classes
+The host manager UI contract is tailored from:
 
-A hosted test can prove a view model or TCG orchestration but cannot prove WHPX acceleration, Windows mouse/focus behavior or a human-readable guide.
+- normative baseline: `techrote/specdocz@2e95d6931cc23862a4176c9d8ccb4da78f00c265:tuiuiux/tile-native-gui-tui-uiux-spec.md`;
+- implementation pattern library: the matching `tile-native-gui-tui-implementation-spec.md`;
+- tailoring method: the matching `tile-native-gui-tui-spec-tailoring.md`.
 
-**Improvement:** use SOURCE, FAST-CI, TCG-RUNTIME, WHPX-RUNTIME, PHYSICAL-UI and HUMAN-USABILITY evidence categories. Final release cannot collapse them.
+The resulting authoritative project-specific contract is:
 
-## Review finding: human operation needs recovery paths, not just happy-path buttons
+`docs/rag/03-HUMAN-CONTROL-SURFACE.md`
 
-The inherited VM manager is intentionally fail-closed around ambiguous process/storage state. A polished UI that hides that evidence would make recovery worse.
+Future specdocz changes must be reviewed as explicit deltas.
 
-**Improvement:** diagnostics, logs, exact target identity, portability, sensitive-state warnings and CLI recovery are first-class operator workflows.
+## Revised implementation sequence
 
-## Improved plan
-
-The improved sequence is:
-
-1. **Reconstruct and manifest the historical VM baseline** at EzVM `b6abdf8...`, preserving the unresolved local-TUIsynth hash and local-patch evidence boundary.
-2. **Create the ezDarkFactory core fork/namespace and CI** without changing behavior accidentally.
-3. **Reconcile the two historical private patch classes** using safe regressions and later public repair evidence.
-4. **Build the fresh-project guest profile** with an empty workspace and no TUIsynth active state.
-5. **Expose one typed broker/helper control seam** for all future human interfaces.
-6. **Run the GUI feasibility/ADR gate** across host manager, QEMU graphical console and full guest desktop.
-7. **Implement the selected primary human control surface**: GUI path when qualified, otherwise the comprehensive TUI contract.
-8. **Complete human kickoff/helpers/onboarding** for fresh projects.
-9. **Add sealed TUIsynth reference/demo material** without making it active work.
-10. **Complete portability, backup and recovery UX** through the selected interface.
-11. **Qualify clean-host, WHPX and physical UI behavior** with exact evidence.
-12. **Package and release an exact-source candidate** only after the applicable evidence is established.
+1. **Reconstruct and manifest the historical VM baseline** at EzVM `b6abdf8...`.
+2. **Create the ezDarkFactory core fork/namespace and CI**.
+3. **Reconcile the two historical private patch classes**.
+4. **Build the fresh-project guest profile**.
+5. **Expose typed per-factory control plus stable factory identity and multi-root manager substrate**.
+6. **Qualify and pin the tile-native host-manager implementation stack**, native Windows Terminal event behavior, persistence model and multi-root observation/operation mechanics.
+7. **Implement the production multi-factory host management TUI** to the tailored UI specification.
+8. **Complete human kickoff/helpers/onboarding**.
+9. **Add sealed TUIsynth reference/demo material**.
+10. **Complete portability, backup and recovery UX** through the host manager.
+11. **Qualify clean-host, WHPX and physical Windows Terminal behavior**.
+12. **Package and release an exact-source candidate** only after applicable evidence is established.
 
 ## Why this is preferable
 
-This sequence preserves the useful engineering already paid for in EzVM while removing the historical project's accidental state. It creates a usable control seam before UI selection, makes a GUI failure non-catastrophic, and ensures the final VM is a general development appliance rather than a TUIsynth snapshot with a new name.
+The revised plan keeps every factory's proven lifecycle/storage boundary intact while moving human control up to a host-level manager.
+
+It avoids multiplying UI/controller clients per factory, gives the operator a coherent fleet view, permits independent factory failures without collapsing the whole interface, and creates a semantic layer that can later support remote roots or a native GUI without making those v0.1 dependencies.
