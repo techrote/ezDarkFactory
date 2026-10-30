@@ -6,7 +6,7 @@ This is a compact navigation ledger. Current GitHub issue/PR state and exact `ma
 |---|---|---|---|---|
 | EDF-001 | [#1](https://github.com/techrote/ezDarkFactory/issues/1) | done | [PR #13](https://github.com/techrote/ezDarkFactory/pull/13) | accepted `538c8243be4d121a8834bdce99137dd33c7b41df`; post-merge green |
 | EDF-002 | [#2](https://github.com/techrote/ezDarkFactory/issues/2) | done | [PR #15](https://github.com/techrote/ezDarkFactory/pull/15) | accepted `978288496aa5d328f0d79712c74e69cf769689e4`; five exact-main jobs green |
-| EDF-003 | [#3](https://github.com/techrote/ezDarkFactory/issues/3) | todo | | EDF-002 accepted; dependency-ready |
+| EDF-003 | [#3](https://github.com/techrote/ezDarkFactory/issues/3) | done | [PR #18](https://github.com/techrote/ezDarkFactory/pull/18) | accepted `d7b7debbaf66d5b50136342d26634ff05ea34d3f`; nine exact-main checks PASS |
 | EDF-004 | [#4](https://github.com/techrote/ezDarkFactory/issues/4) | todo | | EDF-002 accepted; dependency-ready |
 | EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | todo | | EDF-003 + EDF-004 |
 | EDF-006 | [#6](https://github.com/techrote/ezDarkFactory/issues/6) | todo | | EDF-003 + EDF-004 + EDF-005 |
@@ -70,9 +70,45 @@ SSH/QMP/security behavior and inherited tests remain; no historical
 runtime, private keys, guest images or comparison-fork state was imported.
 See [the durable issue acceptance trail](https://github.com/techrote/ezDarkFactory/issues/2).
 
-This is **SOURCE / FAST-CI** acceptance only. The owner-local
-`Keys.ps1`/ `Runtime.ps1` amendments and physical standard-user process
-semantics are EDF-003 work. The fresh, clean project guest contract is
-EDF-004. Both issues are now **dependency-ready** but unstarted. The
-multi-factory TUI, TCG/WHPX, physical Windows Terminal, human usability,
-and final public release remain later programme gates; no such PASS is implied.
+This is **SOURCE / FAST-CI** acceptance only. The owner-local `Keys.ps1`/`Runtime.ps1` **software repair classes**
+were subsequently selected and qualified in EDF-003, described below.
+The fresh, clean project guest contract is EDF-004, still **dependency-ready
+but unstarted**. The multi-factory TUI, real QEMU/TCG/WHPX, physical
+Windows Terminal, human usability, and final release remain later gates;
+no such PASS is implied.
+
+## EDF-003 accepted handoff
+
+On 30 October 2026, [EDF-003 PR #18](https://github.com/techrote/ezDarkFactory/pull/18)
+was guarded-squash merged as source commit
+`d7b7debbaf66d5b50136342d26634ff05ea34d3f`, Git tree
+`50670a3f84c0ee7efbebf73077a79b566436feff`. This is byte-identical
+to reviewed PR head `90c68f30a604afbf721cc2e9274c539c02c18a38`.
+All nine required [PR-head checks](https://github.com/techrote/ezDarkFactory/actions/runs/41113777568)
+and nine [actual main post-merge checks](https://github.com/techrote/ezDarkFactory/actions/runs/41114714613)
+passed on their respective literal SHA values, with post-merge passing on
+**attempt 1**.
+
+Both Windows PowerShell 5.1 and pinned PS7.6.6 full control-plane suites
+reported **372 PASS, 0 FAIL, 0 SKIP**. Both Ubuntu/Windows provenance
+jobs reported **44 Python PASS, 0 FAIL, 0 SKIP** and authenticated 144
+historic source records. The native Windows runtime/process deadline
+lanes passed **11/11** each, including the retained legacy captured-output
+negative control. Actual disposable **non-admin** Windows user DACL
+lanes in both engines first reproduced **four** original
+`SeSecurityPrivilege` failures per engine at immutable EDF-002,
+then passed the corrected **372/372** suites without elevation.
+Source identity, original artifact ZIP/receipt digests, token privileges,
+child exit and temporary account/fixture cleanup are recorded in
+[EDF-003 repair report](../provenance/EDF-003-REPAIRS.md) and the
+[durable issue acceptance record](https://github.com/techrote/ezDarkFactory/issues/3#issuecomment-6531745348).
+
+The 13 selected later-public repair/test/helper inputs are source-pinned
+and hash-mapped in [edf003-repairs.json](../provenance/edf003-repairs.json).
+These replace only the public owner/DACL and native process/deadline
+software behavior. Neither owner-local historical patch byte sequence
+was recovered or claimed equivalent. The upstream DASH-08 full real TCG
+release failure remains failed evidence; physical supported-host WHPX,
+Windows Terminal and human use remain UNMEASURED/HUMAN-PENDING and
+require EDF-011. EDF-004 remains **open and dependency-ready**.
+EDF-005 requires both EDF-003 **and** EDF-004 to be accepted.
