@@ -15,7 +15,8 @@
     "finished_at",
     "result",
     "refusal_code",
-    "refusal_message"
+    "refusal_message",
+    "request_sha256"
   ],
   "properties": {
     "schemaVersion": {
@@ -62,6 +63,10 @@
     },
     "refusal_message": {
       "type": "string"
+    },
+    "request_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
     }
   }
 }
