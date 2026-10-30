@@ -15,7 +15,7 @@ Add-EzDarkFactoryTest -Name 'EDF: stopped root-local state and synthetic identit
     try {
         $runtime = Join-Path $original 'runtime'
         [void][IO.Directory]::CreateDirectory((Join-Path $runtime 'instances/project-one'))
-        [IO.File]::WriteAllText((Join-Path $runtime 'config.json'), '{"profiles":{"normal":{"memoryMiB":12288}}}', (New-Object Text.UTF8Encoding($false)))
+        [IO.File]::WriteAllText((Join-Path $runtime 'config.json'), '{"schemaVersion":1,"profiles":{"normal":{"memoryMiB":12288}}}', (New-Object Text.UTF8Encoding($false)))
         $instanceIdentity = 'instance-demo-opaque-0001'
         $identityFile = Join-Path $runtime 'instances/project-one/identity.json'
         [IO.File]::WriteAllText($identityFile, ('{"schemaVersion":1,"instanceId":"' + $instanceIdentity + '"}'), (New-Object Text.UTF8Encoding($false)))

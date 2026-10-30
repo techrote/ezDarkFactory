@@ -342,8 +342,8 @@
       "destination": "scripts/New-EzDarkFactoryReleasePackage.ps1",
       "classification": "adapt-rebrand",
       "transform": "reviewed-integration-v1",
-      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules.",
-      "destination_blob": "7155cbccb218365f0e89d874aeb5bad288509834"
+      "review_note": "Retain source trace, integrate the current EDF authority and the issue-specific safety/CI/version rules. Removed accidentally duplicated original release-packaging tail after the reviewed developer-only return object, restoring valid PowerShell syntax. The older duplicate would also incorrectly admit stable 0.1.0 publication behavior.",
+      "destination_blob": "2fab434ec881a81e8cb9e7ef045052c198a819a8"
     },
     {
       "source_repository": "techrote/ezvm",
