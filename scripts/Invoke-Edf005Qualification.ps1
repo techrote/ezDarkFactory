@@ -16,12 +16,12 @@ $tree = ((git -C $script:EzDarkFactoryRepositoryRoot rev-parse 'HEAD^{tree}') -j
 if ($LASTEXITCODE -ne 0 -or $head -cnotmatch '^[a-f0-9]{40}$' -or $tree -cnotmatch '^[a-f0-9]{40}$') { throw 'Missing exact source identity.' }
 if (@(git -C $script:EzDarkFactoryRepositoryRoot status --porcelain).Count -ne 0) { throw 'Source must be clean.' }
 $files = @('src/EzDarkFactory/Control.ps1','src/EzDarkFactory/Manager.ps1',
-    'src/EzDarkFactory/EzDarkFactory.psm1','src/EzDarkFactory/EzDarkFactory.psd1',
+    'src/EzDarkFactory/Edf005.psm1',
     'tests/Edf005Control.Tests.ps1','scripts/Invoke-Edf005Qualification.ps1')
 $digests = [ordered]@{}
 foreach ($file in $files) { $digests[$file] = (Get-FileHash -LiteralPath (Join-Path $script:EzDarkFactoryRepositoryRoot $file) -Algorithm SHA256).Hash.ToLowerInvariant() }
 . (Join-Path $script:EzDarkFactoryRepositoryRoot 'tests/TestHarness.ps1')
-Import-Module (Join-Path $script:EzDarkFactoryRepositoryRoot 'src/EzDarkFactory/EzDarkFactory.psd1') -Force
+Import-Module (Join-Path $script:EzDarkFactoryRepositoryRoot 'src/EzDarkFactory/Edf005.psm1') -Force
 . (Join-Path $script:EzDarkFactoryRepositoryRoot 'tests/Edf005Control.Tests.ps1')
 $tests = @($script:EzDarkFactoryTestCases | Where-Object { $_.Name -like 'EDF-005:*' })
 if ($tests.Count -lt 8) { throw 'EDF-005 qualification requires at least eight mandatory tests.' }
