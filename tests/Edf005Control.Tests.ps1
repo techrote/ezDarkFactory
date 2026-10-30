@@ -15,7 +15,7 @@ function New-Edf005Request {
 }
 
 function New-Edf005SyntheticIntent {
-    param([string]$Root, [string]$Name = 'shared project')
+    param([string]$Root, [string]$Name = 'shared-project')
     $dir = Join-Path $Root ('runtime/instances/' + $Name)
     [void][IO.Directory]::CreateDirectory($dir)
     $intent = [pscustomobject][ordered]@{
@@ -83,11 +83,13 @@ Add-EzDarkFactoryTest -Name 'EDF-005: portable registry requires enrollment cons
         Assert-EzDarkFactoryThrows -ScriptBlock {
             Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root (Join-Path $root '.') -Alias 'Duplicate' -AuthorizeLocalExecution
         } -MessagePattern 'already registered' | Out-Null
-        Assert-EzDarkFactoryEqual -Actual @(Get-EzDarkFactoryManagerObservations -Workspace $workspace)[0].state -Expected 'current'
+        $observed = @(Get-EzDarkFactoryManagerObservations -Workspace $workspace)
+        Assert-EzDarkFactoryEqual -Actual $observed[0].state -Expected 'current'
         $result = Unregister-EzDarkFactoryManagerRoot -Workspace $workspace -EnrollmentId $record.enrollment_id
         Assert-EzDarkFactoryTrue -Condition $result.removed
         Assert-EzDarkFactoryTrue -Condition (Test-Path -LiteralPath (Join-Path $root 'runtime/factory-identity.json'))
-        Assert-EzDarkFactoryEqual -Actual @(Get-EzDarkFactoryManagerRegistry -Workspace $workspace).roots.Count -Expected 0
+        $left = Get-EzDarkFactoryManagerRegistry -Workspace $workspace
+        Assert-EzDarkFactoryEqual -Actual @($left.roots).Count -Expected 0
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root; Remove-EzDarkFactoryTestDirectory -Path $workspace }
 }
@@ -159,22 +161,22 @@ Add-EzDarkFactoryTest -Name 'EDF-005: typed adoption is exactly targeted, idempo
         $intentA = New-Edf005SyntheticIntent -Root $a
         $null = New-Edf005SyntheticIntent -Root $b
         $bRevision = Get-EzDarkFactoryControlRevision -Root $b
-        $request = New-Edf005Request -Root $a -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='shared project'}) -Generation $intentA.identityGeneration
+        $request = New-Edf005Request -Root $a -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='shared-project'}) -Generation $intentA.identityGeneration
         $accepted = Invoke-EzDarkFactoryControl -Root $a -Request $request
         Assert-EzDarkFactoryEqual -Actual $accepted.state -Expected 'completed'
         Assert-EzDarkFactoryTrue -Condition ($accepted.data.instance_id -match '^ins_')
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlRevision -Root $b) -Expected $bRevision
-        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $b 'runtime/instances/shared project/control-instance.json')))
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $b 'runtime/instances/shared-project/control-instance.json')))
         $again = Invoke-EzDarkFactoryControl -Root $a -Request $request
         Assert-EzDarkFactoryEqual -Actual $again.state -Expected 'completed'
         Assert-EzDarkFactoryEqual -Actual $again.data.instance_id -Expected $accepted.data.instance_id
         $receipt = Get-EzDarkFactoryControlOperation -Root $a -OperationId $request.operation_id
         Assert-EzDarkFactoryEqual -Actual $receipt.state -Expected 'completed'
-        $stale = New-Edf005Request -Root $a -Command 'instance.stop' -Arguments ([pscustomobject]@{name='shared project'}) -InstanceId $accepted.data.instance_id -Generation ('0' * 32)
+        $stale = New-Edf005Request -Root $a -Command 'instance.stop' -Arguments ([pscustomobject]@{name='shared-project'}) -InstanceId $accepted.data.instance_id -Generation ('0' * 32)
         $refusal = Invoke-EzDarkFactoryControl -Root $a -Request $stale
         Assert-EzDarkFactoryEqual -Actual $refusal.state -Expected 'refused'
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $a ('runtime/control/operations/' + $stale.operation_id + '.json'))))
-        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryInstanceRef -Root $a -Name 'shared project').instance_id -Expected $accepted.data.instance_id
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryInstanceRef -Root $a -Name 'shared-project').instance_id -Expected $accepted.data.instance_id
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $a; Remove-EzDarkFactoryTestDirectory -Path $b }
 }
