@@ -45,11 +45,13 @@ Preserve or explicitly supersede the historical general-purpose baseline:
 
 Rapidly changing agent CLIs, Node/Rust toolchains and local-model runtimes are opt-in profiles or human kickoff steps unless their acquisition/pinning policy is explicitly accepted.
 
-## Optional graphical guest profile
+## Future graphical guest profile
 
-If EDF-006 accepts a full guest desktop, add it as a versioned profile/variant rather than silently bloating the minimal coding baseline.
+A graphical guest desktop is **not a v0.1 management requirement**. The host-side management TUI and managed SSH/external-terminal path are sufficient for the current programme.
 
-The graphical profile must:
+If a later explicit project/spec delta introduces a graphical guest profile, add it as a versioned profile/variant rather than silently bloating the minimal coding baseline.
+
+Any future graphical profile must:
 
 - inherit the same instance identity/readiness/security contract;
 - use repository-controlled provisioning;
@@ -58,7 +60,7 @@ The graphical profile must:
 - record incremental disk/base size and startup/RAM overhead;
 - preserve SSH as the recovery/control path;
 - disable unreviewed host sharing/clipboard integrations by default;
-- allow a minimal/headless profile to remain supported unless the ADR explicitly retires it.
+- keep the minimal/headless coding profile supported unless a separately reviewed compatibility decision retires it.
 
 A desktop that merely boots is not READY until the required graphical session components and normal coding tools are validated.
 
