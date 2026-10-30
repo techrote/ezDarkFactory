@@ -72,6 +72,9 @@ At minimum automate:
 - generation-tagged stale-result rejection;
 - one slow factory while other factories and UI remain responsive;
 - manager close/restart without VM mutation or blind replay;
+- direct factory open after relocation with no prior manager registry;
+- detection of forbidden hidden host-profile/absolute dependencies;
+- destination ACL/runtime revalidation without changing factory/instance identity;
 - theme/color/ASCII/high-contrast/reduced-motion fallbacks;
 - zero logical damage for unchanged scenes where supported.
 
@@ -104,6 +107,24 @@ Exercise:
 - manager close/reopen while a managed VM remains running.
 
 Headless logical tests alone are not PHYSICAL-TUI PASS.
+
+## One-folder portability qualification
+
+Before v0.1 release, prove a stopped, working factory can be archived/copied as one folder to a different supported absolute path and reopened without the previous manager workspace.
+
+The real campaign must demonstrate:
+
+- same factory/instance identities after relocation;
+- root-relative configuration remains valid;
+- old host process/PID/QMP observations are not reused as authority;
+- current-user private-key ACLs are revalidated/reapplied;
+- setup/doctor handles host-specific prerequisites;
+- direct open by path works without old registry/session state;
+- start → READY → stop succeeds after relocation;
+- a second simultaneously writable copy is blocked as duplicate identity until explicit fork/rekey;
+- the stateful folder/archive is visibly classified sensitive when it contains keys/credentials.
+
+Where suitable two-host hardware is available, repeat the transfer onto another compatible Windows machine; otherwise the same-machine different-root test is automated/TCG evidence and the true cross-host move remains part of EDF-011 HUMAN/PHYSICAL qualification.
 
 ## Multi-factory qualification
 
@@ -163,6 +184,7 @@ Measure/record:
 - READY;
 - guest attach;
 - stop/restart;
+- one-folder portability exercise;
 - clone/export/recovery exercise;
 - reference/demo discovery;
 - errors/manual interventions;
@@ -210,6 +232,7 @@ EDF-012 requires:
 - required PHYSICAL-TUI PASS;
 - HUMAN-USABILITY PASS;
 - multi-factory real-root qualification;
+- one-folder portability qualification;
 - no blocker hidden as SKIP;
 - docs matching the actual host-manager workflow;
 - exact source/runtime/reference/specdocz provenance;
