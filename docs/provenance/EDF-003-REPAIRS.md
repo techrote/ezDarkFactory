@@ -174,4 +174,15 @@ explicit EDF-003 supersession mapping, full checkout history and a bounded
 tests passed; no assertion was deleted, skipped or xfailed. The upstream
 DASH-08 real TCG failure and the unmeasured physical WHPX gate remain unchanged.
 
-**Status:** complete pre-merge software evidence above; final exact-head source/merge/post-merge acceptance must be appended to issue #3 once green, without treating historical upstream TCG or physical-WHPX as PASS.
+**Status:** EDF-003 source/native/ordinary-user software ACCEPTED after
+[reviewed PR #18](https://github.com/techrote/ezDarkFactory/pull/18)
+merged as `d7b7debbaf66d5b50136342d26634ff05ea34d3f` (Git tree
+`50670a3f84c0ee7efbebf73077a79b566436feff`), followed by all nine
+literal-main checks **PASS on run attempt 1**:
+[run #41114714613](https://github.com/techrote/ezDarkFactory/actions/runs/41114714613).
+The original artifact archive digests and main-source handoff are recorded in
+[issue #3's acceptance record](https://github.com/techrote/ezDarkFactory/issues/3#issuecomment-6531745348).
+This acceptance is limited to **SOURCE, FAST-CI, actual Windows-native child
+fixtures, and disposable ordinary-user DACL execution**; it does not
+accept upstream DASH-08 full TCG, actual QEMU/Ubuntu/WHPX, physical Windows
+Terminal or human usability.
