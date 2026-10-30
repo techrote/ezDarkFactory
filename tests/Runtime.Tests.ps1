@@ -505,9 +505,36 @@ Add-EzDarkFactoryTest -Name 'Runtime: reachable but non-running QMP never become
     $fixture = New-EzDarkFactoryRuntimeFixture
     try {
         $fixture.State.QmpRunning = $false
-        Assert-EzDarkFactoryThrows -ScriptBlock { Start-EzDarkFactoryRuntimeFixtureInstance -Fixture $fixture -Timeout 1 } -MessagePattern "startup timeout.*QMP is reachable but reports status 'paused'" | Out-Null
+        Assert-EzDarkFactoryThrows -ScriptBlock { Start-EzDarkFactoryRuntimeFixtureInstance -Fixture $fixture -Timeout 3 } -MessagePattern "startup timeout.*QMP is reachable but reports status 'paused'" | Out-Null
         Assert-EzDarkFactoryEqual -Actual $fixture.State.Processes.Count -Expected 1
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryRuntimeFixtureState -Fixture $fixture).state -Expected 'STARTING'
+    }
+    finally { Remove-EzDarkFactoryRuntimeFixture $fixture }
+}
+
+# CI-RUNTIME-001: the first QMP response is valid and non-running; the next
+# response consumes the remaining total budget. A generic late failure must
+# not erase the first within-budget semantic diagnosis or publish RUNNING.
+Add-EzDarkFactoryTest -Name 'Runtime: within-deadline paused observation survives later expired QMP query' -ScriptBlock {
+    $fixture = New-EzDarkFactoryRuntimeFixture
+    try {
+        $trace = [pscustomobject]@{ Calls = 0 }
+        $fixture.QmpInvoker = {
+            param($hostAddress, $port, $command, $timeout)
+            $trace.Calls++
+            if ($trace.Calls -eq 1) {
+                return [pscustomobject]@{ running = $false; status = 'paused' }
+            }
+            Start-Sleep -Milliseconds 3500
+            return [pscustomobject]@{ running = $true; status = 'running' }
+        }.GetNewClosure()
+        Assert-EzDarkFactoryThrows -ScriptBlock {
+            Start-EzDarkFactoryRuntimeFixtureInstance -Fixture $fixture -Timeout 3
+        } -MessagePattern "startup timeout.*Last within-deadline QMP observation: QMP is reachable but reports status 'paused'" | Out-Null
+        Assert-EzDarkFactoryTrue ($trace.Calls -ge 2) -Message 'Must reach the later expired QMP query.'
+        Assert-EzDarkFactoryEqual (Get-EzDarkFactoryRuntimeFixtureState $fixture).state 'STARTING'
+        Assert-EzDarkFactoryEqual $fixture.State.Processes.Count 1
+        Assert-EzDarkFactoryEqual (Get-EzDarkFactoryInstanceStorageLifecycleGuard -Root $fixture.Root -InstanceName $fixture.InstanceName -ProcessProvider $fixture.ProcessProvider).state 'starting'
     }
     finally { Remove-EzDarkFactoryRuntimeFixture $fixture }
 }
