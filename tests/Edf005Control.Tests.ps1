@@ -87,6 +87,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: portable registry requires enrollment cons
         } -MessagePattern 'already registered' | Out-Null
         $observed = @(Get-EzDarkFactoryManagerObservations -Workspace $workspace)
         Assert-EzDarkFactoryEqual -Actual $observed[0].state -Expected 'current'
+        Assert-EzDarkFactoryEqual -Actual $observed[0].inventory_state -Expected 'unknown'
+        Assert-EzDarkFactoryEqual -Actual $observed[0].last_known.freshness -Expected 'stale'
         $result = Unregister-EzDarkFactoryManagerRoot -Workspace $workspace -EnrollmentId $record.enrollment_id
         Assert-EzDarkFactoryTrue -Condition $result.removed
         Assert-EzDarkFactoryTrue -Condition (Test-Path -LiteralPath (Join-Path $root 'runtime/factory-identity.json'))
