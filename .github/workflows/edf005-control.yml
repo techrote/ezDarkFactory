@@ -1,0 +1,49 @@
+name: EDF-005 typed multi-root contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  edf005-control:
+    name: EDF-005 identity/manager (PowerShell ${{ matrix.major }})
+    runs-on: windows-2022
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        major: [5, 7]
+    steps:
+      - name: Checkout literal PR head or main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Acquire pinned PowerShell 7
+        if: matrix.major == 7
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = .\scripts\Install-TestPowerShell.ps1 -DestinationRoot $env:RUNNER_TEMP
+          ('EDF_TEST_POWERSHELL=' + $exe) | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+      - name: Test two independent real-filesystem roots and retain source receipts
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = Join-Path $PSHOME 'powershell.exe'
+          if (${{ matrix.major }} -eq 7) { $exe = $env:EDF_TEST_POWERSHELL }
+          & $exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\scripts\Invoke-Edf005Qualification.ps1 -ExpectedMajor ${{ matrix.major }} -OutputDirectory (Join-Path $env:RUNNER_TEMP 'edf005-evidence')
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Preserve exact-source positive/negative result evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: edf005-control-ps${{ matrix.major }}-${{ github.event.pull_request.head.sha || github.sha }}
+          path: ${{ runner.temp }}/edf005-evidence/
+          if-no-files-found: error
+          retention-days: 14
