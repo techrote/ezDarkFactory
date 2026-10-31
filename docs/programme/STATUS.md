@@ -8,7 +8,7 @@ This is a compact navigation ledger. Current GitHub issue/PR state and exact `ma
 | EDF-002 | [#2](https://github.com/techrote/ezDarkFactory/issues/2) | done | [PR #15](https://github.com/techrote/ezDarkFactory/pull/15) | accepted `978288496aa5d328f0d79712c74e69cf769689e4`; five exact-main jobs green |
 | EDF-003 | [#3](https://github.com/techrote/ezDarkFactory/issues/3) | done | [PR #18](https://github.com/techrote/ezDarkFactory/pull/18) | accepted `d7b7debbaf66d5b50136342d26634ff05ea34d3f`; nine exact-main checks PASS |
 | EDF-004 | [#4](https://github.com/techrote/ezDarkFactory/issues/4) | done | [PR #23](https://github.com/techrote/ezDarkFactory/pull/23) | accepted `a983c957fb65acfd781ac131733512658b3e9927`; eleven exact-main checks PASS |
-| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | in-progress | `edf-005-multiroot-control` | Identity, typed control, portable manager substrate under active qualification; no acceptance before exact-head and post-merge proof |
+| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | done | [PR #25](https://github.com/techrote/ezDarkFactory/pull/25), [repair #26](https://github.com/techrote/ezDarkFactory/pull/26) | accepted `4c11596894f19870771a970475727a39941945b8`; 13/13 actual-main software checks PASS |
 | EDF-006 | [#6](https://github.com/techrote/ezDarkFactory/issues/6) | todo | | EDF-003 + EDF-004 + EDF-005 |
 | EDF-007 | [#7](https://github.com/techrote/ezDarkFactory/issues/7) | todo | | EDF-006 |
 | EDF-008 | [#8](https://github.com/techrote/ezDarkFactory/issues/8) | todo | | EDF-004 + EDF-005 + EDF-007 |
@@ -161,7 +161,45 @@ physical Windows Terminal and human usability **UNMEASURED**; these
 are later EDF-011/runtime/release gates under the governing test contract,
 not unperformed EDF-004 passes.
 
-EDF-001 through EDF-004 are accepted. EDF-005 #5 is now
-**dependency-ready but unstarted**, with both required EDF-003/EDF-004
-prerequisites satisfied. EDF-006 and later manager/TUI milestones retain
-their separate dependencies.
+EDF-001 through EDF-004 are accepted. EDF-005 has been implemented, source-reviewed,
+and guarded-merged through [PR #25](https://github.com/techrote/ezDarkFactory/pull/25)
+plus the post-merge repair [PR #26](https://github.com/techrote/ezDarkFactory/pull/26).
+**EDF-005 is accepted at SOURCE / FAST-CI** after the nine-job fast gate on the
+literal repaired-main revision passed; see [the source-pinned acceptance report](../provenance/EDF-005-CONTROL-ACCEPTANCE.md).
+EDF-006's non-UI substrate dependency is now satisfied; its TUI/manager integration and physical/manual gates remain separate.
+
+
+## EDF-005 source and post-merge qualification
+
+The reviewed EDF-005 implementation [PR #25](https://github.com/techrote/ezDarkFactory/pull/25)
+merged as `eb8b23d3f232be3d990a734b771fb8fc7ff68d06`, source tree
+`b41ec99303d8c72a9dd949553ff9b96dba35ecaf`. Its actual main fast run
+[#41163205070](https://github.com/techrote/ezDarkFactory/actions/runs/41163205070)
+**FAILED 8/9** due to real ordinary-user Windows receipt FileShare contention;
+original failure evidence is retained, not counted as success. Following repair
+[PR #26](https://github.com/techrote/ezDarkFactory/pull/26) guarded-merged as
+`4c11596894f19870771a970475727a39941945b8` from reviewed source head
+`e042daf772117cab9073324da31b4fd051bc0df8`. Both share exact tree
+`8194d377d07ac6e23ceb7c22454662dc511df0b8`.
+
+Repair PR-head software CI: fast nine-job
+[#41164366175](https://github.com/techrote/ezDarkFactory/actions/runs/41164366175),
+EDF004 [#41164366180](https://github.com/techrote/ezDarkFactory/actions/runs/41164366180),
+EDF005 [#41164366187](https://github.com/techrote/ezDarkFactory/actions/runs/41164366187)
+**PASSED 13/13** (each full control-plane engine 411/411; focused EDF005
+31/31 on Windows PowerShell 5.1/pinned 7). Actual repaired-main EDF004 and
+EDF005 gates [#41164831870](https://github.com/techrote/ezDarkFactory/actions/runs/41164831870)
+and [#41164831877](https://github.com/techrote/ezDarkFactory/actions/runs/41164831877)
+passed 4/4. **Actual repaired-main fast nine-job
+[#41164831843](https://github.com/techrote/ezDarkFactory/actions/runs/41164831843)
+completed 9/9 PASS on attempt 1.** Combined with actual-main EDF004 and EDF005 4/4,
+all **13/13 required post-merge software jobs passed** on source SHA
+`4c11596894f19870771a970475727a39941945b8`. Both full control-plane
+engines executed 411/411 (zero failed/skipped) and EDF005 focused 31/31
+per engine, with real ordinary-user ACL and source-matched negative evidence.
+See acceptance report for artifact digests and retained original red runs.
+
+See [EDF-005 source/negative custody](../provenance/EDF-005-CONTROL-ACCEPTANCE.md)
+for API/schema versions, exact identities and original red logs. All cited
+qualification is SOURCE / WINDOWS-CI software. No real QEMU/TCG/WHPX or
+physical Windows Terminal/TUI PASS is implied.
