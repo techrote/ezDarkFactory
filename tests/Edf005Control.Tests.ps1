@@ -947,3 +947,52 @@ Add-EzDarkFactoryTest -Name 'EDF-005: multi-megabyte live QEMU log returns bound
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: concurrent terminal journal reader retries transient exclusive Windows receipt publishing' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'shared receipt Windows'
+    $process = $null
+    try {
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $request = New-Edf005Request -Root $root -Command 'factory.rekey'
+        $result = Invoke-EzDarkFactoryControl -Root $root -Request $request
+        Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'completed'
+        $file = Join-Path $root ('runtime/control/operations/' + $request.operation_id + '.json')
+        $marker = Join-Path $root 'exclusive-lock-acquired.txt'
+        $safeFile = $file.Replace("'", "''")
+        $safeMarker = $marker.Replace("'", "''")
+        $cmd = '$ErrorActionPreference = "Stop"; $stream = [IO.File]::Open(''' + $safeFile +
+            ''',[IO.FileMode]::Open,[IO.FileAccess]::ReadWrite,[IO.FileShare]::None); ' +
+            'try { [IO.File]::WriteAllText(''' + $safeMarker + ''',''locked''); Start-Sleep -Milliseconds 220 } ' +
+            'finally { $stream.Dispose() }'
+        $exe = if ($PSVersionTable.PSVersion.Major -eq 5) { Join-Path $PSHOME 'powershell.exe' } else { Join-Path $PSHOME 'pwsh.exe' }
+        $start = New-Object Diagnostics.ProcessStartInfo
+        $start.FileName = $exe; $start.WorkingDirectory = [IO.Path]::GetTempPath()
+        $start.Arguments = '-NoLogo -NoProfile -NonInteractive -EncodedCommand ' +
+            [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd))
+        $start.UseShellExecute = $false; $start.CreateNoWindow = $true
+        $process = New-Object Diagnostics.Process
+        $process.StartInfo = $start
+        Assert-EzDarkFactoryTrue -Condition $process.Start()
+        $deadline = [DateTime]::UtcNow.AddSeconds(5)
+        while (-not (Test-Path -LiteralPath $marker -PathType Leaf) -and [DateTime]::UtcNow -lt $deadline) {
+            Start-Sleep -Milliseconds 10
+        }
+        Assert-EzDarkFactoryTrue -Condition (Test-Path -LiteralPath $marker -PathType Leaf) -Message 'Exclusive-lock child did not reach the controlled race.'
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        $observed = Get-EzDarkFactoryControlOperation -Root $root -OperationId $request.operation_id
+        $watch.Stop()
+        Assert-EzDarkFactoryEqual -Actual $observed.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $observed.operation_id -Expected $request.operation_id
+        Assert-EzDarkFactoryTrue -Condition ($watch.ElapsedMilliseconds -lt 3000) -Message 'Receipt read exceeded its bounded retry deadline.'
+        Assert-EzDarkFactoryTrue -Condition ($process.WaitForExit(5000)) -Message 'Exclusive-lock process did not exit.'
+        Assert-EzDarkFactoryEqual -Actual $process.ExitCode -Expected 0
+    }
+    finally {
+        if ($null -ne $process) {
+            if (-not $process.HasExited) { $process.Kill(); [void]$process.WaitForExit(5000) }
+            $process.Dispose()
+        }
+        Remove-EzDarkFactoryTestDirectory -Path $root
+    }
+}

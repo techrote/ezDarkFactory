@@ -255,12 +255,45 @@ function Get-EzDarkFactoryControlOperationPath {
     return (Assert-EzDarkFactorySafePath -Path $path -Description 'Operation journal')
 }
 
+# Concurrent read-only observers may briefly hit a Windows sharing violation
+# while Write-EzDarkFactoryJson atomically publishes a terminal receipt. Use a
+# delete-share-compatible, bounded read; retry only IO acquisition races.
+# Never retry the underlying operation and never treat a malformed receipt as
+# success. The upper bound is 20 attempts x 25 ms (under ~500 ms).
+function Read-EzDarkFactoryControlReceiptJson {
+    param([Parameter(Mandatory)][string]$Path)
+    $full = Assert-EzDarkFactorySafePath -Path $Path -Description 'Control receipt'
+    $share = [IO.FileShare]([int][IO.FileShare]::ReadWrite -bor [int][IO.FileShare]::Delete)
+    for ($attempt = 0; $attempt -lt 20; $attempt++) {
+        $stream = $null
+        try {
+            $stream = [IO.File]::Open($full, [IO.FileMode]::Open, [IO.FileAccess]::Read, $share)
+            if ($stream.Length -gt 1048576) { throw 'Control receipt exceeds its 1-MiB read limit.' }
+            $data = New-Object byte[] ([int]$stream.Length)
+            $count = 0
+            while ($count -lt $data.Length) {
+                $read = $stream.Read($data, $count, $data.Length - $count)
+                if ($read -le 0) { throw 'Control receipt truncated during a bounded read.' }
+                $count += $read
+            }
+            $text = (New-Object Text.UTF8Encoding($false, $true)).GetString($data, 0, $count)
+            return (ConvertFrom-EzDarkFactoryJsonText -Text $text -SchemaVersion 1 -Description 'Control receipt')
+        }
+        catch [IO.IOException] {
+            if ($attempt -eq 19) { throw }
+            Start-Sleep -Milliseconds 25
+        }
+        finally { if ($null -ne $stream) { $stream.Dispose() } }
+    }
+    throw 'Control receipt could not be read after the bounded sharing-violation budget.'
+}
+
 function Get-EzDarkFactoryControlOperation {
     [CmdletBinding()]
     param([string]$Root = $script:EzDarkFactoryDefaultRoot, [Parameter(Mandatory)][string]$OperationId)
     $path = Get-EzDarkFactoryControlOperationPath -Root $Root -OperationId $OperationId
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
-    $record = Read-EzDarkFactoryJson -Path $path -SchemaVersion 1
+    $record = Read-EzDarkFactoryControlReceiptJson -Path $path
     if ($record.operation_id -cne $OperationId) { throw 'Operation record identity mismatch.' }
     return $record
 }
@@ -412,7 +445,7 @@ function Get-EzDarkFactoryControlOperationResult {
             progress = [pscustomobject]@{ stage = 'awaiting-root-receipt'; terminal = $false }
         }
     }
-    $record = Read-EzDarkFactoryJson -Path $path -SchemaVersion 1
+    $record = Read-EzDarkFactoryControlReceiptJson -Path $path
     if ($record.operation_id -cne $OperationId -or $record.state -cne 'refused' -or
         $record.request_sha256 -cnotmatch '^[a-f0-9]{64}$') {
         throw 'Malformed detached precondition result; explicit reconciliation required.'
