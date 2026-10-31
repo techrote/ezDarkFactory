@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EDF-005 typed response envelope",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "api",
+    "factory_id",
+    "operation_id",
+    "command",
+    "instance_id",
+    "instance_generation",
+    "state",
+    "data",
+    "refusal",
+    "progress"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "api": {
+      "type": "object",
+      "required": [
+        "major",
+        "minor"
+      ],
+      "properties": {
+        "major": {
+          "const": 1
+        },
+        "minor": {
+          "const": 0
+        }
+      }
+    },
+    "factory_id": {
+      "type": "string"
+    },
+    "operation_id": {
+      "type": "string"
+    },
+    "command": {
+      "type": "string"
+    },
+    "instance_id": {
+      "type": "string"
+    },
+    "instance_generation": {
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "completed",
+        "accepted",
+        "refused"
+      ]
+    },
+    "data": {},
+    "refusal": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "terminal"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "accepted",
+            "completed",
+            "refused"
+          ]
+        },
+        "terminal": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

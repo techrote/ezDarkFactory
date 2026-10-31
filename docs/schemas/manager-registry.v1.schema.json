@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EDF-005 portable manager registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "roots"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "roots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "enrollment_id",
+          "alias",
+          "canonical_path",
+          "last_factory_id",
+          "api_major",
+          "api_minor",
+          "execution_authorized",
+          "enrolled_at",
+          "last_verified_at"
+        ],
+        "properties": {
+          "enrollment_id": {
+            "type": "string",
+            "pattern": "^enr_[a-f0-9]{32}$"
+          },
+          "alias": {
+            "type": "string"
+          },
+          "canonical_path": {
+            "type": "string"
+          },
+          "last_factory_id": {
+            "type": "string",
+            "pattern": "^fct_[a-f0-9]{32}$"
+          },
+          "api_major": {
+            "const": 1
+          },
+          "api_minor": {
+            "const": 0
+          },
+          "execution_authorized": {
+            "type": "boolean"
+          },
+          "enrolled_at": {
+            "type": "string"
+          },
+          "last_verified_at": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EDF-005 instance opaque identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "instance_id",
+    "created_at"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "instance_id": {
+      "type": "string",
+      "pattern": "^ins_[a-f0-9]{32}$"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

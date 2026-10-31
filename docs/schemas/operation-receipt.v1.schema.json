@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EDF-005 root-local operation journal",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "factory_id",
+    "operation_id",
+    "command",
+    "instance_id",
+    "instance_generation",
+    "expected_revision",
+    "state",
+    "created_at",
+    "finished_at",
+    "result",
+    "refusal_code",
+    "refusal_message",
+    "request_sha256",
+    "progress"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "factory_id": {
+      "type": "string"
+    },
+    "operation_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "command": {
+      "type": "string"
+    },
+    "instance_id": {
+      "type": "string"
+    },
+    "instance_generation": {
+      "type": "string"
+    },
+    "expected_revision": {
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "accepted",
+        "completed",
+        "refused"
+      ]
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "finished_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "result": {},
+    "refusal_code": {
+      "type": "string"
+    },
+    "refusal_message": {
+      "type": "string"
+    },
+    "request_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "progress": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage",
+        "terminal"
+      ],
+      "properties": {
+        "stage": {
+          "enum": [
+            "accepted",
+            "completed",
+            "refused"
+          ]
+        },
+        "terminal": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}

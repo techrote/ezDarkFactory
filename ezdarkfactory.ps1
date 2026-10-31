@@ -13,9 +13,43 @@ foreach ($argument in $args) {
 
 try {
     Import-Module (Join-Path $PSScriptRoot 'src/EzDarkFactory/EzDarkFactory.psd1') -Force -ErrorAction Stop
-    $result = Invoke-EzDarkFactoryCommand -Arguments $args -Root $PSScriptRoot
-    Write-EzDarkFactoryResult -Result $result -Json:$jsonRequested
-    exit $result.exitCode
+    # EDF-005 reviewed supersession: official direct-CLI mutations on identity-enabled
+    # roots share the typed manager's root-scoped lock. Pure reads and legacy
+    # uninitialized factories remain side-effect-free and backward compatible.
+    $commandParts = @($args | Where-Object { $_ -is [string] -and $_ -notin @('-Json','--') })
+    $verb = if ($commandParts.Count -gt 0) { [string]$commandParts[0] } else { '' }
+    $subverb = if ($commandParts.Count -gt 1) { [string]$commandParts[1] } else { '' }
+    $mutating = ($verb -in @('bootstrap','create','clone','reset','export','import','start',
+        'stop','exec','copy-to','copy-from')) -or ($verb -eq 'base' -and $subverb -in @('acquire','build'))
+    $coldCheck = ($verb -eq 'portability' -and $subverb -eq 'check')
+    $controlLock = $null
+    try {
+        if (($mutating -or $coldCheck) -and (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'runtime/factory-identity.json') -PathType Leaf)) {
+            Import-Module (Join-Path $PSScriptRoot 'src/EzDarkFactory/Edf005.psm1') -Force -ErrorAction Stop
+            $controlModule = Get-Module Edf005
+            $controlLock = & $controlModule {
+                param([string]$Root)
+                $null = Get-EzDarkFactoryIdentity -Root $Root
+                Enter-EzDarkFactoryControlLock -Root $Root
+            } $PSScriptRoot
+            if ($coldCheck -or $mutating) {
+                # No legacy CLI mutation/cold PASS may overtake a submitted,
+                # accepted or ambiguously interrupted root-owned operation.
+                # A cold portability PASS is forbidden while a factory-local
+                # detached submission or accepted operation is outstanding.
+                # The shared root lock holds this predicate through the
+                # inherited stopped-storage portability check.
+                & $controlModule {
+                    param([string]$Root)
+                    Assert-EzDarkFactoryNoPendingControl -Root $Root
+                } $PSScriptRoot
+            }
+        }
+        $result = Invoke-EzDarkFactoryCommand -Arguments $args -Root $PSScriptRoot
+        Write-EzDarkFactoryResult -Result $result -Json:$jsonRequested
+        exit $result.exitCode
+    }
+    finally { if ($null -ne $controlLock) { $controlLock.Dispose() } }
 }
 catch {
     # This fallback also covers a broken/missing module. Never mix diagnostics into JSON.

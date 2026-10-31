@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/techrote/ezDarkFactory/docs/schemas/factory-identity.v1.schema.json",
+  "title": "EDF-005 factory identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "factory_id",
+    "api_major",
+    "api_minor",
+    "created_at"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "factory_id": {
+      "type": "string",
+      "pattern": "^fct_[a-f0-9]{32}$"
+    },
+    "api_major": {
+      "const": 1
+    },
+    "api_minor": {
+      "const": 0
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

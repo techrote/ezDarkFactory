@@ -46,7 +46,10 @@ EDF004_SUPERSEDED_DESTINATIONS = frozenset({
     "src/EzDarkFactory/Registry.ps1",
     "tests/Registry.Tests.ps1",
 })
-LATER_SUPERSEDED_DESTINATIONS = EDF003_SUPERSEDED_DESTINATIONS | EDF004_SUPERSEDED_DESTINATIONS
+EDF005_SUPERSEDED_DESTINATIONS = frozenset({"ezdarkfactory.ps1"})
+LATER_SUPERSEDED_DESTINATIONS = (
+    EDF003_SUPERSEDED_DESTINATIONS | EDF004_SUPERSEDED_DESTINATIONS | EDF005_SUPERSEDED_DESTINATIONS
+)
 
 class ActiveImportTests(unittest.TestCase):
     @classmethod
@@ -103,6 +106,13 @@ class ActiveImportTests(unittest.TestCase):
                     matches = [r for r in profile["records"] if r["destination"] == destination]
                     self.assertEqual(len(matches), 1)
                     self.assertEqual(current_blob, matches[0]["destination_blob"])
+                elif destination in EDF005_SUPERSEDED_DESTINATIONS:
+                    addition = p.load_json(p.PROVENANCE / "edf005-control-supersessions.json")
+                    matches = [r for r in addition["records"] if r["destination"] == destination]
+                    self.assertEqual(len(matches), 1)
+                    self.assertEqual(addition["schemaVersion"], 1)
+                    self.assertEqual(matches[0]["edf002_accepted_blob"], historical_blob)
+                    self.assertEqual(matches[0]["edf005_current_blob"], current_blob)
                 elif destination not in LATER_SUPERSEDED_DESTINATIONS:
                     self.assertEqual(current_blob, historical_blob)
                 elif destination in {"src/EzDarkFactory/Keys.ps1", "src/EzDarkFactory/Runtime.ps1"}:

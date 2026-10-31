@@ -198,3 +198,7 @@ Control-plane JSON, factory identity/capability envelopes, manager registry/sess
 Unknown incompatible schemas fail closed or become read-only/incompatible observations rather than being silently rewritten.
 
 Schema migrations retain preimages where persistent data is transformed.
+
+## EDF-005 typed control seam
+
+The candidate non-UI API is documented in [08-CONTROL-API.md](08-CONTROL-API.md), with versioned JSON schemas in `docs/schemas/`. It provides explicit factory and per-instance identities, root-local operation records, static non-executing candidate inspection and portable manager registry/state. The legacy CLI remains available without a manager. This is a substrate for EDF-006, not a TUI.
