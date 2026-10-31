@@ -723,3 +723,25 @@ Add-EzDarkFactoryTest -Name 'EDF-005: cold portability and fork refuse pending s
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: direct portability CLI refuses a pending detached root worker' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'legacy CLI portability'
+    try {
+        $identity = Initialize-EzDarkFactoryIdentity -Root $root
+        $pending = New-Edf005Request -Root $root -Command 'factory.rekey'
+        $requestDir = Join-Path $root 'runtime/control/submissions'
+        [void][IO.Directory]::CreateDirectory($requestDir)
+        $requestPath = Join-Path $requestDir ($pending.operation_id + '.json')
+        [IO.File]::WriteAllText($requestPath, (ConvertTo-Json -InputObject $pending -Depth 16 -Compress), (New-Object Text.UTF8Encoding($false)))
+        $launcher = (Join-Path $root 'ezdarkfactory.ps1').Replace("'", "''")
+        $cmd = "& '" + $launcher + "' portability check -Json"
+        $child = Invoke-EzDarkFactoryTestPowerShell -CommandText $cmd -WorkingDirectory $root
+        Assert-EzDarkFactoryTrue -Condition ($child.ExitCode -ne 0) -Message 'Legacy portability must refuse a pending root worker.'
+        $response = $child.StandardOutput.Trim() | ConvertFrom-Json
+        Assert-EzDarkFactoryTrue -Condition (-not $response.success)
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryIdentity -Root $root).factory_id -Expected $identity.factory_id
+        Assert-EzDarkFactoryTrue -Condition (Test-Path -LiteralPath $requestPath -PathType Leaf)
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
