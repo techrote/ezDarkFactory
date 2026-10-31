@@ -759,3 +759,39 @@ Add-EzDarkFactoryTest -Name 'EDF-005: direct portability CLI refuses a pending d
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: a pending root operation prevents independent mutation and direct CLI overtaking' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'root op exclusion'
+    $workspace = New-EzDarkFactoryTestDirectory -Prefix 'root op workspace'
+    $leases = @()
+    try {
+        Add-Edf005WorkerEntrypoints -Root $root
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'single-owner'
+        $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
+        $entry = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $root -Alias 'single-owner' -AuthorizeLocalExecution
+        $leases = @(Enter-Edf005TestBudgetBlock -Workspace $workspace)
+        $a = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='single-owner'}) -Generation $intent.identityGeneration
+        $submitted = Invoke-EzDarkFactoryManagerControl -Workspace $workspace -EnrollmentId $entry.enrollment_id -Request $a
+        Assert-EzDarkFactoryEqual -Actual $submitted.state -Expected 'dispatched'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $a.operation_id).state -Expected 'submitted'
+        $b = New-Edf005Request -Root $root -Command 'factory.rekey'
+        Assert-EzDarkFactoryThrows -ScriptBlock { Start-EzDarkFactoryDetachedControlOperation -Root $root -Request $b } -MessagePattern 'submitted|pending|reconcil' | Out-Null
+        $launcher = (Join-Path $root 'ezdarkfactory.ps1').Replace("'", "''")
+        $cli = Invoke-EzDarkFactoryTestPowerShell -CommandText ("& '" + $launcher + "' stop single-owner -Json") -WorkingDirectory $root
+        Assert-EzDarkFactoryTrue -Condition ($cli.ExitCode -ne 0)
+        Assert-EzDarkFactoryTrue -Condition ($cli.StandardOutput.Contains('submitted') -or $cli.StandardOutput.Contains('reconcil'))
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $b.operation_id + '.json'))))
+        foreach ($lease in $leases) { $lease.Dispose() }
+        $leases = @()
+        $done = Wait-Edf005RootReceipt -Root $root -OperationId $a.operation_id
+        Assert-EzDarkFactoryEqual -Actual $done.state -Expected 'completed'
+        Wait-Edf005TerminalWorkerCleanup -Root $root -OperationId $a.operation_id
+    }
+    finally {
+        foreach ($lease in $leases) { if ($null -ne $lease) { $lease.Dispose() } }
+        Remove-EzDarkFactoryTestDirectory -Path $root
+        Remove-EzDarkFactoryTestDirectory -Path $workspace
+    }
+}

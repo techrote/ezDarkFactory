@@ -46,7 +46,9 @@ function Assert-EzDarkFactoryNoPendingControl {
     $paths = Get-EzDarkFactoryPaths -Root $Root
     $submissionDir = Assert-EzDarkFactorySafePath -Path (Join-Path $paths.Runtime 'control/submissions') -Description 'Pending control submissions'
     if (Test-Path -LiteralPath $submissionDir -PathType Container) {
-        foreach ($file in @(Get-ChildItem -LiteralPath $submissionDir -File -Filter '*.json' -Force)) {
+        $entries = @(Get-ChildItem -LiteralPath $submissionDir -File -Filter '*.json' -Force)
+        if ($entries.Count -gt 4) { throw 'Detached submission limit exceeded; explicit reconciliation required.' }
+        foreach ($file in $entries) {
             if ($file.BaseName -cne $IgnoreOperationId) {
                 throw 'A submitted root operation has not been reconciled; cold identity/portability is blocked.'
             }
@@ -54,7 +56,9 @@ function Assert-EzDarkFactoryNoPendingControl {
     }
     $operationDir = Assert-EzDarkFactorySafePath -Path (Join-Path $paths.Runtime 'control/operations') -Description 'Pending control receipts'
     if (Test-Path -LiteralPath $operationDir -PathType Container) {
-        foreach ($file in @(Get-ChildItem -LiteralPath $operationDir -File -Filter '*.json' -Force)) {
+        $entries = @(Get-ChildItem -LiteralPath $operationDir -File -Filter '*.json' -Force)
+        if ($entries.Count -gt 4096) { throw 'Root operation history exceeds the bounded registry; archive terminal receipts explicitly before more mutation.' }
+        foreach ($file in $entries) {
             $full = Assert-EzDarkFactorySafePath -Path $file.FullName -Description 'Cold operation receipt'
             if ($file.BaseName -cne $IgnoreOperationId) {
                 $receipt = Read-EzDarkFactoryJson -Path $full -SchemaVersion 1
@@ -463,6 +467,7 @@ function Start-EzDarkFactoryDetachedControlOperation {
         if (Test-Path -LiteralPath $requestPath) {
             throw 'A previous detached request has unresolved launch/receipt status; do not replay it.'
         }
+        Assert-EzDarkFactoryNoPendingControl -Root $rootPath -IgnoreOperationId $Request.operation_id
         $current = Get-EzDarkFactoryControlRevision -Root $rootPath
         if ($Request.expected_revision -cne $current) { throw 'Stale root revision; detached mutation refused before submission.' }
         if ($command -like 'instance.*' -and $command -cnotin @('instance.create','instance.import')) {
@@ -749,6 +754,7 @@ function Invoke-EzDarkFactoryControl {
             elseif (Test-Path -LiteralPath $submissionPath) {
                 throw 'An already-submitted worker owns this operation ID; reconcile, never replay.'
             }
+            Assert-EzDarkFactoryNoPendingControl -Root $Root -IgnoreOperationId $Request.operation_id
             $currentRevision = Get-EzDarkFactoryControlRevision -Root $Root
             if ($Request.expected_revision -cne $currentRevision) { throw 'Stale factory revision. Refresh all observations and reconfirm.' }
             $target = $null

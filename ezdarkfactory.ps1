@@ -32,7 +32,9 @@ try {
                 $null = Get-EzDarkFactoryIdentity -Root $Root
                 Enter-EzDarkFactoryControlLock -Root $Root
             } $PSScriptRoot
-            if ($coldCheck) {
+            if ($coldCheck -or $mutating) {
+                # No legacy CLI mutation/cold PASS may overtake a submitted,
+                # accepted or ambiguously interrupted root-owned operation.
                 # A cold portability PASS is forbidden while a factory-local
                 # detached submission or accepted operation is outstanding.
                 # The shared root lock holds this predicate through the

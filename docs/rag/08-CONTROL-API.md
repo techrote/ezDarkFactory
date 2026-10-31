@@ -91,3 +91,5 @@ The focused source-matched receipts include at least nineteen mandatory cases ac
 The reviewed legacy launcher `ezdarkfactory.ps1 portability check` also holds the typed root lock and refuses pending or ambiguous root operations before calling inherited stopped-storage verification. This retains its independent CLI recovery role without allowing a misleading cold-copy PASS during a detached job.
 
 A detached worker runs with a non-authoritative host temporary working directory to avoid keeping the factory folder locked by its process CWD after terminal result publication. All identity, request, operation, storage, trust and recovery state stays in the factory root. The worker must finish and release its request spool before a cold move.
+
+Within one root, a second independent mutation is refused while any unrelated submission or accepted/ambiguous root operation remains unresolved; concurrent factories are unaffected. The typed boundary and official CLI apply this check under the shared root lock. Terminal receipts are bounded to 4096 entries before explicit archival is required, avoiding unbounded historical scans; no journal is silently deleted.
