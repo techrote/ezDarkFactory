@@ -635,7 +635,9 @@ Add-EzDarkFactoryTest -Name 'EDF-005: detached worker reconciles stale precondit
         Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'refused'
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $req.operation_id + '.json'))))
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root 'runtime/instances/staleworker/control-instance.json')))
-        Assert-EzDarkFactoryThrows -ScriptBlock { Start-EzDarkFactoryDetachedControlOperation -Root $root -Request $req } -MessagePattern 'previously|prior|already' | Out-Null
+        $duplicate = Start-EzDarkFactoryDetachedControlOperation -Root $root -Request $req
+        Assert-EzDarkFactoryEqual -Actual $duplicate.state -Expected 'existing'
+        Assert-EzDarkFactoryEqual -Actual $duplicate.reconciliation.state -Expected 'refused'
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $req.operation_id).state -Expected 'refused'
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }

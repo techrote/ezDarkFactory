@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EDF-005 managed shell attach descriptor; explicit operator launch only",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "factory_id",
+    "instance_id",
+    "instance_generation",
+    "state",
+    "ready",
+    "command",
+    "warning"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "kind": {
+      "const": "managed-ssh-attach"
+    },
+    "factory_id": {
+      "type": "string",
+      "pattern": "^fct_[a-f0-9]{32}$"
+    },
+    "instance_id": {
+      "type": "string",
+      "pattern": "^ins_[a-f0-9]{32}$"
+    },
+    "instance_generation": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{32}$"
+    },
+    "state": {
+      "type": "string"
+    },
+    "ready": {
+      "type": "boolean"
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "executable",
+        "argv"
+      ],
+      "properties": {
+        "executable": {
+          "type": "string"
+        },
+        "argv": {
+          "type": "array",
+          "minItems": 12,
+          "maxItems": 12,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "warning": {
+      "type": "string"
+    }
+  }
+}

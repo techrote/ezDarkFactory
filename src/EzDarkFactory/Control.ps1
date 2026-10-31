@@ -369,7 +369,19 @@ function Get-EzDarkFactoryControlOperationResult {
     $receipt = Get-EzDarkFactoryControlOperation -Root $Root -OperationId $OperationId
     if ($null -ne $receipt) { return $receipt }
     $path = Get-EzDarkFactoryControlDispatchResultPath -Root $Root -OperationId $OperationId
-    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        $submission = Get-EzDarkFactoryControlSubmissionPath -Root $Root -OperationId $OperationId
+        if (-not (Test-Path -LiteralPath $submission -PathType Leaf)) { return $null }
+        $pending = Read-EzDarkFactoryJson -Path $submission -SchemaVersion 1
+        Assert-EzDarkFactoryControlRequest -Request $pending
+        if ($pending.operation_id -cne $OperationId) { throw 'Detached submission identity mismatch.' }
+        return [pscustomobject][ordered]@{
+            schemaVersion = 1; factory_id = [string]$pending.factory_id
+            operation_id = $OperationId; request_sha256 = Get-EzDarkFactoryControlRequestDigest -Request $pending
+            state = 'submitted'; accepted = $false
+            progress = [pscustomobject]@{ stage = 'awaiting-root-receipt'; terminal = $false }
+        }
+    }
     $record = Read-EzDarkFactoryJson -Path $path -SchemaVersion 1
     if ($record.operation_id -cne $OperationId -or $record.state -cne 'refused' -or
         $record.request_sha256 -cnotmatch '^[a-f0-9]{64}$') {
@@ -415,7 +427,8 @@ function Start-EzDarkFactoryDetachedControlOperation {
             }
             # Never spawn a second worker for a completed, failed or ambiguous ID.
             return [pscustomobject][ordered]@{
-                schemaVersion = 1; state = 'existing'; operation_id = $Request.operation_id
+                schemaVersion = 1; api = [pscustomobject]@{ major = 1; minor = 0 }
+                state = 'existing'; operation_id = $Request.operation_id
                 factory_id = $factory.factory_id; accepted = ($existing.state -ceq 'accepted')
                 reconciliation = $existing
             }
@@ -477,7 +490,8 @@ function Start-EzDarkFactoryDetachedControlOperation {
         # 'dispatched' is NOT 'accepted'. Consumers reconcile the root-local
         # operation.get response; they never retry solely because UI closed.
         return [pscustomobject][ordered]@{
-            schemaVersion = 1; state = 'dispatched'; factory_id = $factory.factory_id
+            schemaVersion = 1; api = [pscustomobject]@{ major = 1; minor = 0 }
+            state = 'dispatched'; factory_id = $factory.factory_id
             operation_id = [string]$Request.operation_id; command = $command
             instance_id = [string]$Request.instance_id; instance_generation = [string]$Request.instance_generation
             accepted = $false; reconciliation = 'operation.get'
