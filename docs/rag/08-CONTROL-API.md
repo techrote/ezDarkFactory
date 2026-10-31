@@ -1,6 +1,6 @@
 # EDF-005 factory identity, typed control and portable manager API
 
-Status: EDF-005 candidate; acceptance requires exact-head and post-merge CI. This document defines the public non-UI seam for EDF-006/007.
+Status: EDF-005 reviewed source/typed substrate merged with guarded repair; final acceptance requires literal repaired-main post-merge 13/13 CI. See [source-pinned acceptance custody](../provenance/EDF-005-CONTROL-ACCEPTANCE.md). This document defines the public non-UI seam for EDF-006/007.
 
 ## State and authority
 
@@ -86,7 +86,7 @@ Run the inherited full Windows PowerShell test harness on 5.1 and pinned 7.6.6, 
 
     .\scripts\Invoke-Edf005Qualification.ps1 -ExpectedMajor 5 -OutputDirectory $env:TEMP\edf005-proof
 
-The focused source-matched receipts include at least nineteen mandatory cases across real disposable filesystem roots, child-process parallel independent roots, duplicate-operation races, negative controls, identity collision/rekey, manager registration isolation and stale requests. These are real filesystem/software tests, **not** real QEMU or physical WHPX/TUI proof.
+The focused source-matched receipts include 31 mandatory cases across real disposable filesystem roots, child-process parallel independent roots, duplicate-operation races, negative controls, identity collision/rekey, manager registration isolation and stale requests. These are real filesystem/software tests, **not** real QEMU or physical WHPX/TUI proof.
 
 The reviewed legacy launcher `ezdarkfactory.ps1 portability check` also holds the typed root lock and refuses pending or ambiguous root operations before calling inherited stopped-storage verification. This retains its independent CLI recovery role without allowing a misleading cold-copy PASS during a detached job.
 
