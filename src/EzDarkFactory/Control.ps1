@@ -629,14 +629,16 @@ function Get-EzDarkFactoryManagedShellDescriptor {
     $rootPath = Get-EzDarkFactoryRoot -Path $Root
     $launcher = Assert-EzDarkFactorySafePath -Path (Join-Path $rootPath 'ezdarkfactory-attach.ps1') -Description 'Managed shell launcher'
     if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw 'Managed shell launcher missing from factory root.' }
-    $status = Get-EzDarkFactoryManagedInstanceStatus -Root $rootPath -InstanceName ([string]$Target.name)
+    # A RUNNING QEMU process is not SSH READY authority. Resolve readiness
+    # from the same authenticated launch/access contract as instance.readiness.
+    $readiness = Get-EzDarkFactoryControlReadiness -Root $rootPath -Target $Target
     $shell = if ($PSVersionTable.PSVersion.Major -eq 5) { Join-Path $PSHOME 'powershell.exe' } else { Join-Path $PSHOME 'pwsh.exe' }
     if (-not (Test-Path -LiteralPath $shell -PathType Leaf)) { throw 'Managed shell host PowerShell is unavailable.' }
     $revision = Get-EzDarkFactoryControlRevision -Root $rootPath
     return [pscustomobject][ordered]@{
         schemaVersion = 1; kind = 'managed-ssh-attach'; factory_id = $Target.factory_id
         instance_id = $Target.instance_id; instance_generation = $Target.instance_generation
-        state = [string]$status.state; ready = ($status.state -in @('RUNNING','READY'))
+        state = [string]$readiness.lifecycle; ready = ($readiness.readiness -ceq 'ready')
         command = [pscustomobject][ordered]@{
             executable = $shell
             argv = [string[]]@('-NoLogo','-NoProfile','-File',$launcher,

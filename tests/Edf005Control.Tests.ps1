@@ -649,6 +649,13 @@ Add-EzDarkFactoryTest -Name 'EDF-005: shell descriptor returns exact argv and at
         Assert-EzDarkFactoryEqual -Actual $descriptor.factory_id -Expected $id.factory_id
         Assert-EzDarkFactoryEqual -Actual $descriptor.instance_id -Expected $ref.instance_id
         Assert-EzDarkFactoryTrue -Condition (-not $descriptor.ready)
+        # Shell presentation and typed readiness MUST share authenticated
+        # SSH evidence, never infer READY from a lifecycle label.
+        $readyRequest = New-Edf005Request -Root $root -Command 'instance.readiness' -Arguments ([pscustomobject]@{name='shellref'}) -InstanceId $ref.instance_id -Generation $ref.instance_generation
+        $typedReadiness = Invoke-EzDarkFactoryControl -Root $root -Request $readyRequest
+        Assert-EzDarkFactoryEqual -Actual $typedReadiness.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $descriptor.ready -Expected ($typedReadiness.data.readiness -ceq 'ready')
+        Assert-EzDarkFactoryEqual -Actual $descriptor.state -Expected $typedReadiness.data.lifecycle
         Assert-EzDarkFactoryEqual -Actual $descriptor.command.argv[0] -Expected '-NoLogo'
         Assert-EzDarkFactoryEqual -Actual $descriptor.command.argv[3] -Expected (Join-Path $root 'ezdarkfactory-attach.ps1')
         $argv = @($descriptor.command.argv) + @('-ProbeOnly')
