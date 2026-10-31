@@ -996,3 +996,30 @@ Add-EzDarkFactoryTest -Name 'EDF-005: concurrent terminal journal reader retries
         Remove-EzDarkFactoryTestDirectory -Path $root
     }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: deleted submission transitions through unknown to exact terminal without replay' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'submission TOCTOU'
+    try {
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $request = New-Edf005Request -Root $root -Command 'factory.rekey'
+        $folder = Join-Path $root 'runtime/control/submissions'
+        [void][IO.Directory]::CreateDirectory($folder)
+        $file = Join-Path $folder ($request.operation_id + '.json')
+        [IO.File]::WriteAllText($file, (ConvertTo-Json -InputObject $request -Depth 16 -Compress), (New-Object Text.UTF8Encoding($false)))
+        $pending = Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $request.operation_id
+        Assert-EzDarkFactoryEqual -Actual $pending.state -Expected 'submitted'
+        [IO.File]::Delete($file)
+        $unknown = Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $request.operation_id
+        Assert-EzDarkFactoryTrue -Condition ($null -eq $unknown) -Message 'A missing transient submission must not fabricate a terminal result.'
+        $finished = Invoke-EzDarkFactoryControl -Root $root -Request $request
+        Assert-EzDarkFactoryEqual -Actual $finished.state -Expected 'completed'
+        $record = Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $request.operation_id
+        Assert-EzDarkFactoryEqual -Actual $record.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $record.operation_id -Expected $request.operation_id
+        $reused = Invoke-EzDarkFactoryControl -Root $root -Request $request
+        Assert-EzDarkFactoryEqual -Actual $reused.state -Expected 'refused'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $request.operation_id).state -Expected 'completed'
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
