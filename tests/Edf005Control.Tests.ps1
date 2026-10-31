@@ -390,6 +390,24 @@ Add-EzDarkFactoryTest -Name 'EDF-005: invalid command fields, unsupported minor 
 
 # Process-boundary concurrency fixtures use the exact local module and independent
 # OS processes; they are not simulated QEMU or a mocked operation-success oracle.
+function Add-Edf005WorkerEntrypoints {
+    param([string]$Root)
+    foreach ($file in @('ezdarkfactory-worker.ps1','ezdarkfactory-attach.ps1')) {
+        Copy-Item -LiteralPath (Join-Path $script:EzDarkFactoryRepositoryRoot $file) -Destination $Root -Force
+    }
+}
+
+function Wait-Edf005RootReceipt {
+    param([string]$Root, [string]$OperationId, [int]$TimeoutSeconds = 40)
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $result = Get-EzDarkFactoryControlOperationResult -Root $Root -OperationId $OperationId
+        if ($null -ne $result -and $result.state -in @('completed','refused','accepted')) { return $result }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw 'A root-owned operation did not publish an accepted or terminal receipt within the test deadline.'
+}
+
 function Start-Edf005ControlChild {
     param([string]$Root, [object]$Request, [string]$Workspace = '', [string]$EnrollmentId = '')
     $module = Join-Path $Root 'src/EzDarkFactory/Edf005.psm1'
@@ -437,6 +455,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
     $workspace = New-EzDarkFactoryTestDirectory -Prefix 'concurrent manager'
     $children = @()
     try {
+        Add-Edf005WorkerEntrypoints -Root $a
+        Add-Edf005WorkerEntrypoints -Root $b
         $originalA = Initialize-EzDarkFactoryIdentity -Root $a
         $originalB = Initialize-EzDarkFactoryIdentity -Root $b
         $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
@@ -451,11 +471,19 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
         )
         $first = Receive-Edf005ControlChild -Process $children[0]
         $second = Receive-Edf005ControlChild -Process $children[1]
-        Assert-EzDarkFactoryEqual -Actual $first.state -Expected 'completed'
-        Assert-EzDarkFactoryEqual -Actual $second.state -Expected 'completed'
-        Assert-EzDarkFactoryTrue -Condition ($first.data.factory_id -cne $second.data.factory_id)
-        Assert-EzDarkFactoryTrue -Condition ($first.data.factory_id -cne $originalA.factory_id)
-        Assert-EzDarkFactoryTrue -Condition ($second.data.factory_id -cne $originalB.factory_id)
+        Assert-EzDarkFactoryEqual -Actual $first.state -Expected 'dispatched'
+        Assert-EzDarkFactoryEqual -Actual $second.state -Expected 'dispatched'
+        Assert-EzDarkFactoryTrue -Condition (-not $first.accepted)
+        Assert-EzDarkFactoryTrue -Condition (-not $second.accepted)
+        # Both manager parents have exited; root-local workers must still
+        # publish real final results without any TUI/manager process alive.
+        $receiptA = Wait-Edf005RootReceipt -Root $a -OperationId $op
+        $receiptB = Wait-Edf005RootReceipt -Root $b -OperationId $op
+        Assert-EzDarkFactoryEqual -Actual $receiptA.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $receiptB.state -Expected 'completed'
+        Assert-EzDarkFactoryTrue -Condition ((Get-EzDarkFactoryIdentity -Root $a).factory_id -cne (Get-EzDarkFactoryIdentity -Root $b).factory_id)
+        Assert-EzDarkFactoryTrue -Condition ((Get-EzDarkFactoryIdentity -Root $a).factory_id -cne $originalA.factory_id)
+        Assert-EzDarkFactoryTrue -Condition ((Get-EzDarkFactoryIdentity -Root $b).factory_id -cne $originalB.factory_id)
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperation -Root $a -OperationId $op).factory_id -Expected $originalA.factory_id
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperation -Root $b -OperationId $op).factory_id -Expected $originalB.factory_id
     }
@@ -512,6 +540,103 @@ Add-EzDarkFactoryTest -Name 'EDF-005: diagnosed instance observations use public
         Assert-EzDarkFactoryTrue -Condition ($res.data.reason.Length -le 2048)
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlRevision -Root $root) -Expected $baseline
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $req.operation_id + '.json'))))
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: shell descriptor returns exact argv and attach helper fails closed on stale generation' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'shell descriptor'
+    try {
+        Add-Edf005WorkerEntrypoints -Root $root
+        $id = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'shellref'
+        $adopt = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='shellref'}) -Generation $intent.identityGeneration
+        $ref = (Invoke-EzDarkFactoryControl -Root $root -Request $adopt).data
+        $req = New-Edf005Request -Root $root -Command 'instance.shell_descriptor' -Arguments ([pscustomobject]@{name='shellref'}) -InstanceId $ref.instance_id -Generation $ref.instance_generation
+        $response = Invoke-EzDarkFactoryControl -Root $root -Request $req
+        Assert-EzDarkFactoryEqual -Actual $response.state -Expected 'completed'
+        $descriptor = $response.data
+        Assert-EzDarkFactoryEqual -Actual $descriptor.kind -Expected 'managed-ssh-attach'
+        Assert-EzDarkFactoryEqual -Actual $descriptor.factory_id -Expected $id.factory_id
+        Assert-EzDarkFactoryEqual -Actual $descriptor.instance_id -Expected $ref.instance_id
+        Assert-EzDarkFactoryTrue -Condition (-not $descriptor.ready)
+        Assert-EzDarkFactoryEqual -Actual $descriptor.command.argv[0] -Expected '-NoLogo'
+        Assert-EzDarkFactoryEqual -Actual $descriptor.command.argv[3] -Expected (Join-Path $root 'ezdarkfactory-attach.ps1')
+        $argv = @($descriptor.command.argv) + @('-ProbeOnly')
+        $start = New-Object Diagnostics.ProcessStartInfo
+        $start.FileName = $descriptor.command.executable
+        # Probe validates the actual root-local launcher without QEMU/SSH.
+        $start.Arguments = '-NoLogo -NoProfile -NonInteractive -File "' + $argv[3] + '" -FactoryId "' +
+            $id.factory_id + '" -InstanceId "' + $ref.instance_id + '" -InstanceGeneration "' +
+            $ref.instance_generation + '" -ExpectedRevision "' + $argv[11] + '" -ProbeOnly'
+        $start.WorkingDirectory = $root; $start.UseShellExecute = $false; $start.CreateNoWindow = $true
+        $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
+        $proc = New-Object Diagnostics.Process
+        $proc.StartInfo = $start
+        try {
+            Assert-EzDarkFactoryTrue -Condition $proc.Start()
+            $stdout = $proc.StandardOutput.ReadToEndAsync()
+            $stderr = $proc.StandardError.ReadToEndAsync()
+            Assert-EzDarkFactoryTrue -Condition ($proc.WaitForExit(12000)) -Message 'Managed attach probe timed out.'
+            Assert-EzDarkFactoryEqual -Actual $proc.ExitCode -Expected 0 -Message $stderr.Result
+            $probe = $stdout.Result.Trim() | ConvertFrom-Json
+            Assert-EzDarkFactoryEqual -Actual $probe.instance_id -Expected $ref.instance_id
+            Assert-EzDarkFactoryTrue -Condition (-not $probe.launched)
+        }
+        finally { if (-not $proc.HasExited) { $proc.Kill() }; $proc.Dispose() }
+        $stale = New-Edf005Request -Root $root -Command 'instance.shell_descriptor' -Arguments ([pscustomobject]@{name='shellref'}) -InstanceId $ref.instance_id -Generation ('0' * 32)
+        Assert-EzDarkFactoryEqual -Actual (Invoke-EzDarkFactoryControl -Root $root -Request $stale).state -Expected 'refused'
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: root-owned dispatched adoption survives manager process exit and never auto-replays' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'root owned detached'
+    $workspace = New-EzDarkFactoryTestDirectory -Prefix 'root owned manager'
+    try {
+        Add-Edf005WorkerEntrypoints -Root $root
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'resident'
+        $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
+        $entry = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $root -Alias 'resident' -AuthorizeLocalExecution
+        $request = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='resident'}) -Generation $intent.identityGeneration
+        $parent = Start-Edf005ControlChild -Root $root -Request $request -Workspace $workspace -EnrollmentId $entry.enrollment_id
+        try { $submitted = Receive-Edf005ControlChild -Process $parent }
+        finally { if (-not $parent.HasExited) { $parent.Kill() }; $parent.Dispose() }
+        Assert-EzDarkFactoryEqual -Actual $submitted.state -Expected 'dispatched'
+        $result = Wait-Edf005RootReceipt -Root $root -OperationId $request.operation_id
+        Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'completed'
+        $identity = Get-EzDarkFactoryInstanceRef -Root $root -Name 'resident'
+        Assert-EzDarkFactoryTrue -Condition ($identity.instance_id -cmatch '^ins_[a-f0-9]{32}$')
+        $again = Start-EzDarkFactoryDetachedControlOperation -Root $root -Request $request -ManagerWorkspace $workspace
+        Assert-EzDarkFactoryEqual -Actual $again.state -Expected 'existing'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryInstanceRef -Root $root -Name 'resident').instance_id -Expected $identity.instance_id
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/submissions/' + $request.operation_id + '.json'))))
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root; Remove-EzDarkFactoryTestDirectory -Path $workspace }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: detached worker reconciles stale preconditions without an operation journal or replay' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'detached stale'
+    try {
+        Add-Edf005WorkerEntrypoints -Root $root
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'staleworker'
+        $req = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='staleworker'}) -Generation $intent.identityGeneration
+        $subdir = Join-Path $root 'runtime/control/submissions'
+        [void][IO.Directory]::CreateDirectory($subdir)
+        $requestPath = Join-Path $subdir ($req.operation_id + '.json')
+        [IO.File]::WriteAllText($requestPath, (ConvertTo-Json -InputObject $req -Depth 16 -Compress), (New-Object Text.UTF8Encoding($false)))
+        $intent.identityGeneration = [guid]::NewGuid().ToString('N')
+        [IO.File]::WriteAllText((Join-Path $root 'runtime/instances/staleworker/instance.json'), (ConvertTo-Json -InputObject $intent -Depth 16 -Compress), (New-Object Text.UTF8Encoding($false)))
+        Invoke-EzDarkFactoryDetachedControlWorker -Root $root -OperationId $req.operation_id
+        $result = Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $req.operation_id
+        Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'refused'
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $req.operation_id + '.json'))))
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root 'runtime/instances/staleworker/control-instance.json')))
+        Assert-EzDarkFactoryThrows -ScriptBlock { Start-EzDarkFactoryDetachedControlOperation -Root $root -Request $req } -MessagePattern 'previously|prior|already' | Out-Null
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $req.operation_id).state -Expected 'refused'
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }

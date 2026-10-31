@@ -500,7 +500,7 @@ function Invoke-EzDarkFactoryDetachedControlWorker {
             # remains held even when the TUI or manager process has exited.
             $budget = Enter-EzDarkFactoryManagerBudgetSlot -Workspace $ManagerWorkspace -Limit $MaxConcurrentRoots -TimeoutSeconds 600
         }
-        $result = Invoke-EzDarkFactoryControl -Root $Root -Request $request
+        $result = Invoke-EzDarkFactoryControl -Root $Root -Request $request -DetachedWorker
     }
     catch {
         $result = New-EzDarkFactoryControlResponse -Request $request -FactoryId ([string]$request.factory_id) -State 'refused' -Code 'worker_failed' -Message $_.Exception.Message
@@ -579,7 +579,8 @@ function Get-EzDarkFactoryControlDiagnosis {
 
 function Invoke-EzDarkFactoryControl {
     [CmdletBinding()]
-    param([string]$Root = $script:EzDarkFactoryDefaultRoot, [Parameter(Mandatory)][object]$Request)
+    param([string]$Root = $script:EzDarkFactoryDefaultRoot, [Parameter(Mandatory)][object]$Request,
+        [switch]$DetachedWorker)
     $factoryId = ''
     try {
         Assert-EzDarkFactoryControlRequest -Request $Request
@@ -647,6 +648,27 @@ function Invoke-EzDarkFactoryControl {
                     throw 'Operation ID was previously used with a different target or factory.'
                 }
                 return (New-EzDarkFactoryControlResponse -Request $Request -FactoryId $factoryId -State ([string]$old.state) -Data $old.result -Code ([string]$old.refusal_code) -Message ([string]$old.refusal_message))
+            }
+            # Distinguish an OS-child submission from a direct synchronous
+            # request. Only a worker reading the exact root-owned submitted
+            # envelope can transition that mutation to durable acceptance.
+            $dispatchPath = Get-EzDarkFactoryControlDispatchResultPath -Root $Root -OperationId $Request.operation_id
+            if (Test-Path -LiteralPath $dispatchPath -PathType Leaf) {
+                throw 'This detached operation already has a terminal precondition result; never replay its ID.'
+            }
+            $submissionPath = Get-EzDarkFactoryControlSubmissionPath -Root $Root -OperationId $Request.operation_id
+            if ($DetachedWorker) {
+                if (-not (Test-Path -LiteralPath $submissionPath -PathType Leaf)) {
+                    throw 'Detached execution requires a matching root-local submission envelope.'
+                }
+                $submitted = Read-EzDarkFactoryJson -Path $submissionPath -SchemaVersion 1
+                if ((Get-EzDarkFactoryControlRequestDigest -Request $submitted) -cne $digest -or
+                    $submitted.operation_id -cne $Request.operation_id) {
+                    throw 'Detached submission was modified after launch; fail closed.'
+                }
+            }
+            elseif (Test-Path -LiteralPath $submissionPath) {
+                throw 'An already-submitted worker owns this operation ID; reconcile, never replay.'
             }
             $currentRevision = Get-EzDarkFactoryControlRevision -Root $Root
             if ($Request.expected_revision -cne $currentRevision) { throw 'Stale factory revision. Refresh all observations and reconfirm.' }
