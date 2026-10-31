@@ -166,9 +166,10 @@ function Get-EzDarkFactoryManagerObservations {
 }
 
 function Enter-EzDarkFactoryManagerBudgetSlot {
-    param([string]$Workspace, [ValidateRange(1,8)][int]$Limit = 2)
+    param([string]$Workspace, [ValidateRange(1,8)][int]$Limit = 2,
+        [ValidateRange(1,1800)][int]$TimeoutSeconds = 5)
     $root = Assert-EzDarkFactorySafePath -Path $Workspace -Description 'Manager workspace'
-    $deadline = [DateTime]::UtcNow.AddSeconds(5)
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
     while ([DateTime]::UtcNow -lt $deadline) {
         for ($i = 0; $i -lt $Limit; $i++) {
             $file = Join-Path $root ('operation-slot-' + $i + '.lock')
@@ -199,22 +200,20 @@ function Invoke-EzDarkFactoryManagerControl {
     if (-not $entry.execution_authorized) { throw 'Root execution was not explicitly authorized.' }
     # This in-process adapter uses the accepted manager module, never candidate
     # code. Future adapters may start the enrolled root script only after enrollment.
-    $budget = Enter-EzDarkFactoryManagerBudgetSlot -Workspace $Workspace -Limit $MaxConcurrentRoots
-    try {
-        # Recheck the *entire* reachable fleet after waiting for the host
-        # budget, not just this root: a second copy can become reachable while
-        # the request waits and would otherwise evade collision refusal.
-        $fleet = @(Get-EzDarkFactoryManagerObservations -Workspace $Workspace)
-        $freshRows = @($fleet | Where-Object { $_.enrollment_id -ceq $EnrollmentId })
-        if ($freshRows.Count -ne 1 -or $freshRows[0].state -cne 'current' -or
-            $freshRows[0].observed_factory_id -cne $entry.last_factory_id) {
-            throw 'Fleet identity, enrollment or collision state changed while waiting for the host budget; refresh.'
-        }
-        $fresh = Get-EzDarkFactoryCandidate -Root $entry.canonical_path
-        if ($fresh.state -cne 'current' -or $fresh.factory_id -cne $entry.last_factory_id) {
-            throw 'Factory changed while acquiring manager operation slot; refresh.'
-        }
-        return (Invoke-EzDarkFactoryControl -Root $entry.canonical_path -Request $Request)
+    # All mutations are handed to a factory-root child process. The manager
+    # neither owns the operation's lifespan nor treats a process launch as a
+    # committed operation. The child holds host budget for actual execution.
+    $fleet = @(Get-EzDarkFactoryManagerObservations -Workspace $Workspace)
+    $freshRows = @($fleet | Where-Object { $_.enrollment_id -ceq $EnrollmentId })
+    if ($freshRows.Count -ne 1 -or $freshRows[0].state -cne 'current' -or
+        $freshRows[0].observed_factory_id -cne $entry.last_factory_id) {
+        throw 'Fleet identity/collision state changed before dispatch; refresh.'
     }
-    finally { $budget.Dispose() }
+    $root = $entry.canonical_path
+    if ($Request.command -in @('factory.info','factory.doctor','factory.portability',
+        'instance.list','instance.get','instance.resources','instance.readiness',
+        'instance.logs','instance.diagnose','instance.shell_descriptor','operation.get')) {
+        return (Invoke-EzDarkFactoryControl -Root $root -Request $Request)
+    }
+    return (Start-EzDarkFactoryDetachedControlOperation -Root $root -Request $Request -ManagerWorkspace $Workspace -MaxConcurrentRoots $MaxConcurrentRoots)
 }

@@ -345,6 +345,216 @@ function Assert-EzDarkFactoryControlRequest {
     }
 }
 
+
+# The dispatch spool lives under the authoritative root. It is deliberately
+# separate from operation receipts: a launched child is not yet an accepted VM
+# mutation until Invoke-EzDarkFactoryControl publishes its accepted record.
+function Get-EzDarkFactoryControlSubmissionPath {
+    param([string]$Root, [string]$OperationId)
+    if ($OperationId -cnotmatch '^[a-f0-9]{32}$') { throw 'Invalid detached operation identifier.' }
+    $paths = Get-EzDarkFactoryPaths -Root $Root
+    return (Assert-EzDarkFactorySafePath -Path (Join-Path $paths.Runtime ('control/submissions/' + $OperationId + '.json')) -Description 'Detached control submission')
+}
+
+function Get-EzDarkFactoryControlDispatchResultPath {
+    param([string]$Root, [string]$OperationId)
+    if ($OperationId -cnotmatch '^[a-f0-9]{32}$') { throw 'Invalid detached operation identifier.' }
+    $paths = Get-EzDarkFactoryPaths -Root $Root
+    return (Assert-EzDarkFactorySafePath -Path (Join-Path $paths.Runtime ('control/dispatch-results/' + $OperationId + '.json')) -Description 'Detached precondition result')
+}
+
+function Get-EzDarkFactoryControlOperationResult {
+    [CmdletBinding()]
+    param([string]$Root = $script:EzDarkFactoryDefaultRoot, [Parameter(Mandatory)][string]$OperationId)
+    $receipt = Get-EzDarkFactoryControlOperation -Root $Root -OperationId $OperationId
+    if ($null -ne $receipt) { return $receipt }
+    $path = Get-EzDarkFactoryControlDispatchResultPath -Root $Root -OperationId $OperationId
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { return $null }
+    $record = Read-EzDarkFactoryJson -Path $path -SchemaVersion 1
+    if ($record.operation_id -cne $OperationId -or $record.state -cne 'refused' -or
+        $record.request_sha256 -cnotmatch '^[a-f0-9]{64}$') {
+        throw 'Malformed detached precondition result; explicit reconciliation required.'
+    }
+    return $record
+}
+
+function Start-EzDarkFactoryDetachedControlOperation {
+    [CmdletBinding()]
+    param([string]$Root = $script:EzDarkFactoryDefaultRoot,
+        [Parameter(Mandatory)][object]$Request,
+        [string]$ManagerWorkspace = '',
+        [ValidateRange(1,8)][int]$MaxConcurrentRoots = 2)
+    Assert-EzDarkFactoryControlRequest -Request $Request
+    $rootPath = Get-EzDarkFactoryRoot -Path $Root
+    $workerPath = Assert-EzDarkFactorySafePath -Path (Join-Path $rootPath 'ezdarkfactory-worker.ps1') -Description 'Detached root worker'
+    if (-not (Test-Path -LiteralPath $workerPath -PathType Leaf)) {
+        throw 'Detached worker script is missing from this factory; no operation was submitted.'
+    }
+    if ($ManagerWorkspace) {
+        $null = Get-EzDarkFactoryManagerRegistry -Workspace $ManagerWorkspace
+    }
+    $command = [string]$Request.command
+    if ($command -in @('factory.info','factory.doctor','factory.portability','instance.list','instance.get',
+        'instance.resources','instance.readiness','instance.logs','instance.diagnose','instance.shell_descriptor','operation.get')) {
+        throw 'The detached worker accepts mutations only. Observations stay read-only and unjournaled.'
+    }
+    $lock = Enter-EzDarkFactoryControlLock -Root $rootPath
+    try {
+        $factory = Get-EzDarkFactoryIdentity -Root $rootPath
+        if ($factory.factory_id -cne $Request.factory_id) { throw 'Stale factory ID; detached mutation refused before submission.' }
+        $caps = Get-EzDarkFactoryControlCapabilities -Root $rootPath
+        if ($caps.capabilities -cnotcontains $command -or
+            @($Request.capabilities | Where-Object { $caps.capabilities -cnotcontains $_ }).Count -ne 0) {
+            throw 'Unadvertised capability; detached mutation refused.'
+        }
+        $digest = Get-EzDarkFactoryControlRequestDigest -Request $Request
+        $existing = Get-EzDarkFactoryControlOperationResult -Root $rootPath -OperationId $Request.operation_id
+        if ($null -ne $existing) {
+            if ($existing.request_sha256 -cne $digest -or $existing.factory_id -cne $factory.factory_id) {
+                throw 'Operation ID previously belongs to a different request/factory.'
+            }
+            # Never spawn a second worker for a completed, failed or ambiguous ID.
+            return [pscustomobject][ordered]@{
+                schemaVersion = 1; state = 'existing'; operation_id = $Request.operation_id
+                factory_id = $factory.factory_id; accepted = ($existing.state -ceq 'accepted')
+                reconciliation = $existing
+            }
+        }
+        $requestPath = Get-EzDarkFactoryControlSubmissionPath -Root $rootPath -OperationId $Request.operation_id
+        if (Test-Path -LiteralPath $requestPath) {
+            throw 'A previous detached request has unresolved launch/receipt status; do not replay it.'
+        }
+        $current = Get-EzDarkFactoryControlRevision -Root $rootPath
+        if ($Request.expected_revision -cne $current) { throw 'Stale root revision; detached mutation refused before submission.' }
+        if ($command -like 'instance.*' -and $command -cnotin @('instance.create','instance.import')) {
+            $null = Resolve-EzDarkFactoryControlTarget -Root $rootPath -Request $Request -AllowAdoption:($command -ceq 'instance.adopt')
+        }
+        if ($command -ceq 'factory.rekey') { Assert-EzDarkFactoryColdFactory -Root $rootPath }
+        $payload = ConvertTo-Json -InputObject $Request -Depth 32 -Compress
+        if ([Text.Encoding]::UTF8.GetByteCount($payload) -gt 65536) { throw 'Detached request exceeds the 64-KiB bound.' }
+        Assert-EzDarkFactoryCredentialFreeText -Text $payload -Description 'Detached root request'
+        $requestDirectory = [IO.Path]::GetDirectoryName($requestPath)
+        [void][IO.Directory]::CreateDirectory($requestDirectory)
+        # Bounded per-root submission queue; active operations belong to the
+        # child process, not the manager UI or hidden machine-local state.
+        $outstanding = @(Get-ChildItem -LiteralPath $requestDirectory -File -Filter '*.json' -Force)
+        if ($outstanding.Count -ge 4) { throw 'This factory has four unresolved submitted operations; reconcile before submitting more.' }
+        Write-EzDarkFactoryJson -Path $requestPath -Value $Request -SchemaVersion 1
+
+        $child = $null
+        $started = $false
+        try {
+            $powerShell = if ($PSVersionTable.PSVersion.Major -eq 5) { Join-Path $PSHOME 'powershell.exe' } else { Join-Path $PSHOME 'pwsh.exe' }
+            if (-not (Test-Path -LiteralPath $powerShell -PathType Leaf)) { throw 'PowerShell child executable is missing.' }
+            $escapedWorker = $workerPath.Replace("'", "''")
+            $cmd = "& '" + $escapedWorker + "' -OperationId '" + [string]$Request.operation_id + "'"
+            if ($ManagerWorkspace) {
+                $escapedWorkspace = (Assert-EzDarkFactorySafePath -Path $ManagerWorkspace -Description 'Manager workspace').Replace("'", "''")
+                $cmd += " -ManagerWorkspace '" + $escapedWorkspace + "' -MaxConcurrentRoots " + $MaxConcurrentRoots
+            }
+            $start = New-Object Diagnostics.ProcessStartInfo
+            $start.FileName = $powerShell
+            $start.WorkingDirectory = $rootPath
+            $start.UseShellExecute = $false
+            $start.CreateNoWindow = $true
+            $start.RedirectStandardOutput = $true
+            $start.RedirectStandardError = $true
+            $start.Arguments = '-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -EncodedCommand ' +
+                [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd))
+            $child = New-Object Diagnostics.Process
+            $child.StartInfo = $start
+            $started = $child.Start()
+            if (-not $started) { throw 'Operating system refused to start the detached control worker.' }
+        }
+        catch {
+            if (-not $started -and (Test-Path -LiteralPath $requestPath -PathType Leaf)) {
+                # No child was created. Do not retain a falsely accepted request.
+                Remove-Item -LiteralPath $requestPath -Force -ErrorAction Stop
+            }
+            throw
+        }
+        finally { if ($null -ne $child) { $child.Dispose() } }
+        # 'dispatched' is NOT 'accepted'. Consumers reconcile the root-local
+        # operation.get response; they never retry solely because UI closed.
+        return [pscustomobject][ordered]@{
+            schemaVersion = 1; state = 'dispatched'; factory_id = $factory.factory_id
+            operation_id = [string]$Request.operation_id; command = $command
+            instance_id = [string]$Request.instance_id; instance_generation = [string]$Request.instance_generation
+            accepted = $false; reconciliation = 'operation.get'
+        }
+    }
+    finally { $lock.Dispose() }
+}
+
+function Invoke-EzDarkFactoryDetachedControlWorker {
+    param([string]$Root, [string]$OperationId, [string]$ManagerWorkspace = '',
+        [ValidateRange(1,8)][int]$MaxConcurrentRoots = 2)
+    $submission = Get-EzDarkFactoryControlSubmissionPath -Root $Root -OperationId $OperationId
+    $request = Read-EzDarkFactoryJson -Path $submission -SchemaVersion 1
+    if ($request.operation_id -cne $OperationId) { throw 'Detached request filename and operation identity differ.' }
+    $budget = $null
+    $result = $null
+    try {
+        if ($ManagerWorkspace) {
+            # Own the host-budget lock for the *entire* underlying mutation. It
+            # remains held even when the TUI or manager process has exited.
+            $budget = Enter-EzDarkFactoryManagerBudgetSlot -Workspace $ManagerWorkspace -Limit $MaxConcurrentRoots -TimeoutSeconds 600
+        }
+        $result = Invoke-EzDarkFactoryControl -Root $Root -Request $request
+    }
+    catch {
+        $result = New-EzDarkFactoryControlResponse -Request $request -FactoryId ([string]$request.factory_id) -State 'refused' -Code 'worker_failed' -Message $_.Exception.Message
+    }
+    finally { if ($null -ne $budget) { $budget.Dispose() } }
+    $receipt = Get-EzDarkFactoryControlOperation -Root $Root -OperationId $OperationId
+    if ($null -eq $receipt) {
+        # A stale/invalidated confirmation has no mutation journal. Publish a
+        # separate bounded refusal so manager restart can reconcile its result.
+        $dispatchPath = Get-EzDarkFactoryControlDispatchResultPath -Root $Root -OperationId $OperationId
+        $parent = [IO.Path]::GetDirectoryName($dispatchPath)
+        [void][IO.Directory]::CreateDirectory($parent)
+        $record = [pscustomobject][ordered]@{
+            schemaVersion = 1; operation_id = $OperationId
+            request_sha256 = Get-EzDarkFactoryControlRequestDigest -Request $request
+            factory_id = [string]$request.factory_id
+            state = 'refused'; refusal = $result.refusal
+            finished_at = [DateTime]::UtcNow.ToString('o')
+        }
+        Write-EzDarkFactoryJson -Path $dispatchPath -Value $record -SchemaVersion 1
+    }
+    if ($result.state -in @('completed','refused')) {
+        # If the worker dies before cleanup, the request file is retained for
+        # explicit reconciliation but must never authorize automatic replay.
+        $null = Assert-EzDarkFactorySafePath -Path $submission -Description 'Terminal request cleanup'
+        Remove-Item -LiteralPath $submission -Force -ErrorAction Stop
+    }
+}
+
+function Get-EzDarkFactoryManagedShellDescriptor {
+    param([string]$Root, [object]$Target)
+    $rootPath = Get-EzDarkFactoryRoot -Path $Root
+    $launcher = Assert-EzDarkFactorySafePath -Path (Join-Path $rootPath 'ezdarkfactory-attach.ps1') -Description 'Managed shell launcher'
+    if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) { throw 'Managed shell launcher missing from factory root.' }
+    $status = Get-EzDarkFactoryManagedInstanceStatus -Root $rootPath -InstanceName ([string]$Target.name)
+    $shell = if ($PSVersionTable.PSVersion.Major -eq 5) { Join-Path $PSHOME 'powershell.exe' } else { Join-Path $PSHOME 'pwsh.exe' }
+    if (-not (Test-Path -LiteralPath $shell -PathType Leaf)) { throw 'Managed shell host PowerShell is unavailable.' }
+    $revision = Get-EzDarkFactoryControlRevision -Root $rootPath
+    return [pscustomobject][ordered]@{
+        schemaVersion = 1; kind = 'managed-ssh-attach'; factory_id = $Target.factory_id
+        instance_id = $Target.instance_id; instance_generation = $Target.instance_generation
+        state = [string]$status.state; ready = ($status.state -in @('RUNNING','READY'))
+        command = [pscustomobject][ordered]@{
+            executable = $shell
+            argv = [string[]]@('-NoLogo','-NoProfile','-File',$launcher,
+                '-FactoryId',[string]$Target.factory_id,
+                '-InstanceId',[string]$Target.instance_id,
+                '-InstanceGeneration',[string]$Target.instance_generation,
+                '-ExpectedRevision',$revision)
+        }
+        warning = 'Explicit attach only; the launcher rechecks factory/revision/generation and managed SSH trust before opening a guest session.'
+    }
+}
+
 function Get-EzDarkFactoryControlDiagnosis {
     [CmdletBinding()]
     param([string]$Root = $script:EzDarkFactoryDefaultRoot,
@@ -397,7 +607,7 @@ function Invoke-EzDarkFactoryControl {
                     }
                     $data = [pscustomobject]@{ count = $items.Count; instances = $items; revision = $caps.revision }
                 }
-                'operation.get' { $data = Get-EzDarkFactoryControlOperation -Root $Root -OperationId ([string]$Request.arguments.operation_id) }
+                'operation.get' { $data = Get-EzDarkFactoryControlOperationResult -Root $Root -OperationId ([string]$Request.arguments.operation_id) }
                 default {
                     $target = Resolve-EzDarkFactoryControlTarget -Root $Root -Request $Request
                     switch ($command) {
@@ -405,11 +615,7 @@ function Invoke-EzDarkFactoryControl {
                         'instance.resources' { $data = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name }
                         'instance.readiness' { $data = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name }
                         'instance.diagnose' { $data = Get-EzDarkFactoryControlDiagnosis -Root $Root -Target $target }
-                        'instance.shell_descriptor' {
-                            $status = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name
-                            $data = [pscustomobject]@{ kind = 'managed-ssh'; target = $target; state = $status.state
-                                invocation = [pscustomobject]@{ command = 'ssh'; instance_id = $target.instance_id; instance_generation = $target.instance_generation } }
-                        }
+                        'instance.shell_descriptor' { $data = Get-EzDarkFactoryManagedShellDescriptor -Root $Root -Target $target }
                         'instance.logs' {
                             $kind = [string]$Request.arguments.kind
                             if ($kind -cnotin @('serial','qemu')) { throw 'Log kind must be serial or qemu.' }
