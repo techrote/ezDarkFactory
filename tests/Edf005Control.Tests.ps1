@@ -424,6 +424,17 @@ function Enter-Edf005TestBudgetBlock {
     }
 }
 
+function Wait-Edf005TerminalWorkerCleanup {
+    param([string]$Root, [string]$OperationId, [int]$TimeoutSeconds = 15)
+    $path = Join-Path $Root ('runtime/control/submissions/' + $OperationId + '.json')
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        if (-not (Test-Path -LiteralPath $path)) { return }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw 'A terminal detached worker did not release its transient request spool.'
+}
+
 function Start-Edf005ControlChild {
     param([string]$Root, [object]$Request, [string]$Workspace = '', [string]$EnrollmentId = '')
     $module = Join-Path $Root 'src/EzDarkFactory/Edf005.psm1'
@@ -508,6 +519,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
         $receiptB = Wait-Edf005RootReceipt -Root $b -OperationId $op
         Assert-EzDarkFactoryEqual -Actual $receiptA.state -Expected 'completed'
         Assert-EzDarkFactoryEqual -Actual $receiptB.state -Expected 'completed'
+        Wait-Edf005TerminalWorkerCleanup -Root $a -OperationId $op
+        Wait-Edf005TerminalWorkerCleanup -Root $b -OperationId $op
         Assert-EzDarkFactoryTrue -Condition ((Get-EzDarkFactoryIdentity -Root $a).factory_id -cne (Get-EzDarkFactoryIdentity -Root $b).factory_id)
         Assert-EzDarkFactoryTrue -Condition ((Get-EzDarkFactoryIdentity -Root $a).factory_id -cne $originalA.factory_id)
         Assert-EzDarkFactoryTrue -Condition ((Get-EzDarkFactoryIdentity -Root $b).factory_id -cne $originalB.factory_id)
@@ -640,6 +653,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: root-owned dispatched adoption survives ma
         $leases = @()
         $result = Wait-Edf005RootReceipt -Root $root -OperationId $request.operation_id
         Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'completed'
+        Wait-Edf005TerminalWorkerCleanup -Root $root -OperationId $request.operation_id
         $identity = Get-EzDarkFactoryInstanceRef -Root $root -Name 'resident'
         Assert-EzDarkFactoryTrue -Condition ($identity.instance_id -cmatch '^ins_[a-f0-9]{32}$')
         $again = Start-EzDarkFactoryDetachedControlOperation -Root $root -Request $request -ManagerWorkspace $workspace

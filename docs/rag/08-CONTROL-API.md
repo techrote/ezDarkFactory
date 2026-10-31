@@ -89,3 +89,5 @@ Run the inherited full Windows PowerShell test harness on 5.1 and pinned 7.6.6, 
 The focused source-matched receipts include at least nineteen mandatory cases across real disposable filesystem roots, child-process parallel independent roots, duplicate-operation races, negative controls, identity collision/rekey, manager registration isolation and stale requests. These are real filesystem/software tests, **not** real QEMU or physical WHPX/TUI proof.
 
 The reviewed legacy launcher `ezdarkfactory.ps1 portability check` also holds the typed root lock and refuses pending or ambiguous root operations before calling inherited stopped-storage verification. This retains its independent CLI recovery role without allowing a misleading cold-copy PASS during a detached job.
+
+A detached worker runs with a non-authoritative host temporary working directory to avoid keeping the factory folder locked by its process CWD after terminal result publication. All identity, request, operation, storage, trust and recovery state stays in the factory root. The worker must finish and release its request spool before a cold move.

@@ -506,7 +506,10 @@ function Start-EzDarkFactoryDetachedControlOperation {
             }
             $start = New-Object Diagnostics.ProcessStartInfo
             $start.FileName = $powerShell
-            $start.WorkingDirectory = $rootPath
+            # A detached worker must not pin the factory folder as its
+            # process CWD after its durable result is already finalized.
+            # No authority or state is stored in this host working directory.
+            $start.WorkingDirectory = [IO.Path]::GetTempPath()
             $start.UseShellExecute = $false
             $start.CreateNoWindow = $true
             $start.RedirectStandardOutput = $true
