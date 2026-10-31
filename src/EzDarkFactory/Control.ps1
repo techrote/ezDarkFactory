@@ -577,6 +577,22 @@ function Invoke-EzDarkFactoryDetachedControlWorker {
             # Own the host-budget lock for the *entire* underlying mutation. It
             # remains held even when the TUI or manager process has exited.
             $budget = Enter-EzDarkFactoryManagerBudgetSlot -Workspace $ManagerWorkspace -Limit $MaxConcurrentRoots -TimeoutSeconds 600
+            # A newly reachable copied root can collide while this worker
+            # waits for host budget. Re-check the *whole* enrolled fleet
+            # immediately before a root-owned operation can be accepted.
+            $fleet = @(Get-EzDarkFactoryManagerObservations -Workspace $ManagerWorkspace)
+            $canonical = Get-EzDarkFactoryRoot -Path $Root
+            $pathComparison = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+                [StringComparison]::OrdinalIgnoreCase
+            } else { [StringComparison]::Ordinal }
+            $matches = @($fleet | Where-Object {
+                [string]::Equals([string]$_.canonical_path, $canonical, $pathComparison)
+            })
+            if ($matches.Count -ne 1 -or $matches[0].state -cne 'current' -or
+                $matches[0].factory_id -cne $request.factory_id -or
+                $matches[0].observed_factory_id -cne $request.factory_id) {
+                throw 'Enrolled factory identity or fleet collision changed before detached execution; reconcile, never replay.'
+            }
         }
         $result = Invoke-EzDarkFactoryControl -Root $Root -Request $request -DetachedWorker
     }
@@ -701,7 +717,16 @@ function Invoke-EzDarkFactoryControl {
             switch ($command) {
                 'factory.info' { $data = $caps }
                 'factory.doctor' { $data = Get-EzDarkFactoryDoctorReport -Root $Root }
-                'factory.portability' { Assert-EzDarkFactoryNoPendingControl -Root $Root; $data = Test-EzDarkFactoryPortableBundle -Root $Root }
+                'factory.portability' {
+                    # A cold-copy PASS must be atomic with the same root
+                    # mutation lock, not merely a preflight snapshot.
+                    $coldLock = Enter-EzDarkFactoryControlLock -Root $Root
+                    try {
+                        Assert-EzDarkFactoryNoPendingControl -Root $Root
+                        $data = Test-EzDarkFactoryPortableBundle -Root $Root
+                    }
+                    finally { $coldLock.Dispose() }
+                }
                 'instance.list' {
                     $items = @()
                     foreach ($entry in @(Get-EzDarkFactoryManagedInstanceList -Root $Root)) {

@@ -830,3 +830,46 @@ Add-EzDarkFactoryTest -Name 'EDF-005: detached host transfers reject relative pa
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: collision introduced while waiting for host budget refuses before detached mutation' -ScriptBlock {
+    $a = New-EzDarkFactoryCheckoutFixture -Prefix 'delayed-collision-A'
+    $b = New-EzDarkFactoryCheckoutFixture -Prefix 'delayed-collision-B'
+    $workspace = New-EzDarkFactoryTestDirectory -Prefix 'delayed-collision-ws'
+    $leases = @()
+    try {
+        Add-Edf005WorkerEntrypoints -Root $a
+        $originalA = Initialize-EzDarkFactoryIdentity -Root $a
+        $null = Initialize-EzDarkFactoryIdentity -Root $b
+        $intent = New-Edf005SyntheticIntent -Root $a -Name 'colliding'
+        $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
+        $registeredA = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $a -Alias 'A' -AuthorizeLocalExecution
+        $null = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $b -Alias 'B' -AuthorizeLocalExecution
+        $leases = @(Enter-Edf005TestBudgetBlock -Workspace $workspace)
+        $request = New-Edf005Request -Root $a -Command 'instance.adopt' -Arguments ([pscustomobject]@{ name = 'colliding' }) -Generation $intent.identityGeneration
+        $dispatched = Invoke-EzDarkFactoryManagerControl -Workspace $workspace -EnrollmentId $registeredA.enrollment_id -Request $request
+        Assert-EzDarkFactoryEqual -Actual $dispatched.state -Expected 'dispatched'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $a -OperationId $request.operation_id).state -Expected 'submitted'
+        [IO.File]::Copy((Join-Path $a 'runtime/factory-identity.json'), (Join-Path $b 'runtime/factory-identity.json'), $true)
+        $obs = @(Get-EzDarkFactoryManagerObservations -Workspace $workspace)
+        Assert-EzDarkFactoryEqual -Actual (@($obs | Where-Object { $_.state -ceq 'conflict' }).Count) -Expected 2
+        foreach ($lease in $leases) { $lease.Dispose() }
+        $leases = @()
+        $refusal = Wait-Edf005RootReceipt -Root $a -OperationId $request.operation_id
+        Assert-EzDarkFactoryEqual -Actual $refusal.state -Expected 'refused'
+        Wait-Edf005TerminalWorkerCleanup -Root $a -OperationId $request.operation_id
+        Wait-Edf005DetachedWorkerExit -WorkerProcessId ([int]$dispatched.worker_pid)
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $a 'runtime/instances/colliding/control-instance.json')))
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $a ('runtime/control/operations/' + $request.operation_id + '.json'))))
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryIdentity -Root $a).factory_id -Expected $originalA.factory_id
+        $again = Start-EzDarkFactoryDetachedControlOperation -Root $a -Request $request
+        Assert-EzDarkFactoryEqual -Actual $again.state -Expected 'existing'
+        Assert-EzDarkFactoryEqual -Actual $again.reconciliation.state -Expected 'refused'
+    }
+    finally {
+        foreach ($lease in $leases) { if ($null -ne $lease) { $lease.Dispose() } }
+        Remove-EzDarkFactoryTestDirectory -Path $a
+        Remove-EzDarkFactoryTestDirectory -Path $b
+        Remove-EzDarkFactoryTestDirectory -Path $workspace
+    }
+}
