@@ -679,3 +679,23 @@ Add-EzDarkFactoryTest -Name 'EDF-005: detached worker reconciles stale precondit
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: readiness is typed and never infers READY from a created or running label' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'readiness'
+    try {
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'readiness'
+        $adopt = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='readiness'}) -Generation $intent.identityGeneration
+        $ref = (Invoke-EzDarkFactoryControl -Root $root -Request $adopt).data
+        $revision = Get-EzDarkFactoryControlRevision -Root $root
+        $req = New-Edf005Request -Root $root -Command 'instance.readiness' -Arguments ([pscustomobject]@{name='readiness'}) -InstanceId $ref.instance_id -Generation $ref.instance_generation
+        $r = Invoke-EzDarkFactoryControl -Root $root -Request $req
+        Assert-EzDarkFactoryEqual -Actual $r.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $r.data.readiness -Expected 'not-ready'
+        Assert-EzDarkFactoryEqual -Actual $r.data.lifecycle -Expected 'CREATED'
+        Assert-EzDarkFactoryEqual -Actual $r.data.target.instance_id -Expected $ref.instance_id
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlRevision -Root $root) -Expected $revision
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}

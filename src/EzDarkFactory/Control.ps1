@@ -448,11 +448,24 @@ function Start-EzDarkFactoryDetachedControlOperation {
         Assert-EzDarkFactoryCredentialFreeText -Text $payload -Description 'Detached root request'
         $requestDirectory = [IO.Path]::GetDirectoryName($requestPath)
         [void][IO.Directory]::CreateDirectory($requestDirectory)
+        # This transient file can contain argv/paths. Restrict the parent before
+        # publishing, and authenticate a single-link private file afterward.
+        # No insecure fallback is permitted on either Windows engine.
+        Set-EzDarkFactoryPrivateAcl -Path $requestDirectory -Directory
         # Bounded per-root submission queue; active operations belong to the
         # child process, not the manager UI or hidden machine-local state.
         $outstanding = @(Get-ChildItem -LiteralPath $requestDirectory -File -Filter '*.json' -Force)
         if ($outstanding.Count -ge 4) { throw 'This factory has four unresolved submitted operations; reconcile before submitting more.' }
-        Write-EzDarkFactoryJson -Path $requestPath -Value $Request -SchemaVersion 1
+        try {
+            Write-EzDarkFactoryJson -Path $requestPath -Value $Request -SchemaVersion 1
+            Set-EzDarkFactoryPrivateAcl -Path $requestPath
+        }
+        catch {
+            if (Test-Path -LiteralPath $requestPath -PathType Leaf) {
+                Remove-Item -LiteralPath $requestPath -Force -ErrorAction Stop
+            }
+            throw 'Could not protect detached request data; no operation was launched.'
+        }
 
         $child = $null
         $started = $false
@@ -569,6 +582,29 @@ function Get-EzDarkFactoryManagedShellDescriptor {
     }
 }
 
+function Get-EzDarkFactoryControlReadiness {
+    param([string]$Root, [object]$Target)
+    $status = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName ([string]$Target.name)
+    $readiness = 'not-ready'
+    $reason = 'Instance has no currently verified RUNNING lifecycle.'
+    if ($status.state -ceq 'RUNNING') {
+        $readiness = 'unknown'
+        try {
+            # The accepted access-state contract checks current launch ID,
+            # reviewed provisioning identity and authenticated READY evidence.
+            $null = Get-EzDarkFactorySshAccessState -Root $Root -InstanceName $Target.name -RequireReady
+            $readiness = 'ready'
+            $reason = 'Authenticated SSH READY evidence matches the current launch.'
+        }
+        catch { $reason = Protect-EzDarkFactoryDiagnosticText -Text $_.Exception.Message -MaximumCharacters 1024 }
+    }
+    return [pscustomobject][ordered]@{
+        schemaVersion = 1; target = $Target; lifecycle = [string]$status.state
+        readiness = $readiness
+        reason = Protect-EzDarkFactoryDiagnosticText -Text $reason -MaximumCharacters 1024
+    }
+}
+
 function Get-EzDarkFactoryControlDiagnosis {
     [CmdletBinding()]
     param([string]$Root = $script:EzDarkFactoryDefaultRoot,
@@ -628,7 +664,7 @@ function Invoke-EzDarkFactoryControl {
                     switch ($command) {
                         'instance.get' { $data = [pscustomobject]@{ target = $target; status = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name } }
                         'instance.resources' { $data = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name }
-                        'instance.readiness' { $data = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName $target.name }
+                        'instance.readiness' { $data = Get-EzDarkFactoryControlReadiness -Root $Root -Target $target }
                         'instance.diagnose' { $data = Get-EzDarkFactoryControlDiagnosis -Root $Root -Target $target }
                         'instance.shell_descriptor' { $data = Get-EzDarkFactoryManagedShellDescriptor -Root $Root -Target $target }
                         'instance.logs' {
