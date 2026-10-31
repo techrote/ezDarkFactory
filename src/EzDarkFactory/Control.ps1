@@ -513,6 +513,7 @@ function Start-EzDarkFactoryDetachedControlOperation {
 
         $child = $null
         $started = $false
+        $workerProcessId = 0
         try {
             $powerShell = if ($PSVersionTable.PSVersion.Major -eq 5) { Join-Path $PSHOME 'powershell.exe' } else { Join-Path $PSHOME 'pwsh.exe' }
             if (-not (Test-Path -LiteralPath $powerShell -PathType Leaf)) { throw 'PowerShell child executable is missing.' }
@@ -538,6 +539,7 @@ function Start-EzDarkFactoryDetachedControlOperation {
             $child.StartInfo = $start
             $started = $child.Start()
             if (-not $started) { throw 'Operating system refused to start the detached control worker.' }
+            $workerProcessId = [int]$child.Id
         }
         catch {
             if (-not $started -and (Test-Path -LiteralPath $requestPath -PathType Leaf)) {
@@ -555,6 +557,8 @@ function Start-EzDarkFactoryDetachedControlOperation {
             operation_id = [string]$Request.operation_id; command = $command
             instance_id = [string]$Request.instance_id; instance_generation = [string]$Request.instance_generation
             accepted = $false; reconciliation = 'operation.get'
+            # Advisory launch telemetry only, never ownership or kill authority.
+            worker_pid = $workerProcessId
         }
     }
     finally { $lock.Dispose() }
