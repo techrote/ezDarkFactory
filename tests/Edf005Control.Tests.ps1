@@ -699,3 +699,27 @@ Add-EzDarkFactoryTest -Name 'EDF-005: readiness is typed and never infers READY 
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: cold portability and fork refuse pending submissions without rewriting them' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'pending cold'
+    try {
+        $identity = Initialize-EzDarkFactoryIdentity -Root $root
+        $pending = New-Edf005Request -Root $root -Command 'factory.rekey'
+        $directory = Join-Path $root 'runtime/control/submissions'
+        [void][IO.Directory]::CreateDirectory($directory)
+        $requestPath = Join-Path $directory ($pending.operation_id + '.json')
+        [IO.File]::WriteAllText($requestPath, (ConvertTo-Json -InputObject $pending -Depth 16 -Compress), (New-Object Text.UTF8Encoding($false)))
+        $cold = New-Edf005Request -Root $root -Command 'factory.portability'
+        $coldResult = Invoke-EzDarkFactoryControl -Root $root -Request $cold
+        Assert-EzDarkFactoryEqual -Actual $coldResult.state -Expected 'refused'
+        $rekey = New-Edf005Request -Root $root -Command 'factory.rekey'
+        $rekeyResult = Invoke-EzDarkFactoryControl -Root $root -Request $rekey
+        Assert-EzDarkFactoryEqual -Actual $rekeyResult.state -Expected 'refused'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryIdentity -Root $root).factory_id -Expected $identity.factory_id
+        Assert-EzDarkFactoryTrue -Condition (Test-Path -LiteralPath $requestPath -PathType Leaf)
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $pending.operation_id).state -Expected 'submitted'
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $rekey.operation_id + '.json'))))
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}

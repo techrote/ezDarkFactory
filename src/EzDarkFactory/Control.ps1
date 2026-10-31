@@ -41,8 +41,34 @@ function Enter-EzDarkFactoryControlLock {
     return (Enter-EzDarkFactorySecurityLock -Path $lockPath)
 }
 
+function Assert-EzDarkFactoryNoPendingControl {
+    param([string]$Root, [string]$IgnoreOperationId = '')
+    $paths = Get-EzDarkFactoryPaths -Root $Root
+    $submissionDir = Assert-EzDarkFactorySafePath -Path (Join-Path $paths.Runtime 'control/submissions') -Description 'Pending control submissions'
+    if (Test-Path -LiteralPath $submissionDir -PathType Container) {
+        foreach ($file in @(Get-ChildItem -LiteralPath $submissionDir -File -Filter '*.json' -Force)) {
+            if ($file.BaseName -cne $IgnoreOperationId) {
+                throw 'A submitted root operation has not been reconciled; cold identity/portability is blocked.'
+            }
+        }
+    }
+    $operationDir = Assert-EzDarkFactorySafePath -Path (Join-Path $paths.Runtime 'control/operations') -Description 'Pending control receipts'
+    if (Test-Path -LiteralPath $operationDir -PathType Container) {
+        foreach ($file in @(Get-ChildItem -LiteralPath $operationDir -File -Filter '*.json' -Force)) {
+            $full = Assert-EzDarkFactorySafePath -Path $file.FullName -Description 'Cold operation receipt'
+            if ($file.BaseName -cne $IgnoreOperationId) {
+                $receipt = Read-EzDarkFactoryJson -Path $full -SchemaVersion 1
+                if ($receipt.state -cnotin @('completed','refused')) {
+                    throw 'An accepted/ambiguous root operation blocks cold identity and portability.'
+                }
+            }
+        }
+    }
+}
+
 function Assert-EzDarkFactoryColdFactory {
-    param([string]$Root = $script:EzDarkFactoryDefaultRoot)
+    param([string]$Root = $script:EzDarkFactoryDefaultRoot, [string]$IgnoreOperationId = '')
+    Assert-EzDarkFactoryNoPendingControl -Root $Root -IgnoreOperationId $IgnoreOperationId
     # A base-build QEMU may exist without an instance intent. Reuse the
     # inherited cold-portability process-ownership rule before rekey/adoption.
     $paths = Get-EzDarkFactoryPaths -Root $Root
@@ -442,7 +468,7 @@ function Start-EzDarkFactoryDetachedControlOperation {
         if ($command -like 'instance.*' -and $command -cnotin @('instance.create','instance.import')) {
             $null = Resolve-EzDarkFactoryControlTarget -Root $rootPath -Request $Request -AllowAdoption:($command -ceq 'instance.adopt')
         }
-        if ($command -ceq 'factory.rekey') { Assert-EzDarkFactoryColdFactory -Root $rootPath }
+        if ($command -ceq 'factory.rekey') { Assert-EzDarkFactoryColdFactory -Root $rootPath -IgnoreOperationId $Request.operation_id }
         $payload = ConvertTo-Json -InputObject $Request -Depth 32 -Compress
         if ([Text.Encoding]::UTF8.GetByteCount($payload) -gt 65536) { throw 'Detached request exceeds the 64-KiB bound.' }
         Assert-EzDarkFactoryCredentialFreeText -Text $payload -Description 'Detached root request'
@@ -650,7 +676,7 @@ function Invoke-EzDarkFactoryControl {
             switch ($command) {
                 'factory.info' { $data = $caps }
                 'factory.doctor' { $data = Get-EzDarkFactoryDoctorReport -Root $Root }
-                'factory.portability' { $data = Test-EzDarkFactoryPortableBundle -Root $Root }
+                'factory.portability' { Assert-EzDarkFactoryNoPendingControl -Root $Root; $data = Test-EzDarkFactoryPortableBundle -Root $Root }
                 'instance.list' {
                     $items = @()
                     foreach ($entry in @(Get-EzDarkFactoryManagedInstanceList -Root $Root)) {
@@ -727,7 +753,7 @@ function Invoke-EzDarkFactoryControl {
                 $target = Resolve-EzDarkFactoryControlTarget -Root $Root -Request $Request -AllowAdoption:($command -ceq 'instance.adopt')
             }
             if ($command -ceq 'factory.rekey') {
-                Assert-EzDarkFactoryColdFactory -Root $Root
+                Assert-EzDarkFactoryColdFactory -Root $Root -IgnoreOperationId $Request.operation_id
                 $operationRoot = Join-Path (Get-EzDarkFactoryPaths -Root $Root).Runtime 'control/operations'
                 if (Test-Path -LiteralPath $operationRoot) {
                     $existing = @(Get-ChildItem -LiteralPath $operationRoot -Filter '*.json' -File -Force)
@@ -774,7 +800,7 @@ function Invoke-EzDarkFactoryControl {
                         Write-EzDarkFactoryJson -Path (Get-EzDarkFactoryIdentityPath -Root $Root) -Value $replacement -SchemaVersion 1
                         $data = [pscustomobject]@{ previous_factory_id = $factoryId; factory_id = $replacement.factory_id; preimage = 'control/rekey-' + $Request.operation_id + '.json' }
                     }
-                    'instance.adopt' { Assert-EzDarkFactoryColdFactory -Root $Root; $data = New-EzDarkFactoryInstanceRef -Root $Root -Name $name }
+                    'instance.adopt' { Assert-EzDarkFactoryColdFactory -Root $Root -IgnoreOperationId $Request.operation_id; $data = New-EzDarkFactoryInstanceRef -Root $Root -Name $name }
                     'instance.create' {
                         Assert-EzDarkFactoryStorageInstanceName -Name $name
                         $data = New-EzDarkFactoryManagedInstance -Root $Root -InstanceName $name -Profile ([string]$a.profile) -BaseId ([string]$a.base_id)
