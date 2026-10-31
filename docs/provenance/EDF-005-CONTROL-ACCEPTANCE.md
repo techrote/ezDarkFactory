@@ -1,6 +1,6 @@
 # EDF-005 — Stable factory identity and multi-root control acceptance
 
-> **Provisional evidence custody, 31 October 2026.** Actual repaired-main fast CI is still in progress as of this branch revision. Do not claim final EDF-005 acceptance until literal repaired-main 13/13 succeeds.
+> **Accepted — SOURCE / FAST-CI, 31 October 2026.** The reviewed implementation and narrowly scoped post-merge repairs passed **all 13 required jobs on the exact repaired main commit**, with original negative evidence preserved. Physical QEMU/WHPX and Windows Terminal acceptance remain UNMEASURED.
 
 ## Accepted implementation, guarded repair and source identity
 
@@ -8,7 +8,7 @@
 - Original literal reviewed implementation head `4a645c9d29cdc1b3e74d3747af9e820a51a444fd`, guarded squash-merged as `eb8b23d3f232be3d990a734b771fb8fc7ff68d06` (parent `ea3e8e67d1d8e64d36b29de9c1cba5370dca397e`). Exact head/merged tree: `b41ec99303d8c72a9dd949553ff9b96dba35ecaf`.
 - Actual original post-merge fast gate [#41163205070](https://github.com/techrote/ezDarkFactory/actions/runs/41163205070) was **8/9, FAIL**: real Windows PS7 standard-user child 409 PASS / 1 FAIL. This was not silently accepted; issue #5 was explicitly reopened.
 - Follow-up [repair PR #26](https://github.com/techrote/ezDarkFactory/pull/26), exact reviewed head `e042daf772117cab9073324da31b4fd051bc0df8`, guarded squash-merged as `4c11596894f19870771a970475727a39941945b8` (parent `eb8b23d3f232be3d990a734b771fb8fc7ff68d06`). Both reviewed repair head and actual new `main` have byte-identical Git tree `8194d377d07ac6e23ceb7c22454662dc511df0b8`.
-- Final SOURCE / FAST-CI acceptance applies to this repaired tree **only after its actual-main fast gate passes**. Real QEMU/TCG/WHPX and physical Windows Terminal have not been executed as part of this acceptance.
+- **SOURCE / FAST-CI acceptance is established** for this exact repaired tree by the successful actual-main 13-job gate on first attempt. Real QEMU/TCG/WHPX and physical Windows Terminal have not been executed as part of this acceptance.
 
 ## Public typed control, identity and trust contracts
 
@@ -45,12 +45,31 @@ The qualified repair reads completed journals with bounded 1-MiB strict JSON, de
 
 Reviewed repair PR-head [nine-job fast #41164366175](https://github.com/techrote/ezDarkFactory/actions/runs/41164366175), [EDF-004 two-job #41164366180](https://github.com/techrote/ezDarkFactory/actions/runs/41164366180), [EDF-005 two-job #41164366187](https://github.com/techrote/ezDarkFactory/actions/runs/41164366187) **all passed 13/13** at literal head `e042daf772117cab9073324da31b4fd051bc0df8`. Full suites executed 411 PASS / 0 FAIL / 0 SKIP per PowerShell engine, and focused EDF-005 31 PASS / 0 FAIL in each.
 
-## Actual repaired-main verification — pending final fast gate
+## Actual repaired-main verification — 13/13 PASS
 
 Actual `main` source/tree `4c11596894f19870771a970475727a39941945b8` / `8194d377d07ac6e23ceb7c22454662dc511df0b8`, bit-identical to the reviewed repair PR tree. Mandatory main-push runs:
-- [Nine-job fast #41164831843](https://github.com/techrote/ezDarkFactory/actions/runs/41164831843): **PENDING final result in this draft record**.
-- [Two-job EDF-004 #41164831870](https://github.com/techrote/ezDarkFactory/actions/runs/41164831870): 2/2 PASS.
-- [Two-job EDF-005 #41164831877](https://github.com/techrote/ezDarkFactory/actions/runs/41164831877): 2/2 PASS, 31/31 focused cases per engine, real process and filesystem software evidence, not QEMU/WHPX.
+- [Nine-job fast #41164831843](https://github.com/techrote/ezDarkFactory/actions/runs/41164831843): **9/9 PASS, attempt 1**. Both complete control-plane suites ran 411/411 PASS with 0 FAIL, 0 SKIP on Windows PowerShell 5.1 and pinned PowerShell 7.6.6; both real disposable standard-user ACL lanes passed; native process/timeout and Ubuntu/Windows provenance authentication retained.
+- [Two-job EDF-004 #41164831870](https://github.com/techrote/ezDarkFactory/actions/runs/41164831870): **2/2 PASS, attempt 1**. Inherited fresh-profile first-ready/generation regression preserved.
+- [Two-job EDF-005 #41164831877](https://github.com/techrote/ezDarkFactory/actions/runs/41164831877): **2/2 PASS, attempt 1**; 31/31 focused cases per PowerShell engine, with genuine independent Windows process and filesystem fixtures. No QEMU/WHPX workload is claimed.
+
+
+Repaired-main EDF-005 focused evidence ZIP SHA-256:
+- PS5 `fc379c0a42cdd2fc94b267a382d42ecde8ff7c9ff59bd7e191c5b0842f202ef6`.
+- PS7 `be1291ea86bfbcd0b24d56f05ba8f1adf2cb13f8fe2362b9919a3193d7bdc0bf`.
+
+Repaired-main EDF-004 focused evidence ZIP SHA-256:
+- PS5 `92a17a04f095db01dfb7a1a73600885a3c70e131ae25a2426324c41272b4653f`.
+- PS7 `16a3d80e7d7a8927ac631490ef20df47aaaaaffbc371bcc16ae58379b278b892`.
+
+Repaired-main EDF-003 native-process ZIP SHA-256:
+- PS5 `b23e4a38de6ac67a4705e7c321a2bd00db3d2087747c3a1ac544cf2fbbbb0f16`.
+- PS7 `1ea27b65882c95b0b9a2e3e07a8a8ed97dd0c915c9980e46a230bd214262d3f0`.
+
+Repaired-main **real ordinary-user ACL** ZIP SHA-256:
+- PS5 `8bea1f197baae3e3975bd46e872bb290576464c4db48894c03382cec02043f3a`.
+- PS7 `5462df77af8be21cc1c8423d23425d21afcb953c783c54a57cd98b2412e4b93d`.
+
+The independently fetched literal merged commit `4c11596894f19870771a970475727a39941945b8` has parent `eb8b23d3f232be3d990a734b771fb8fc7ff68d06` and tree `8194d377d07ac6e23ceb7c22454662dc511df0b8`, byte-identical to the reviewed repair PR head. All actual-main workflow `head_sha` values match this literal merged revision; all 13 conclusions are SUCCESS, with no reliance on reruns or skipped suites.
 
 ## Deliberate physical/manual limitations
 

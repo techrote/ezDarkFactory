@@ -1,6 +1,6 @@
 # EDF-005 factory identity, typed control and portable manager API
 
-Status: EDF-005 reviewed source/typed substrate merged with guarded repair; final acceptance requires literal repaired-main post-merge 13/13 CI. See [source-pinned acceptance custody](../provenance/EDF-005-CONTROL-ACCEPTANCE.md). This document defines the public non-UI seam for EDF-006/007.
+Status: **EDF-005 SOURCE / FAST-CI accepted**, version 1.0 public typed substrate. All 13 required actual repaired-main jobs passed at `4c11596894f19870771a970475727a39941945b8`. See [source-pinned acceptance custody](../provenance/EDF-005-CONTROL-ACCEPTANCE.md); real QEMU/WHPX and Windows Terminal remain unmeasured. This document defines the public non-UI seam for EDF-006/007.
 
 ## State and authority
 

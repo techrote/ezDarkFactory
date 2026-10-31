@@ -8,7 +8,7 @@ This is a compact navigation ledger. Current GitHub issue/PR state and exact `ma
 | EDF-002 | [#2](https://github.com/techrote/ezDarkFactory/issues/2) | done | [PR #15](https://github.com/techrote/ezDarkFactory/pull/15) | accepted `978288496aa5d328f0d79712c74e69cf769689e4`; five exact-main jobs green |
 | EDF-003 | [#3](https://github.com/techrote/ezDarkFactory/issues/3) | done | [PR #18](https://github.com/techrote/ezDarkFactory/pull/18) | accepted `d7b7debbaf66d5b50136342d26634ff05ea34d3f`; nine exact-main checks PASS |
 | EDF-004 | [#4](https://github.com/techrote/ezDarkFactory/issues/4) | done | [PR #23](https://github.com/techrote/ezDarkFactory/pull/23) | accepted `a983c957fb65acfd781ac131733512658b3e9927`; eleven exact-main checks PASS |
-| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | review | [PR #25](https://github.com/techrote/ezDarkFactory/pull/25), [repair #26](https://github.com/techrote/ezDarkFactory/pull/26) | merged source `4c11596894f19870771a970475727a39941945b8`; post-merge fast gate pending final outcome |
+| EDF-005 | [#5](https://github.com/techrote/ezDarkFactory/issues/5) | done | [PR #25](https://github.com/techrote/ezDarkFactory/pull/25), [repair #26](https://github.com/techrote/ezDarkFactory/pull/26) | accepted `4c11596894f19870771a970475727a39941945b8`; 13/13 actual-main software checks PASS |
 | EDF-006 | [#6](https://github.com/techrote/ezDarkFactory/issues/6) | todo | | EDF-003 + EDF-004 + EDF-005 |
 | EDF-007 | [#7](https://github.com/techrote/ezDarkFactory/issues/7) | todo | | EDF-006 |
 | EDF-008 | [#8](https://github.com/techrote/ezDarkFactory/issues/8) | todo | | EDF-004 + EDF-005 + EDF-007 |
@@ -164,9 +164,9 @@ not unperformed EDF-004 passes.
 EDF-001 through EDF-004 are accepted. EDF-005 has been implemented, source-reviewed,
 and guarded-merged through [PR #25](https://github.com/techrote/ezDarkFactory/pull/25)
 plus the post-merge repair [PR #26](https://github.com/techrote/ezDarkFactory/pull/26).
-Its final acceptance remains **in review** until the nine-job fast gate on the
-literal repaired-main revision passes; see [the source-pinned acceptance report](../provenance/EDF-005-CONTROL-ACCEPTANCE.md).
-EDF-006 remains dependency-held until EDF-005 has actual post-merge acceptance.
+**EDF-005 is accepted at SOURCE / FAST-CI** after the nine-job fast gate on the
+literal repaired-main revision passed; see [the source-pinned acceptance report](../provenance/EDF-005-CONTROL-ACCEPTANCE.md).
+EDF-006's non-UI substrate dependency is now satisfied; its TUI/manager integration and physical/manual gates remain separate.
 
 
 ## EDF-005 source and post-merge qualification
@@ -192,7 +192,12 @@ EDF005 gates [#41164831870](https://github.com/techrote/ezDarkFactory/actions/ru
 and [#41164831877](https://github.com/techrote/ezDarkFactory/actions/runs/41164831877)
 passed 4/4. **Actual repaired-main fast nine-job
 [#41164831843](https://github.com/techrote/ezDarkFactory/actions/runs/41164831843)
-was still in progress at this staging checkpoint.** No final acceptance is claimed.
+completed 9/9 PASS on attempt 1.** Combined with actual-main EDF004 and EDF005 4/4,
+all **13/13 required post-merge software jobs passed** on source SHA
+`4c11596894f19870771a970475727a39941945b8`. Both full control-plane
+engines executed 411/411 (zero failed/skipped) and EDF005 focused 31/31
+per engine, with real ordinary-user ACL and source-matched negative evidence.
+See acceptance report for artifact digests and retained original red runs.
 
 See [EDF-005 source/negative custody](../provenance/EDF-005-CONTROL-ACCEPTANCE.md)
 for API/schema versions, exact identities and original red logs. All cited
