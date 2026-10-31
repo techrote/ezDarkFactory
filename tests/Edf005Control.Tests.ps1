@@ -408,6 +408,22 @@ function Wait-Edf005RootReceipt {
     throw 'A root-owned operation did not publish an accepted or terminal receipt within the test deadline.'
 }
 
+function Enter-Edf005TestBudgetBlock {
+    param([string]$Workspace, [int]$Limit = 2)
+    $leases = New-Object 'System.Collections.Generic.List[object]'
+    try {
+        for ($i = 0; $i -lt $Limit; $i++) {
+            $file = Join-Path $Workspace ('operation-slot-' + $i + '.lock')
+            $leases.Add([IO.File]::Open($file, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None))
+        }
+        return @($leases.ToArray())
+    }
+    catch {
+        foreach ($lease in $leases) { $lease.Dispose() }
+        throw
+    }
+}
+
 function Start-Edf005ControlChild {
     param([string]$Root, [object]$Request, [string]$Workspace = '', [string]$EnrollmentId = '')
     $module = Join-Path $Root 'src/EzDarkFactory/Edf005.psm1'
@@ -454,6 +470,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
     $b = New-EzDarkFactoryCheckoutFixture -Prefix 'concurrent root B'
     $workspace = New-EzDarkFactoryTestDirectory -Prefix 'concurrent manager'
     $children = @()
+    $leases = @()
     try {
         Add-Edf005WorkerEntrypoints -Root $a
         Add-Edf005WorkerEntrypoints -Root $b
@@ -462,6 +479,10 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
         $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
         $ra = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $a -Alias 'A' -AuthorizeLocalExecution
         $rb = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $b -Alias 'B' -AuthorizeLocalExecution
+        # Prevent either worker from entering the mutation while the
+        # manager processes are alive. This proves true OS-child survival
+        # rather than merely fast inline execution.
+        $leases = @(Enter-Edf005TestBudgetBlock -Workspace $workspace)
         $op = [guid]::NewGuid().ToString('N')
         $requestA = New-Edf005Request -Root $a -Command 'factory.rekey' -Id $op
         $requestB = New-Edf005Request -Root $b -Command 'factory.rekey' -Id $op
@@ -475,8 +496,14 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
         Assert-EzDarkFactoryEqual -Actual $second.state -Expected 'dispatched'
         Assert-EzDarkFactoryTrue -Condition (-not $first.accepted)
         Assert-EzDarkFactoryTrue -Condition (-not $second.accepted)
-        # Both manager parents have exited; root-local workers must still
-        # publish real final results without any TUI/manager process alive.
+        # Manager processes are gone. Both separate workers must remain
+        # blocked on the host-budget leases before acceptance.
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $a -OperationId $op).state -Expected 'submitted'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $b -OperationId $op).state -Expected 'submitted'
+        foreach ($lease in $leases) { $lease.Dispose() }
+        $leases = @()
+        # Only now may the root-local children accept and complete. No
+        # manager process is present to drive, poll or restart them.
         $receiptA = Wait-Edf005RootReceipt -Root $a -OperationId $op
         $receiptB = Wait-Edf005RootReceipt -Root $b -OperationId $op
         Assert-EzDarkFactoryEqual -Actual $receiptA.state -Expected 'completed'
@@ -488,6 +515,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperation -Root $b -OperationId $op).factory_id -Expected $originalB.factory_id
     }
     finally {
+        foreach ($lease in $leases) { if ($null -ne $lease) { $lease.Dispose() } }
         foreach ($process in $children) { if ($null -ne $process) { if (-not $process.HasExited) { $process.Kill() }; $process.Dispose() } }
         Remove-EzDarkFactoryTestDirectory -Path $a
         Remove-EzDarkFactoryTestDirectory -Path $b
@@ -594,17 +622,22 @@ Add-EzDarkFactoryTest -Name 'EDF-005: shell descriptor returns exact argv and at
 Add-EzDarkFactoryTest -Name 'EDF-005: root-owned dispatched adoption survives manager process exit and never auto-replays' -ScriptBlock {
     $root = New-EzDarkFactoryCheckoutFixture -Prefix 'root owned detached'
     $workspace = New-EzDarkFactoryTestDirectory -Prefix 'root owned manager'
+    $leases = @()
     try {
         Add-Edf005WorkerEntrypoints -Root $root
         $null = Initialize-EzDarkFactoryIdentity -Root $root
         $intent = New-Edf005SyntheticIntent -Root $root -Name 'resident'
         $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
         $entry = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $root -Alias 'resident' -AuthorizeLocalExecution
+        $leases = @(Enter-Edf005TestBudgetBlock -Workspace $workspace)
         $request = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='resident'}) -Generation $intent.identityGeneration
         $parent = Start-Edf005ControlChild -Root $root -Request $request -Workspace $workspace -EnrollmentId $entry.enrollment_id
         try { $submitted = Receive-Edf005ControlChild -Process $parent }
         finally { if (-not $parent.HasExited) { $parent.Kill() }; $parent.Dispose() }
         Assert-EzDarkFactoryEqual -Actual $submitted.state -Expected 'dispatched'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $request.operation_id).state -Expected 'submitted'
+        foreach ($lease in $leases) { $lease.Dispose() }
+        $leases = @()
         $result = Wait-Edf005RootReceipt -Root $root -OperationId $request.operation_id
         Assert-EzDarkFactoryEqual -Actual $result.state -Expected 'completed'
         $identity = Get-EzDarkFactoryInstanceRef -Root $root -Name 'resident'
@@ -614,7 +647,11 @@ Add-EzDarkFactoryTest -Name 'EDF-005: root-owned dispatched adoption survives ma
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryInstanceRef -Root $root -Name 'resident').instance_id -Expected $identity.instance_id
         Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/submissions/' + $request.operation_id + '.json'))))
     }
-    finally { Remove-EzDarkFactoryTestDirectory -Path $root; Remove-EzDarkFactoryTestDirectory -Path $workspace }
+    finally {
+        foreach ($lease in $leases) { if ($null -ne $lease) { $lease.Dispose() } }
+        Remove-EzDarkFactoryTestDirectory -Path $root
+        Remove-EzDarkFactoryTestDirectory -Path $workspace
+    }
 }
 
 Add-EzDarkFactoryTest -Name 'EDF-005: detached worker reconciles stale preconditions without an operation journal or replay' -ScriptBlock {
