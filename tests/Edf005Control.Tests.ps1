@@ -454,40 +454,64 @@ function Start-Edf005ControlChild {
     $module = Join-Path $Root 'src/EzDarkFactory/Edf005.psm1'
     $payload = ConvertTo-Json -InputObject $Request -Depth 16 -Compress
     $base64 = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($payload))
-    $cmd = '$ProgressPreference="SilentlyContinue"; Import-Module "' + $module +
-        '" -Force -ErrorAction Stop; $req=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String("' +
+    $responseFile = Join-Path $Root ('edf005-parent-response-' + [guid]::NewGuid().ToString('N') + '.json')
+    $errorFile = $responseFile + '.error.txt'
+    $safeResponse = $responseFile.Replace("'", "''")
+    $safeError = $errorFile.Replace("'", "''")
+    $safeModule = $module.Replace("'", "''")
+    $safeRoot = $Root.Replace("'", "''")
+    $safeWorkspace = $Workspace.Replace("'", "''")
+    $cmd = '$ProgressPreference="SilentlyContinue"; $ErrorActionPreference="Stop"; try { Import-Module ''' + $safeModule +
+        ''' -Force -ErrorAction Stop; $req=[Text.Encoding]::Unicode.GetString([Convert]::FromBase64String("' +
         $base64 + '")) | ConvertFrom-Json; '
     if ($Workspace) {
-        $cmd += '$response=Invoke-EzDarkFactoryManagerControl -Workspace "' + $Workspace +
-            '" -EnrollmentId "' + $EnrollmentId + '" -Request $req; '
+        $cmd += '$response=Invoke-EzDarkFactoryManagerControl -Workspace ''' + $safeWorkspace +
+            ''' -EnrollmentId ''' + $EnrollmentId + ''' -Request $req; '
     }
-    else { $cmd += '$response=Invoke-EzDarkFactoryControl -Root "' + $Root + '" -Request $req; ' }
-    $cmd += '$response | ConvertTo-Json -Depth 16 -Compress'
+    else { $cmd += '$response=Invoke-EzDarkFactoryControl -Root ''' + $safeRoot + ''' -Request $req; ' }
+    $cmd += '$json=ConvertTo-Json -InputObject $response -Depth 16 -Compress; ' +
+        '[IO.File]::WriteAllText(''' + $safeResponse + ''', $json, (New-Object Text.UTF8Encoding($false))); exit 0 } ' +
+        'catch { [IO.File]::WriteAllText(''' + $safeError + ''', [string]$_.Exception.Message); exit 1 }'
     $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($cmd))
     $exe = if ($PSVersionTable.PSVersion.Major -eq 5) { Join-Path $PSHOME 'powershell.exe' } else { Join-Path $PSHOME 'pwsh.exe' }
     $start = New-Object Diagnostics.ProcessStartInfo
     $start.FileName = $exe
     $start.Arguments = '-NoLogo -NoProfile -NonInteractive -EncodedCommand ' + $encoded
-    $start.WorkingDirectory = $Root
+    $start.WorkingDirectory = [IO.Path]::GetTempPath()
     $start.UseShellExecute = $false; $start.CreateNoWindow = $true
-    $start.RedirectStandardOutput = $true; $start.RedirectStandardError = $true
+    # No redirected parent pipe to be inherited by a long-lived worker:
+    # manager completion and detached worker lifetime are independent.
+    $start.RedirectStandardOutput = $false; $start.RedirectStandardError = $false
     $process = New-Object Diagnostics.Process
     $process.StartInfo = $start
     if (-not $process.Start()) { throw 'Could not launch concurrent PowerShell child.' }
-    return $process
+    return [pscustomobject]@{
+        Process = $process
+        ResultPath = $responseFile
+        ErrorPath = $errorFile
+    }
 }
 
 function Receive-Edf005ControlChild {
-    param([Diagnostics.Process]$Process)
-    $stdout = $Process.StandardOutput.ReadToEndAsync()
-    $stderr = $Process.StandardError.ReadToEndAsync()
-    if (-not $Process.WaitForExit(20000)) {
-        $Process.Kill()
-        throw 'Concurrent control child exceeded its bounded 20s deadline.'
+    param([object]$Child)
+    $process = $Child.Process
+    if (-not $process.WaitForExit(20000)) {
+        $process.Kill()
+        [void]$process.WaitForExit(5000)
+        throw 'Concurrent control parent exceeded its bounded 20s deadline.'
     }
-    if (-not $stdout.Wait(3000) -or -not $stderr.Wait(3000)) { throw 'Concurrent control child output did not drain.' }
-    if ($Process.ExitCode -ne 0) { throw ('Concurrent child exited '+ $Process.ExitCode + ': ' + $stderr.Result) }
-    return ($stdout.Result.Trim() | ConvertFrom-Json)
+    if ($process.ExitCode -ne 0) {
+        $diagnostic = if (Test-Path -LiteralPath $Child.ErrorPath -PathType Leaf) {
+            [IO.File]::ReadAllText($Child.ErrorPath)
+        } else { 'no bounded child diagnostic was published' }
+        throw ('Concurrent control child exited ' + $process.ExitCode + ': ' + $diagnostic)
+    }
+    if (-not (Test-Path -LiteralPath $Child.ResultPath -PathType Leaf)) {
+        throw 'Concurrent control parent exited without its bounded result file.'
+    }
+    $file = Get-Item -LiteralPath $Child.ResultPath
+    if ($file.Length -gt 65536) { throw 'Concurrent control result exceeded the 64-KiB test bound.' }
+    return ([IO.File]::ReadAllText($file.FullName) | ConvertFrom-Json)
 }
 
 Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute concurrently under bounded host budget' -ScriptBlock {
@@ -515,8 +539,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
             (Start-Edf005ControlChild -Root $a -Request $requestA -Workspace $workspace -EnrollmentId $ra.enrollment_id),
             (Start-Edf005ControlChild -Root $b -Request $requestB -Workspace $workspace -EnrollmentId $rb.enrollment_id)
         )
-        $first = Receive-Edf005ControlChild -Process $children[0]
-        $second = Receive-Edf005ControlChild -Process $children[1]
+        $first = Receive-Edf005ControlChild -Child $children[0]
+        $second = Receive-Edf005ControlChild -Child $children[1]
         Assert-EzDarkFactoryEqual -Actual $first.state -Expected 'dispatched'
         Assert-EzDarkFactoryEqual -Actual $second.state -Expected 'dispatched'
         Assert-EzDarkFactoryTrue -Condition (-not $first.accepted)
@@ -545,7 +569,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: two independent registered roots execute c
     }
     finally {
         foreach ($lease in $leases) { if ($null -ne $lease) { $lease.Dispose() } }
-        foreach ($process in $children) { if ($null -ne $process) { if (-not $process.HasExited) { $process.Kill() }; $process.Dispose() } }
+        foreach ($child in $children) { if ($null -ne $child) { $process = $child.Process; if (-not $process.HasExited) { $process.Kill(); [void]$process.WaitForExit(5000) }; $process.Dispose() } }
         Remove-EzDarkFactoryTestDirectory -Path $a
         Remove-EzDarkFactoryTestDirectory -Path $b
         Remove-EzDarkFactoryTestDirectory -Path $workspace
@@ -563,8 +587,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: concurrent duplicate operation in same roo
             (Start-Edf005ControlChild -Root $root -Request $req),
             (Start-Edf005ControlChild -Root $root -Request $req)
         )
-        $one = Receive-Edf005ControlChild -Process $children[0]
-        $two = Receive-Edf005ControlChild -Process $children[1]
+        $one = Receive-Edf005ControlChild -Child $children[0]
+        $two = Receive-Edf005ControlChild -Child $children[1]
         Assert-EzDarkFactoryEqual -Actual $one.state -Expected 'completed'
         Assert-EzDarkFactoryEqual -Actual $two.state -Expected 'completed'
         Assert-EzDarkFactoryEqual -Actual $one.data.instance_id -Expected $two.data.instance_id
@@ -575,7 +599,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: concurrent duplicate operation in same roo
         Assert-EzDarkFactoryEqual -Actual $journal.Count -Expected 1
     }
     finally {
-        foreach ($process in $children) { if ($null -ne $process) { if (-not $process.HasExited) { $process.Kill() }; $process.Dispose() } }
+        foreach ($child in $children) { if ($null -ne $child) { $process = $child.Process; if (-not $process.HasExited) { $process.Kill(); [void]$process.WaitForExit(5000) }; $process.Dispose() } }
         Remove-EzDarkFactoryTestDirectory -Path $root
     }
 }
@@ -661,8 +685,8 @@ Add-EzDarkFactoryTest -Name 'EDF-005: root-owned dispatched adoption survives ma
         $leases = @(Enter-Edf005TestBudgetBlock -Workspace $workspace)
         $request = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='resident'}) -Generation $intent.identityGeneration
         $parent = Start-Edf005ControlChild -Root $root -Request $request -Workspace $workspace -EnrollmentId $entry.enrollment_id
-        try { $submitted = Receive-Edf005ControlChild -Process $parent }
-        finally { if (-not $parent.HasExited) { $parent.Kill() }; $parent.Dispose() }
+        try { $submitted = Receive-Edf005ControlChild -Child $parent }
+        finally { if (-not $parent.Process.HasExited) { $parent.Process.Kill(); [void]$parent.Process.WaitForExit(5000) }; $parent.Process.Dispose() }
         Assert-EzDarkFactoryEqual -Actual $submitted.state -Expected 'dispatched'
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $request.operation_id).state -Expected 'submitted'
         foreach ($lease in $leases) { $lease.Dispose() }
@@ -805,6 +829,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: a pending root operation prevents independ
         $done = Wait-Edf005RootReceipt -Root $root -OperationId $a.operation_id
         Assert-EzDarkFactoryEqual -Actual $done.state -Expected 'completed'
         Wait-Edf005TerminalWorkerCleanup -Root $root -OperationId $a.operation_id
+        Wait-Edf005DetachedWorkerExit -WorkerProcessId ([int]$submitted.worker_pid)
     }
     finally {
         foreach ($lease in $leases) { if ($null -ne $lease) { $lease.Dispose() } }
