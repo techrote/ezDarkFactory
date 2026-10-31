@@ -898,3 +898,32 @@ Add-EzDarkFactoryTest -Name 'EDF-005: collision introduced while waiting for hos
         Remove-EzDarkFactoryTestDirectory -Path $workspace
     }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: multi-megabyte live QEMU log returns bounded seek-tail with safe control text' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'large logs'
+    try {
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $intent = New-Edf005SyntheticIntent -Root $root -Name 'largelog'
+        $adopt = New-Edf005Request -Root $root -Command 'instance.adopt' -Arguments ([pscustomobject]@{name='largelog'}) -Generation $intent.identityGeneration
+        $ref = (Invoke-EzDarkFactoryControl -Root $root -Request $adopt).data
+        $directory = Join-Path $root 'runtime/instances/largelog/logs'
+        [void][IO.Directory]::CreateDirectory($directory)
+        $file = Join-Path $directory 'qemu.log'
+        $payload = ('q' * (3 * 1024 * 1024)) + 'TAIL' + [char]27 + '[31m'
+        [IO.File]::WriteAllText($file, $payload, (New-Object Text.UTF8Encoding($false)))
+        $before = Get-EzDarkFactoryControlRevision -Root $root
+        $req = New-Edf005Request -Root $root -Command 'instance.logs' -Arguments ([pscustomobject]@{name='largelog';kind='qemu';maximum_characters=128}) -InstanceId $ref.instance_id -Generation $ref.instance_generation
+        $response = Invoke-EzDarkFactoryControl -Root $root -Request $req
+        Assert-EzDarkFactoryEqual -Actual $response.state -Expected 'completed'
+        Assert-EzDarkFactoryEqual -Actual $response.data.target.instance_id -Expected $ref.instance_id
+        Assert-EzDarkFactoryTrue -Condition $response.data.truncated
+        Assert-EzDarkFactoryTrue -Condition ($response.data.source_bytes -gt 2097152)
+        Assert-EzDarkFactoryTrue -Condition ($response.data.text.Length -le 128)
+        Assert-EzDarkFactoryTrue -Condition ($response.data.text.Contains('TAIL'))
+        Assert-EzDarkFactoryTrue -Condition (-not $response.data.text.Contains([string][char]27))
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlRevision -Root $root) -Expected $before
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $req.operation_id + '.json'))))
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}

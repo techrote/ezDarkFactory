@@ -649,6 +649,44 @@ function Get-EzDarkFactoryManagedShellDescriptor {
     }
 }
 
+function Read-EzDarkFactoryControlLogTail {
+    param([Parameter(Mandatory)][string]$Path,
+        [ValidateRange(1,8192)][int]$MaximumCharacters)
+    $full = Assert-EzDarkFactorySafePath -Path $Path -Description 'Managed log tail'
+    $stream = [IO.File]::Open($full, [IO.FileMode]::Open, [IO.FileAccess]::Read,
+        [IO.FileShare]::ReadWrite)
+    try {
+        # Seeking before decoding bounds both I/O and memory even when QEMU
+        # logs are many GiB. The first partial UTF-8 sequence is replacement
+        # data, never executable terminal control.
+        $limit = [int][Math]::Min(32768, $MaximumCharacters * 4 + 32)
+        $length = [long]$stream.Length
+        $offset = [long][Math]::Max(0, $length - $limit)
+        if ($offset -gt 0) { $null = $stream.Seek($offset, [IO.SeekOrigin]::Begin) }
+        $bytes = New-Object byte[] $limit
+        $count = 0
+        while ($count -lt $bytes.Length) {
+            $n = $stream.Read($bytes, $count, $bytes.Length - $count)
+            if ($n -eq 0) { break }
+            $count += $n
+        }
+        $text = (New-Object Text.UTF8Encoding($false, $false)).GetString($bytes, 0, $count)
+        $truncated = ($offset -gt 0 -or $text.Length -gt $MaximumCharacters)
+        if ($text.Length -gt $MaximumCharacters) {
+            $text = $text.Substring($text.Length - $MaximumCharacters)
+        }
+        $clean = Protect-EzDarkFactoryDiagnosticText -Text $text -MaximumCharacters 8192
+        if ($clean.Length -gt $MaximumCharacters) {
+            $clean = $clean.Substring(0, $MaximumCharacters)
+            $truncated = $true
+        }
+        return [pscustomobject][ordered]@{
+            text = $clean; truncated = [bool]$truncated; source_bytes = $length
+        }
+    }
+    finally { $stream.Dispose() }
+}
+
 function Get-EzDarkFactoryControlReadiness {
     param([string]$Root, [object]$Target)
     $status = Get-EzDarkFactoryManagedInstanceStatus -Root $Root -InstanceName ([string]$Target.name)
@@ -750,11 +788,16 @@ function Invoke-EzDarkFactoryControl {
                             if ($maximum -lt 1 -or $maximum -gt 8192) { throw 'Log read must be bounded to 1..8192 characters.' }
                             $logs = (Get-EzDarkFactoryInstanceRuntimePaths -Root $Root -InstanceName $target.name).Logs
                             $file = Assert-EzDarkFactorySafePath -Path (Join-Path $logs ($kind + '.log')) -Description 'Bounded guest log'
-                            $value = if (Test-Path -LiteralPath $file -PathType Leaf) { Read-EzDarkFactoryBoundedText -Path $file } else { '' }
-                            if ($value.Length -gt $maximum) { $value = $value.Substring($value.Length - $maximum) }
-                            $clean = Protect-EzDarkFactoryDiagnosticText -Text $value -MaximumCharacters 8192
-                            if ($clean.Length -gt $maximum) { $clean = $clean.Substring(0, $maximum) }
-                            $data = [pscustomobject]@{ target = $target; kind = $kind; text = $clean }
+                            $tail = if (Test-Path -LiteralPath $file -PathType Leaf) {
+                                Read-EzDarkFactoryControlLogTail -Path $file -MaximumCharacters $maximum
+                            } else {
+                                [pscustomobject]@{ text = ''; truncated = $false; source_bytes = 0 }
+                            }
+                            $data = [pscustomobject]@{
+                                target = $target; kind = $kind
+                                text = [string]$tail.text; truncated = [bool]$tail.truncated
+                                source_bytes = [long]$tail.source_bytes
+                            }
                         }
                     }
                 }
