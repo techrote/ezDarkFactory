@@ -474,6 +474,19 @@ function Start-EzDarkFactoryDetachedControlOperation {
             $null = Resolve-EzDarkFactoryControlTarget -Root $rootPath -Request $Request -AllowAdoption:($command -ceq 'instance.adopt')
         }
         if ($command -ceq 'factory.rekey') { Assert-EzDarkFactoryColdFactory -Root $rootPath -IgnoreOperationId $Request.operation_id }
+        # The worker runs in an intentionally non-authoritative CWD. Relative
+        # host paths must never resolve against that process or the manager's
+        # current directory; pin a reviewed absolute safe host path instead.
+        foreach ($field in @('host_path','image_path','manifest_path','destination_directory')) {
+            $property = $Request.arguments.PSObject.Properties[$field]
+            if ($null -ne $property -and -not [string]::IsNullOrEmpty([string]$property.Value)) {
+                $hostPath = [string]$property.Value
+                if (-not [IO.Path]::IsPathRooted($hostPath)) {
+                    throw ('Detached host path ' + $field + ' must be absolute before the worker launches.')
+                }
+                $null = Assert-EzDarkFactorySafePath -Path $hostPath -Description ('Detached host path ' + $field)
+            }
+        }
         $payload = ConvertTo-Json -InputObject $Request -Depth 32 -Compress
         if ([Text.Encoding]::UTF8.GetByteCount($payload) -gt 65536) { throw 'Detached request exceeds the 64-KiB bound.' }
         Assert-EzDarkFactoryCredentialFreeText -Text $payload -Description 'Detached root request'

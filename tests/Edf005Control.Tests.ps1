@@ -795,3 +795,21 @@ Add-EzDarkFactoryTest -Name 'EDF-005: a pending root operation prevents independ
         Remove-EzDarkFactoryTestDirectory -Path $workspace
     }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: detached host transfers reject relative paths before spool publication' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'relative host path'
+    try {
+        Add-Edf005WorkerEntrypoints -Root $root
+        $null = Initialize-EzDarkFactoryIdentity -Root $root
+        $cases = @(
+            [pscustomobject]@{ command = 'instance.import'; args = [pscustomobject]@{name='imported';image_path='relative-image.qcow2';manifest_path='';profile='light'} },
+            [pscustomobject]@{ command = 'instance.create'; args = [pscustomobject]@{name='relative';profile='light';base_id=''} }
+        )
+        $req = New-Edf005Request -Root $root -Command $cases[0].command -Arguments $cases[0].args
+        Assert-EzDarkFactoryThrows -ScriptBlock { Start-EzDarkFactoryDetachedControlOperation -Root $root -Request $req } -MessagePattern 'absolute' | Out-Null
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/submissions/' + $req.operation_id + '.json'))))
+        Assert-EzDarkFactoryTrue -Condition (-not (Test-Path -LiteralPath (Join-Path $root ('runtime/control/operations/' + $req.operation_id + '.json'))))
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
