@@ -2,6 +2,7 @@
 import ctypes
 import sys
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from edf006_winconsole_probe import (
@@ -132,10 +133,10 @@ class InertDemoTests(unittest.TestCase):
         self.assertEqual(len(frame_text(self.demo).split("\r\n")), 48)
         self.assertTrue(all(ord(c) < 128 for c in frame_text(self.demo)))
 
-    @unittest.skipIf(sys.platform == "win32", "Windows has a real console")
     def test_interactive_probe_refuses_non_windows(self):
-        with self.assertRaises(RuntimeError):
-            WindowsConsole().__enter__()
+        with patch("edf006_winconsole_probe.os.name", "posix"):
+            with self.assertRaises(RuntimeError):
+                WindowsConsole().__enter__()
 
 
 if __name__ == "__main__":
