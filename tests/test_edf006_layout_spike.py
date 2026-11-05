@@ -75,6 +75,13 @@ class InputTests(unittest.TestCase):
             self.assertNotEqual(drag.move(self.frame, 24, 4), self.split.ratio)
             self.assertEqual(drag.finish(reason), self.split.ratio)
 
+    def test_resize_to_compact_cancels_capture_without_division_by_zero(self):
+        drag = DividerDrag.begin(self.split, self.frame, self.divider.x, 10)
+        self.assertEqual(drag.move(solve(1, 12, self.split), 0, 0), self.split.ratio)
+        self.assertFalse(drag.active)
+        with self.assertRaises(ValueError):
+            drag.finish("release")
+
     def test_non_divider_capture_refused(self):
         with self.assertRaises(ValueError):
             DividerDrag.begin(self.split, self.frame, 0, 0)
