@@ -63,8 +63,7 @@ def _invalid_number(_: str) -> None:
 
 def _visible(value: str, maximum: int) -> str:
     """Strip terminal/OSC/C0/C1 controls from untrusted display metadata."""
-    return "".join("\N{REPLACEMENT CHARACTER}" if unicodedata.category(char) == "Cc"
-                   or unicodedata.category(char) == "Cf" else char
+    return "".join("\N{REPLACEMENT CHARACTER}" if unicodedata.category(char) in {"Cc", "Cf", "Cs"} else char
                    for char in value[:maximum])
 
 
@@ -105,12 +104,12 @@ def parse_static(payload: bytes) -> tuple[StaticRoot, ...]:
                 or (observed is not None and
                     (not isinstance(observed, str) or not FACTORY.fullmatch(observed)))
                 or not isinstance(path, str) or not 0 < len(path) <= 4096
-                or any(unicodedata.category(c) in {"Cc", "Cf"} for c in path)
+                or any(unicodedata.category(c) in {"Cc", "Cf", "Cs"} for c in path)
                 or not isinstance(alias, str) or len(alias) > 128
                 or not isinstance(state, str) or state not in STATES
                 or not isinstance(observed_at, str)
                 or not 0 < len(observed_at) <= 128
-                or any(unicodedata.category(c) in {"Cc", "Cf"} for c in observed_at)
+                or any(unicodedata.category(c) in {"Cc", "Cf", "Cs"} for c in observed_at)
                 or not isinstance(reason, str)
                 or record["inventory_state"] != "unknown"
                 or type(record["schemaVersion"]) is not int
