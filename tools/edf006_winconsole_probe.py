@@ -9,6 +9,12 @@ from __future__ import annotations
 import argparse
 import ctypes
 from ctypes import wintypes
+
+# Win32 records have fixed-width ABI fields even when tested on Linux, where
+# ctypes.wintypes aliases may follow the host C long/wchar widths.
+WIN_WORD = ctypes.c_uint16
+WIN_DWORD = ctypes.c_uint32
+WIN_BOOL = ctypes.c_int32
 from dataclasses import dataclass, replace
 import os
 import sys
@@ -30,18 +36,18 @@ class COORD(ctypes.Structure):
 
 
 class KEY_EVENT_RECORD(ctypes.Structure):
-    _fields_ = [("bKeyDown", wintypes.BOOL), ("wRepeatCount", wintypes.WORD),
-                ("wVirtualKeyCode", wintypes.WORD), ("wVirtualScanCode", wintypes.WORD),
-                ("UnicodeChar", wintypes.WCHAR), ("dwControlKeyState", wintypes.DWORD)]
+    _fields_ = [("bKeyDown", WIN_BOOL), ("wRepeatCount", WIN_WORD),
+                ("wVirtualKeyCode", WIN_WORD), ("wVirtualScanCode", WIN_WORD),
+                ("UnicodeChar", WIN_WORD), ("dwControlKeyState", WIN_DWORD)]
 
 
 class MOUSE_EVENT_RECORD(ctypes.Structure):
-    _fields_ = [("dwMousePosition", COORD), ("dwButtonState", wintypes.DWORD),
-                ("dwControlKeyState", wintypes.DWORD), ("dwEventFlags", wintypes.DWORD)]
+    _fields_ = [("dwMousePosition", COORD), ("dwButtonState", WIN_DWORD),
+                ("dwControlKeyState", WIN_DWORD), ("dwEventFlags", WIN_DWORD)]
 
 
 class FOCUS_EVENT_RECORD(ctypes.Structure):
-    _fields_ = [("bSetFocus", wintypes.BOOL)]
+    _fields_ = [("bSetFocus", WIN_BOOL)]
 
 
 class EVENT_UNION(ctypes.Union):
@@ -50,7 +56,7 @@ class EVENT_UNION(ctypes.Union):
 
 
 class INPUT_RECORD(ctypes.Structure):
-    _fields_ = [("EventType", wintypes.WORD), ("Event", EVENT_UNION)]
+    _fields_ = [("EventType", WIN_WORD), ("Event", EVENT_UNION)]
 
 
 @dataclass(frozen=True)
@@ -79,8 +85,8 @@ def decode(record: INPUT_RECORD, previous_left: bool) -> tuple[Event | None, boo
             return None, previous_left
         if key.wVirtualKeyCode == 0x1B:
             return Event("key", value="Escape"), previous_left
-        value = key.UnicodeChar
-        if value and value.isprintable():
+        value = chr(key.UnicodeChar)
+        if value.isprintable():
             return Event("key", value=value.lower()), previous_left
         return None, previous_left
     if kind != MOUSE_EVENT:

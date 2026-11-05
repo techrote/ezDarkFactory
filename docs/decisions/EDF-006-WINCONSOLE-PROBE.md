@@ -16,7 +16,7 @@ This probe does not enroll or inspect roots, import executable root code, dispat
 
 ## Automated source qualification
 
-tests/test_edf006_winconsole_probe.py exercises native record decoding (press/move/release, signed wheel, focus loss, resize, key-up filtering), geometry drag transaction, overlay click consumption, small-viewport rollback, oversized-viewport refusal, ASCII-only trusted output and non-Windows import/entry refusal. It also verifies the native INPUT_RECORD ABI is 20 bytes only on Windows, where that check executes. A Linux Python 3.13.5 focused scratch run executed 14 cases: 13 PASS, one Windows-only ABI case SKIP, 0 FAIL. Python compileall PASS. These are software/synthetic checks; no native console input or Windows Terminal visual test was executed in the scratch environment.
+tests/test_edf006_winconsole_probe.py exercises native record decoding (press/move/release, signed wheel, focus loss, resize, key-up filtering), geometry drag transaction, overlay click consumption, small-viewport rollback, oversized-viewport refusal, ASCII-only trusted output and non-Windows import/entry refusal. It verifies the native INPUT_RECORD Win32 ABI is 20 bytes on all test hosts using explicit fixed-width Win32 field types (not host-dependent Linux wchar/DWORD aliases). A Linux Python 3.13.5 focused scratch run executed 15 cases: 15 PASS, 0 SKIP, 0 FAIL. Python compileall PASS. These are software/synthetic checks; no native console input or Windows Terminal visual test was executed in the scratch environment.
 
 ## Admission limits
 

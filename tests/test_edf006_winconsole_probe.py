@@ -40,6 +40,13 @@ class NativeInputTests(unittest.TestCase):
         self.assertIsNone(event)
         self.assertFalse(left)
 
+    def test_printable_key_uses_fixed_width_utf16_code_unit(self):
+        raw = INPUT_RECORD()
+        raw.EventType = KEY_EVENT
+        raw.Event.KeyEvent.bKeyDown = True
+        raw.Event.KeyEvent.UnicodeChar = ord("Q")
+        self.assertEqual(decode(raw, False)[0], Event("key", value="q"))
+
     def test_signed_wheel_does_not_mutate_button_capture(self):
         up, state = decode(mouse((120 & 0xFFFF) << 16, MOUSE_WHEELED), False)
         down, same_state = decode(mouse(((-120) & 0xFFFF) << 16, MOUSE_WHEELED), True)
@@ -72,8 +79,7 @@ class NativeInputTests(unittest.TestCase):
         raw.Event.KeyEvent.bKeyDown = True
         self.assertEqual(decode(raw, False)[0], Event("key", value="Escape"))
 
-    @unittest.skipUnless(sys.platform == "win32", "Win32 ABI only")
-    def test_actual_windows_input_record_abi(self):
+    def test_win32_input_record_abi_is_portable_and_exact(self):
         self.assertEqual(ctypes.sizeof(INPUT_RECORD), 20)
 
 
