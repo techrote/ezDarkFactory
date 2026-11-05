@@ -97,4 +97,27 @@ This adds a **real, read-only entry point** to the accepted EDF-005 portable man
 
 **Source/custody:** this increment extends existing Draft PR #28 from accepted main ae2dd266b7118f68a28500c84def00a18a889d10. Exact final head and GitHub Actions status must be rechecked after the last commit; no preceding-head PASS carries forward. This increment does not modify accepted EDF-005 sources, typed broker operations, first-party VM state, shared provenance pins, or external dependencies.
 
-**Unproved:** nonempty registered-factory observation on real Windows roots; actual typed instance.list/readiness/broker dispatch and detached-worker reconciliation; end-to-end cancellation/termination semantics; per-root slow-call isolation (EDF-005's existing static fleet read remains sequential inside one bounded process); memory-bounded **streaming** output (Python's subprocess buffers stdout until exit before enforcing the 256 KiB cap); UI thread integration; native Windows Terminal input/render/focus/paste/restore and source-pinned framework selection. EDF-006 remains **DRAFT/HOLD**, with physical/human gates **NOT RUN**.
+**Unproved:** nonempty registered-factory observation on real Windows roots; actual typed instance.list/readiness/broker dispatch and detached-worker reconciliation; end-to-end cancellation/termination semantics; per-root slow-call isolation (EDF-005's existing static fleet read remains sequential inside one bounded process); complete native end-to-end bounded output/cancellation beyond the single trusted PowerShell process (the new capture helper now caps stdout at 256 KiB and stderr at 16 KiB while reading); UI thread integration; native Windows Terminal input/render/focus/paste/restore and source-pinned framework selection. EDF-006 remains **DRAFT/HOLD**, with physical/human gates **NOT RUN**.
+
+## Fourth bounded increment: bounded trusted-process capture
+
+The EDF-006 static bridge now uses tools/edf006_bounded_process.py as its
+default executor. Unlike subprocess.run(stdout=PIPE, stderr=PIPE), two
+independent pipe readers cap retained output while the process runs (256 KiB
+stdout; 16 KiB stderr). On overflow or deadline expiry, the trusted direct
+child is killed and reaped; no oversized output is parsed or marked current.
+Stderr content is never surfaced to the UI. The executor rejects shell mode,
+inherits no stdin, and accepts only the narrow argument-array interface. The
+existing bridge test seam can still inject a fake runner.
+
+Seven new real subprocess tests in tests/test_edf006_bounded_process.py cover
+both streams, exact budgets, stdout/stderr overflow, timeout, simultaneous
+draining and invalid execution options. They prove single-process capture
+behavior, NOT child-process-tree termination, native Windows Terminal, real
+QEMU/WHPX, source-pinned TUI selection, or live instance observation. The
+trusted static PowerShell adapter must not create child processes; if that
+contract changes, process-tree termination requires separate qualification.
+
+Focused Linux Python 3.13.5 scratch-run: 7/7 PASS, 0 failures, 0 skips.
+The full Windows PowerShell merge gate and physical terminal checks remain
+NOT RUN locally; hosted exact-head checks must be evaluated separately.

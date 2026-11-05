@@ -16,6 +16,11 @@ import subprocess
 import unicodedata
 from typing import Callable
 
+if __package__:
+    from .edf006_bounded_process import BoundedCaptureError, run_bounded
+else:
+    from edf006_bounded_process import BoundedCaptureError, run_bounded
+
 MAX_BYTES = 256 * 1024
 MAX_ROOTS = 128
 ENROLLMENT = re.compile(r"enr_[a-f0-9]{32}\Z")
@@ -151,12 +156,12 @@ def parse_static(payload: bytes) -> tuple[StaticRoot, ...]:
 
 
 def collect_static(workspace: Path, *, timeout: float = 10.0,
-                   runner: Callable[..., object] = subprocess.run) -> tuple[StaticRoot, ...]:
+                   runner: Callable[..., object] = run_bounded) -> tuple[StaticRoot, ...]:
     """Run the *trusted checkout's* EDF-005 read adapter, never candidate code.
 
-    The OS subprocess is bounded by timeout; Python's run() kills and waits on
-    timeout. It still buffers child output until exit: MAX_BYTES is an output
-    validation cap, not a pre-allocation cap. Run this only on a worker.
+    The trusted child is killed/reaped on a deadline or either pipe budget.
+    Default capture retains at most 256 KiB stdout and 16 KiB stderr; these
+    limits apply while reading, before JSON validation. Run only on a worker.
     """
     workspace = Path(workspace)
     trusted_script = Path(__file__).resolve().parents[1] / "scripts" / "Invoke-Edf006StaticObservation.ps1"
@@ -169,7 +174,7 @@ def collect_static(workspace: Path, *, timeout: float = 10.0,
     try:
         completed = runner(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                            timeout=timeout, check=False)
-    except (OSError, subprocess.TimeoutExpired) as exc:
+    except (OSError, subprocess.TimeoutExpired, BoundedCaptureError) as exc:
         raise StaticReadError("trusted static adapter unavailable or timed out") from exc
     if completed.returncode != 0:
         raise StaticReadError("trusted static adapter refused the observation")
