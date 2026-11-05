@@ -183,5 +183,30 @@ class StaticAdapterTests(unittest.TestCase):
             self.assertEqual(invoked, [])
 
 
+    def test_path_and_timestamp_controls_refuse_but_unicode_labels_survive(self):
+        a = row()
+        a["alias"] = "Café"
+        self.assertEqual(parse_static(payload(a))[0].alias, "Café")
+        for key in ("canonical_path", "observed_at"):
+            bad = row()
+            bad[key] += "\x1b]52;clipboard\x07"
+            with self.subTest(key=key):
+                with self.assertRaises(StaticReadError):
+                    parse_static(payload(bad))
+
+    def test_actual_windows_powershell_static_endpoint_empty_registry(self):
+        """Windows provenance CI runs the real checked-in EDF-005 module."""
+        with tempfile.TemporaryDirectory(prefix="edf006-bridge-") as workspace:
+            (Path(workspace) / "registry.json").write_text(
+                '{"schemaVersion":1,"roots":[]}', encoding="utf-8")
+            if sys.platform == "win32":
+                self.assertEqual(collect_static(Path(workspace), timeout=15.0), ())
+            else:
+                # Linux exercises schema/bridge logic only. Never call this
+                # physical Windows or PowerShell acceptance.
+                self.assertEqual(parse_static(payload()), ())
+
+
+
 if __name__ == "__main__":
     unittest.main()
