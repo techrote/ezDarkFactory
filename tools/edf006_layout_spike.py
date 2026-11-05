@@ -105,6 +105,10 @@ class DividerDrag:
     def move(self, frame: Frame, x: int, y: int) -> float:
         if not self.active:
             raise ValueError("capture has finished")
+        if frame.compact or frame.divider is None:
+            self.preview = self.initial
+            self.active = False  # Resizing into compact mode cancels capture.
+            return self.initial
         size = frame.root.width if self.split.axis == "columns" else frame.root.height
         available = size - 1
         position = x - frame.root.x if self.split.axis == "columns" else y - frame.root.y
