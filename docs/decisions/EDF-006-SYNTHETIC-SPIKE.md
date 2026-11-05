@@ -63,3 +63,25 @@ The slow-root case holds one synthetic slot indefinitely while another factory c
 - Full exact-head Windows merge gate; real TCG/WHPX, PHYSICAL-TUI and HUMAN-USABILITY.
 
 **HOLD EDF-006 and the PR as Draft.** Next, select and run an actual Windows Terminal stack candidate against the accepted typed broker, then extend this reference as needed into a real native input/rendering spike and its CI/qualification evidence. Do not adopt a stack or merge solely from these synthetic tests.
+
+
+## Third bounded increment: optional portable workspace and cooperative one-writer admission
+
+The independent `tools/edf006_workspace_spike.py` models **only** the manager's optional, explicitly located cross-factory convenience workspace. It does not register or authorize factory roots, execute the EDF-005 typed adapter, initialize factory identity, or operate QEMU. It is framework-neutral reference code, **not a selected production runtime**.
+
+- The caller must explicitly select an **existing absolute directory**. Observer-only opening never creates manager state and does not require a registry. A directly supplied factory root can remain usable independently of this workspace, as required by the accepted EDF-005 control seam.
+- An active writer holds one cooperative operating-system byte-range lock on a permanent workspace-local marker (`msvcrt.locking` on Windows, `fcntl.flock` on POSIX). A second cooperating writer refuses while observer-only access remains possible. Closing or abnormal process death releases the OS lock; marker bytes, a PID, machine name or path are **not authority**.
+- Only `session.json` is writable by this spike. It accepts a narrowly scoped bounded schema-1 hidden-tile list, refuses duplicate JSON member names and invalid values, rejects symlink destinations, and uses a same-directory flushed temporary file plus atomic replacement. Invalid/corrupt/oversized/missing session data is ignored in favour of an embedded default; `safe_start=True` bypasses restore without deleting stored state.
+- `config.json`, `registry.json`, and `journal.json` are separate files and are **never modified** by the reference session writer. In particular, the factory-local operation receipts and control authority are untouched. No host-hidden application-data directory is consulted.
+
+Focused synthetic FAST-CI source check on an isolated Linux Python 3.13 scratch checkout:
+
+```text
+python -Werror -m unittest discover -s tests -p test_edf006_workspace_spike.py -v
+Ran 10 tests — OK (0 failures, 0 skips)
+python -Werror -m compileall -q tools tests — PASS
+```
+
+This tests same-process and real **second process** lock contention, read-only refusal, release and abnormal-exit recovery, safe-start, corrupted/duplicated/oversize session refusal, rejected-write nonmutation, state-file separation and symlink refusal where supported. The committed source/test blobs must be matched against these exercised files and the exact-head Windows/Ubuntu CI verified separately.
+
+**Limitations:** OS-level locks are cooperative among clients using this same protocol; no adversarial filesystem-rename/unlink, credential/ACL, network filesystem or power-failure durability guarantee is asserted. The narrow session schema intentionally does not implement the production tile/layout tree or full manager config/registry/journal. Windows-native OS lock behavior and full Windows merge gate remain to be qualified on the published exact head; no Windows Terminal event, typed-broker integration, source runtime choice, physical TUI or human acceptance is implied. EDF-006 **remains DRAFT/HOLD**.
