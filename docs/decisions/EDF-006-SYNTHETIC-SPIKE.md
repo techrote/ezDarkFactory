@@ -121,3 +121,48 @@ contract changes, process-tree termination requires separate qualification.
 Focused Linux Python 3.13.5 scratch-run: 7/7 PASS, 0 failures, 0 skips.
 The full Windows PowerShell merge gate and physical terminal checks remain
 NOT RUN locally; hosted exact-head checks must be evaluated separately.
+
+
+## Fifth bounded increment: inert semantic command registry and parity preflight
+
+`tools/edf006_commands_spike.py` declares the tailored section 5.1 minimum
+semantic command catalogue and the additional Escape/overlay-cancel recovery
+intent. The companion `tests/test_edf006_commands_spike.py` exercises route
+convergence and refusal. This is an explicitly **framework-neutral, inert**
+command-intent layer, not executable dispatch or proof of physical TUI input.
+
+- Menu-pointer and palette-keyboard routes for every command converge to the
+  same immutable intent, including factory, instance and generation identities.
+  Reserved Ctrl+P, Ctrl+T, Tab, Shift+Tab and Escape bindings are audited.
+  Routes here are abstract identifiers: EDF-007 must make them practically
+  accessible in a real terminal, including focus-and-act and click consumption.
+- Unsupported current/stale root identities, duplicate factory-ID conflict,
+  missing instance ID/generation or missing advertised EDF-005 capability
+  refuse an operation intent. Refresh and identity-conflict *navigation*
+  remain possible when a root cannot be dispatched.
+- Instance shell handoff maps to the accepted `instance.shell_descriptor`
+  capability; both clone variants map to `instance.clone`. Factory manager
+  registry edits use a separate `workspace-write` concurrency classification.
+- State-sensitive/destructive intents carry consequence-confirmation and
+  reconciliation-only metadata. **No confirmation is performed here**: the
+  selected UI must collect explicit target/consequence acknowledgement.
+  EDF-005 remains the authority for live revision, target identity, locks,
+  operation acceptance and idempotency at the moment of execution.
+- The prototype has no import of discovered roots, VM mutation, filesystem
+  writes, terminal driver, subprocess call, network call or external dependency.
+
+Qualification: focused `python -W error -m unittest discover -s tests -p
+test_edf006_commands_spike.py -v` and the repository full SOURCE/FAST-CI
+suite are required on the exact published head. Prior-head fast gate
+[42075797987](https://github.com/techrote/ezDarkFactory/actions/runs/42075797987)
+actually ended **FAIL**, not pending: 8/9 jobs passed, while pinned
+PowerShell 7.6.6 control-plane harness reported **411 PASS, 1 FAIL**
+in the existing `Portability identity: executable gate requires current-boot
+finalizer completion...` Python subprocess fixture, which exceeded its
+15-second test deadline. This did not execute any new semantic-command code
+and must remain retained negative evidence; no test was skipped or deadline
+weakened in this increment. Do not transfer 120/120 earlier Python successes
+to the new commit without requalification.
+
+**HOLD**: no pinned TUI runtime, native Windows Terminal focus/mouse/resize/
+restoration evidence, real multi-root interaction or final EDF-006 ADR yet.
