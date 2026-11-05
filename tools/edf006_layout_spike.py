@@ -162,7 +162,8 @@ class TileWorkspace:
 
     def safe_session_load(self, value: object) -> bool:
         """Fail closed on corruption without destroying existing tile state."""
-        if not isinstance(value, dict) or value.get("schemaVersion") != 1:
+        if (not isinstance(value, dict) or type(value.get("schemaVersion")) is not int
+                or value["schemaVersion"] != 1):
             return False
         hidden = value.get("hidden")
         if (not isinstance(hidden, list) or any(not isinstance(t, str) for t in hidden)
