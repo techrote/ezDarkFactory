@@ -17,7 +17,7 @@ No external packages, terminal driver, executable root discovery, control-plane 
 | Split solver | Deterministic columns/rows; one-cell divider; clamped child minimums | Required 40x12 / 80x24 / 120x40 / 160x48 / 200x60 fixtures, rows and extreme ratios |
 | Responsive recovery | Compact focused tile when below 120x40 or unsatisfiable minimums | Compact/focus test; no zero-size crushed panes |
 | Hit map | Final solved rectangles determine tile/divider hits without gaps or outside hits | Every cell at all five viewports audited |
-| Divider drag | Capture requires actual divider, preview may follow pointer outside original divider, release commits once | Clamp, non-divider refusal, finished-capture refusal |
+| Divider drag | Capture requires actual divider, preview may follow pointer outside original divider, release commits once; compact resize cancels capture | Clamp, non-divider refusal, finished-capture refusal and resize rollback |
 | Transaction rollback | Escape or focus loss cancels preview | Dedicated rollback regression |
 | Overlays | Topmost first, outside dismissal consumed, Escape removes exactly one logical layer | Dismissal/no-click-through, stack regression |
 | Session recovery | Visible/hidden state independent from per-tile local state; invalid session does not mutate existing state | Hide/restore and corrupt/unknown/duplicate session regression |
@@ -26,7 +26,7 @@ Focused run, using a Linux Python 3.13.5 scratch environment that contains only 
 
 ```text
 python -m unittest discover -s tests -p test_edf006_layout_spike.py -v
-Ran 12 tests in 0.016s — OK
+Ran 13 tests in 0.013s — OK
 python -m compileall -q tools tests — PASS
 ```
 
