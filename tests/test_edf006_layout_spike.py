@@ -107,7 +107,8 @@ class PersistenceTests(unittest.TestCase):
 
     def test_corrupt_session_fails_closed_without_mutation(self):
         workspace = TileWorkspace({"fleet": {}}, {"fleet"})
-        for session in (None, {}, {"schemaVersion": 2, "hidden": []},
+        for session in (None, {}, {"schemaVersion": True, "hidden": []},
+                        {"schemaVersion": 2, "hidden": []},
                         {"schemaVersion": 1, "hidden": ["unknown"]},
                         {"schemaVersion": 1, "hidden": ["fleet", "fleet"]}):
             with self.subTest(session=session):
