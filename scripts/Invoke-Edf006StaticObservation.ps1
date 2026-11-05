@@ -23,6 +23,7 @@ try {
     if ([Text.Encoding]::UTF8.GetByteCount($json) -gt 262144) {
         throw 'Observation response budget exceeded.'
     }
+    [Console]::OutputEncoding = New-Object System.Text.UTF8Encoding($false)
     [Console]::Out.WriteLine($json)
     exit 0
 }
