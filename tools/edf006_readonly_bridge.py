@@ -105,9 +105,12 @@ def parse_static(payload: bytes) -> tuple[StaticRoot, ...]:
                 or (observed is not None and
                     (not isinstance(observed, str) or not FACTORY.fullmatch(observed)))
                 or not isinstance(path, str) or not 0 < len(path) <= 4096
+                or any(unicodedata.category(c) in {"Cc", "Cf"} for c in path)
                 or not isinstance(alias, str) or len(alias) > 128
-                or state not in STATES or not isinstance(observed_at, str)
+                or not isinstance(state, str) or state not in STATES
+                or not isinstance(observed_at, str)
                 or not 0 < len(observed_at) <= 128
+                or any(unicodedata.category(c) in {"Cc", "Cf"} for c in observed_at)
                 or not isinstance(reason, str)
                 or record["inventory_state"] != "unknown"
                 or type(record["schemaVersion"]) is not int
