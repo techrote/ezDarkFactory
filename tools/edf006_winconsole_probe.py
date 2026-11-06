@@ -34,6 +34,9 @@ LEFT_BUTTON = 0x0001
 # Ctrl/Alt-modified input is not an unmodified demo command. Production
 # recovery bindings are owned by the future semantic command layer.
 CTRL_ALT_MASK = 0x000F
+# Win32 VK_PACKET represents Unicode-injected key input, including common
+# paste/SendInput paths. It is not an interactive shortcut authority.
+VK_PACKET = 0x00E7
 
 
 class COORD(ctypes.Structure):
@@ -132,10 +135,17 @@ def decode(record: INPUT_RECORD, previous_left: bool,
         key = record.Event.KeyEvent
         if not key.bKeyDown or key.dwControlKeyState & CTRL_ALT_MASK:
             return None, previous_left
+        # Packet-marked Unicode input (often clipboard paste), unknown virtual
+        # keys and inconsistent VK/Unicode pairs cannot become app shortcuts.
+        # ReadConsoleInputW cannot identify *every* paste implementation.
+        if key.wVirtualKeyCode in (0, VK_PACKET):
+            return None, previous_left
         if key.wVirtualKeyCode == 0x1B:
-            return Event("key", value="Escape"), previous_left
+            return (Event("key", value="Escape") if key.UnicodeChar in (0, 0x1B)
+                    else None), previous_left
         value = chr(key.UnicodeChar)
-        if value.isprintable():
+        if (value.isprintable() and value.lower() in ("q", "m", "t")
+                and key.wVirtualKeyCode == ord(value.upper())):
             return Event("key", value=value.lower()), previous_left
         return None, previous_left
     if kind != MOUSE_EVENT:

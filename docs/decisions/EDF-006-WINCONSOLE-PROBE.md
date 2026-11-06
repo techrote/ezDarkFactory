@@ -78,3 +78,23 @@ reserved `Ctrl+P` / `Ctrl+T` recovery bindings explicitly; this probe does not
 implement or qualify those bindings. Paste safety and Windows Terminal event
 behavior are still PHYSICAL-TUI pending. The decoder fix does not select or pin
 a production TUI stack and does not satisfy the EDF-006 merge gate on its own.
+
+## Packet-marked/ambiguous native input refusal (SOURCE/FAST-CI only)
+
+The inert diagnostic now requires an ordinary, internally consistent Win32
+virtual-key/Unicode pair for its bare `q`, `m`, `t` shortcuts, or a genuine
+Escape virtual key with an Escape/empty character. In particular, keys carrying
+`VK_PACKET` (0xE7) or an unknown virtual key (0) are **ignored**, even when
+their Unicode character looks like a command. This prevents known
+Unicode-injected/packet-marked paste paths from causing quit, menu changes or
+focus changes in the diagnostic. Ctrl/Alt shortcut refusal remains in force.
+Deterministic tests cover packet and unknown-key input, mismatched key/character
+pairs, and ordinary typed shortcut preservation.
+
+**Limit:** `ReadConsoleInputW` provides no universal proof of whether an
+otherwise normal key record originated from a clipboard paste, injection, or
+physical keyboard. This is a fail-closed improvement for recognized packet
+forms, **not** a completed paste-control implementation or PHYSICAL-TUI test.
+EDF-007's selected runtime must normalize paste/text input separately from
+semantic commands, and EDF-006 still needs actual Windows Terminal paste
+qualification and a selected/pinned stack ADR before merge.

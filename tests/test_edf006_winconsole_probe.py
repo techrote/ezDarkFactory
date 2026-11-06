@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from edf006_winconsole_probe import (
     Demo, Event, INPUT_RECORD, KEY_EVENT, MOUSE_EVENT,
     WINDOW_BUFFER_SIZE_EVENT, FOCUS_EVENT, MOUSE_MOVED,
-    MOUSE_WHEELED, LEFT_BUTTON, decode, frame_text, WindowsConsole, Viewport,
+    MOUSE_WHEELED, LEFT_BUTTON, VK_PACKET, decode, frame_text, WindowsConsole, Viewport,
     CONSOLE_SCREEN_BUFFER_INFO, SMALL_RECT, require_physical_viewport,
 )
 
@@ -20,6 +20,16 @@ def mouse(buttons, flags=0, x=60, y=7):
     record.Event.MouseEvent.dwEventFlags = flags
     record.Event.MouseEvent.dwMousePosition.X = x
     record.Event.MouseEvent.dwMousePosition.Y = y
+    return record
+
+
+def keyboard(vk, char="", modifiers=0):
+    record = INPUT_RECORD()
+    record.EventType = KEY_EVENT
+    record.Event.KeyEvent.bKeyDown = True
+    record.Event.KeyEvent.wVirtualKeyCode = vk
+    record.Event.KeyEvent.UnicodeChar = ord(char) if char else 0
+    record.Event.KeyEvent.dwControlKeyState = modifiers
     return record
 
 
@@ -96,6 +106,7 @@ class NativeInputTests(unittest.TestCase):
                 self.assertEqual(decode(raw, True), (None, True))
                 raw.Event.KeyEvent.wVirtualKeyCode = 0
         raw.Event.KeyEvent.dwControlKeyState = 0x10  # Shift only
+        raw.Event.KeyEvent.wVirtualKeyCode = ord("Q")
         self.assertEqual(decode(raw, False)[0], Event("key", value="q"))
 
     def test_duplicate_down_and_unrelated_records_do_not_fake_press(self):
@@ -110,8 +121,42 @@ class NativeInputTests(unittest.TestCase):
         raw = INPUT_RECORD()
         raw.EventType = KEY_EVENT
         raw.Event.KeyEvent.bKeyDown = True
+        raw.Event.KeyEvent.wVirtualKeyCode = ord("Q")
         raw.Event.KeyEvent.UnicodeChar = ord("Q")
         self.assertEqual(decode(raw, False)[0], Event("key", value="q"))
+
+    def test_packet_and_unknown_virtual_keys_cannot_fire_paste_shortcuts(self):
+        demo = Demo(160, 48)
+        for vk in (0, VK_PACKET):
+            for value in "qmtQMT":
+                with self.subTest(vk=vk, value=value):
+                    event, left = decode(keyboard(vk, value), False)
+                    self.assertIsNone(event)
+                    self.assertFalse(left)
+            with self.subTest(vk=vk, value="Escape"):
+                self.assertIsNone(decode(keyboard(vk, "\x1b"), False)[0])
+        self.assertTrue(demo.running)
+        self.assertEqual(demo.focus, "fleet")
+        self.assertFalse(demo.overlays.overlays)
+
+    def test_virtual_key_unicode_mismatch_cannot_trigger_command(self):
+        for vk, value in ((ord("Q"), "m"), (ord("M"), "q"),
+                          (ord("T"), "q"), (0x1B, "q"),
+                          (ord("Z"), "z")):
+            with self.subTest(vk=vk, value=value):
+                self.assertIsNone(decode(keyboard(vk, value), False)[0])
+
+    def test_typed_shortcuts_and_escape_remain_usable(self):
+        for value in "qmtQMT":
+            with self.subTest(value=value):
+                self.assertEqual(decode(keyboard(ord(value.upper()), value), False)[0],
+                                 Event("key", value=value.lower()))
+        self.assertEqual(decode(keyboard(0x1B), False)[0],
+                         Event("key", value="Escape"))
+        self.assertEqual(decode(keyboard(0x1B, "\x1b"), False)[0],
+                         Event("key", value="Escape"))
+        self.assertEqual(decode(keyboard(ord("Q"), "Q", 0x10), False)[0],
+                         Event("key", value="q"))
 
     def test_signed_wheel_does_not_mutate_button_capture(self):
         up, state = decode(mouse((120 & 0xFFFF) << 16, MOUSE_WHEELED), False)
