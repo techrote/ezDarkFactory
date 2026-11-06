@@ -267,7 +267,27 @@ function Read-EzDarkFactoryControlReceiptJson {
     for ($attempt = 0; $attempt -lt 20; $attempt++) {
         $stream = $null
         try {
-            $stream = [IO.File]::Open($full, [IO.FileMode]::Open, [IO.FileAccess]::Read, $share)
+            try {
+                $stream = [IO.File]::Open($full, [IO.FileMode]::Open, [IO.FileAccess]::Read, $share)
+            }
+            catch {
+                # PowerShell 7 can wrap a .NET File.Open IOException in a
+                # MethodInvocationException. Inspect the underlying exception,
+                # not its localized message or PowerShell's outer error type.
+                # Only Windows sharing (32) and lock (33) acquisition races
+                # qualify for retry. Read/parse/identity errors must fail now.
+                $cause = $_.Exception
+                while ($null -ne $cause.InnerException) { $cause = $cause.InnerException }
+                $code = $cause.HResult -band 0xffff
+                if ($cause -isnot [IO.IOException] -or $code -notin @(32, 33) -or $attempt -eq 19) {
+                    throw
+                }
+                # A removed receipt is a state transition for reconciliation,
+                # not a reason to keep retrying the old path.
+                if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw }
+                Start-Sleep -Milliseconds 25
+                continue
+            }
             if ($stream.Length -gt 1048576) { throw 'Control receipt exceeds its 1-MiB read limit.' }
             $data = New-Object byte[] ([int]$stream.Length)
             $count = 0
@@ -278,13 +298,6 @@ function Read-EzDarkFactoryControlReceiptJson {
             }
             $text = (New-Object Text.UTF8Encoding($false, $true)).GetString($data, 0, $count)
             return (ConvertFrom-EzDarkFactoryJsonText -Text $text -SchemaVersion 1 -Description 'Control receipt')
-        }
-        catch [IO.IOException] {
-            # Deletion is a state transition for the caller, not a sharing
-            # retry budget against a path that no longer exists.
-            if (-not (Test-Path -LiteralPath $full -PathType Leaf)) { throw }
-            if ($attempt -eq 19) { throw }
-            Start-Sleep -Milliseconds 25
         }
         finally { if ($null -ne $stream) { $stream.Dispose() } }
     }
