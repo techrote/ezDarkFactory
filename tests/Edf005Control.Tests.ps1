@@ -998,6 +998,23 @@ Add-EzDarkFactoryTest -Name 'EDF-005: concurrent terminal journal reader retries
 }
 
 
+Add-EzDarkFactoryTest -Name 'EDF-005: a readable malformed receipt refuses immediately without a sharing retry' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'malformed receipt refusal'
+    try {
+        $file = Join-Path $root 'malformed-receipt.json'
+        [IO.File]::WriteAllText($file, '{invalid json', (New-Object Text.UTF8Encoding($false)))
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        $rejected = $false
+        try { $null = Read-EzDarkFactoryControlReceiptJson -Path $file }
+        catch { $rejected = $true }
+        $watch.Stop()
+        Assert-EzDarkFactoryTrue -Condition $rejected -Message 'Malformed readable receipt must not become an accepted operation.'
+        Assert-EzDarkFactoryTrue -Condition ($watch.ElapsedMilliseconds -lt 3000) -Message 'Malformed receipt must not consume the sharing-retry budget.'
+        Assert-EzDarkFactoryEqual -Actual ([IO.File]::ReadAllText($file)) -Expected '{invalid json'
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
 Add-EzDarkFactoryTest -Name 'EDF-005: deleted submission transitions through unknown to exact terminal without replay' -ScriptBlock {
     $root = New-EzDarkFactoryCheckoutFixture -Prefix 'submission TOCTOU'
     try {
