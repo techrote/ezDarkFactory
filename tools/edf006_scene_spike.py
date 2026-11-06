@@ -160,7 +160,7 @@ class Scene:
         if width == 0:
             char, width = "?", 1
         if width == 2 and x + 1 >= self.width:
-            return Fals`  # atomic clip: never place half a wide glyph
+            return False  # atomic clip: never place half a wide glyph
         targets = tuple(range(self._index(x, y), self._index(x, y) + width))
         old = set()
         for xx in range(x, x + width):
