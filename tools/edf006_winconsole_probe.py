@@ -18,8 +18,10 @@ WIN_BOOL = ctypes.c_int32
 from dataclasses import dataclass, replace
 import os
 import sys
+import time
 
 from edf006_layout_spike import DividerDrag, OverlayStack, Rect, Split, solve
+from edf006_probe_metrics import ProbeMetrics, write_receipt
 
 KEY_EVENT = 0x0001
 MOUSE_EVENT = 0x0002
@@ -256,8 +258,11 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="EDF-006 Windows Terminal non-production input probe")
     parser.add_argument("--width", type=int, default=None)
     parser.add_argument("--height", type=int, default=None)
+    parser.add_argument("--receipt", metavar="ABSOLUTE_JSON_PATH", default=None,
+                        help="opt-in create-only timing summary outside the repository")
     opts = parser.parse_args()
     previous_left = False
+    metrics = ProbeMetrics()
     try:
         with WindowsConsole() as native:
             terminal = os.get_terminal_size(sys.stdout.fileno())
@@ -269,14 +274,27 @@ def main() -> int:
             sys.stdout.write(frame_text(demo))
             sys.stdout.flush()
             while demo.running:
-                event, previous_left = decode(native.read(), previous_left)
+                record = native.read()
+                read_return_ns = time.perf_counter_ns()
+                event, previous_left = decode(record, previous_left)
                 if event is not None:
                     demo.apply(event)
                     if demo.running:
-                        sys.stdout.write(frame_text(demo))
+                        compose_start_ns = time.perf_counter_ns()
+                        frame = frame_text(demo)
+                        compose_end_ns = time.perf_counter_ns()
+                        sys.stdout.write(frame)
                         sys.stdout.flush()
+                        flush_end_ns = time.perf_counter_ns()
+                        metrics.record(event.kind, read_return_ns, compose_start_ns,
+                                       compose_end_ns, flush_end_ns)
+                    else:
+                        metrics.record(event.kind, read_return_ns)
     except KeyboardInterrupt:
         pass
+    # Executed after native console restoration. No auto-persistence.
+    if opts.receipt and any(metrics.kind_counts.values()):
+        write_receipt(opts.receipt, metrics)
     return 0
 
 
