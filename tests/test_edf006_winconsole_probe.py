@@ -34,10 +34,10 @@ class NativeInputTests(unittest.TestCase):
         self.assertEqual(event, Event("release", 60, 7))
         self.assertFalse(left)
 
-    def test_coalesced_mouse_move_down_and_up_preserves_drag_transaction(self):
+    def test_coalesced_mouse_release_finishes_existing_drag(self):
         demo = Demo(160, 48)
         original = demo.frame.divider.x
-        down, left = decode(mouse(LEFT_BUTTON, MOUSE_MOVED, original, 5), False)
+        down, left = decode(mouse(LEFT_BUTTON, 0, original, 5), False)
         self.assertEqual(down, Event("press", original, 5))
         demo.apply(down)
         self.assertIsNotNone(demo.drag)
@@ -56,11 +56,32 @@ class NativeInputTests(unittest.TestCase):
         self.assertEqual(event, Event("move", 10, 4))
         self.assertFalse(left)
         event, left = decode(mouse(LEFT_BUTTON, MOUSE_MOVED, 10, 4), left)
-        self.assertEqual(event, Event("press", 10, 4))
+        self.assertEqual(event, Event("move", 10, 4))
         self.assertTrue(left)
         event, left = decode(mouse(LEFT_BUTTON | 0x0002, MOUSE_MOVED, 11, 4), left)
         self.assertEqual(event, Event("move", 11, 4))
         self.assertTrue(left)
+
+    def test_focus_loss_cannot_reenter_drag_on_held_button_move(self):
+        demo = Demo(160, 48)
+        original = demo.split.ratio
+        pressed, left = decode(mouse(LEFT_BUTTON, 0, demo.frame.divider.x, 5), False)
+        demo.apply(pressed)
+        self.assertIsNotNone(demo.drag)
+        lost = INPUT_RECORD()
+        lost.EventType = FOCUS_EVENT
+        lost.Event.FocusEvent.bSetFocus = False
+        event, left = decode(lost, left)
+        demo.apply(event)
+        self.assertIsNone(demo.drag)
+        self.assertFalse(left)
+        # Windows may deliver movement while the old button remains held.
+        # It must not become a new press without an explicit down record.
+        event, left = decode(mouse(LEFT_BUTTON, MOUSE_MOVED, demo.frame.divider.x, 5), left)
+        self.assertEqual(event, Event("move", demo.frame.divider.x, 5))
+        demo.apply(event)
+        self.assertIsNone(demo.drag)
+        self.assertEqual(demo.split.ratio, original)
 
     def test_ctrl_alt_modified_shortcuts_cannot_trigger_demo_commands(self):
         raw = INPUT_RECORD()

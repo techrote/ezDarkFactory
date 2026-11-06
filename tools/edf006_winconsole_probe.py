@@ -152,11 +152,11 @@ def decode(record: INPUT_RECORD, previous_left: bool,
         return Event("wheel", x, y, delta), previous_left
     left = bool(mouse.dwButtonState & LEFT_BUTTON)
     if flags == MOUSE_MOVED:
-        # Windows can coalesce a button transition into a movement record.
-        # Preserve a paired press/release, especially for divider capture:
-        # treating a move with left=up as a drag would leave capture stuck.
-        if left != previous_left:
-            return Event("press" if left else "release", x, y), left
+        # A coalesced button-UP movement must end existing divider capture.
+        # Never synthesize DOWN on movement: after focus loss, an already-held
+        # button could otherwise reenter capture without a fresh press record.
+        if previous_left and not left:
+            return Event("release", x, y), left
         return Event("move", x, y), left
     if flags == 0:
         if left and not previous_left:

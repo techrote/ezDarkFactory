@@ -63,12 +63,14 @@ create-only checks establish implementation properties, not native acceptance.
 
 ## Coalesced native input and modifier safety (source qualification)
 
-The Win32 decoder now synthesizes a left-button press/release when `MOUSE_MOVED`
-changes the left-button state, instead of leaving divider capture active after
-a release that arrived as movement. Normal held-button motion remains movement;
-this is only native-record normalization, not a claim about physical host event
-sequencing. Three deterministic regressions cover coalesced down/up and actual
-layout drag commit, unchanged movement, and modified-key refusal.
+The Win32 decoder now synthesizes a left-button **release** when `MOUSE_MOVED`
+reports button-up after an existing press, instead of leaving divider capture
+active. It intentionally does **not** synthesize a press on movement: following
+focus loss a button may remain physically held, and that must not create a
+second drag without a fresh explicit press record. Normal movement remains
+movement. Four deterministic regressions cover coalesced release/drag commit,
+unchanged movement, focus-loss non-reentry and modified-key refusal. These are
+source-level behaviors, not physical Windows Terminal evidence.
 
 `Ctrl`- or `Alt`-modified key events cannot trigger this inert probe's bare
 `q`/`m`/`t`/`Escape` shortcuts. The future production command layer must handle
