@@ -8,7 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from edf006_winconsole_probe import (
     Demo, Event, INPUT_RECORD, KEY_EVENT, MOUSE_EVENT,
     WINDOW_BUFFER_SIZE_EVENT, FOCUS_EVENT, MOUSE_MOVED,
-    MOUSE_WHEELED, decode, frame_text, WindowsConsole, Viewport,
+    MOUSE_WHEELED, LEFT_BUTTON, decode, frame_text, WindowsConsole, Viewport,
     CONSOLE_SCREEN_BUFFER_INFO, SMALL_RECT, require_physical_viewport,
 )
 
@@ -33,6 +33,49 @@ class NativeInputTests(unittest.TestCase):
         event, left = decode(mouse(0), left)
         self.assertEqual(event, Event("release", 60, 7))
         self.assertFalse(left)
+
+    def test_coalesced_mouse_move_down_and_up_preserves_drag_transaction(self):
+        demo = Demo(160, 48)
+        original = demo.frame.divider.x
+        down, left = decode(mouse(LEFT_BUTTON, MOUSE_MOVED, original, 5), False)
+        self.assertEqual(down, Event("press", original, 5))
+        demo.apply(down)
+        self.assertIsNotNone(demo.drag)
+        moving, left = decode(mouse(LEFT_BUTTON, MOUSE_MOVED, original - 30, 5), left)
+        self.assertEqual(moving, Event("move", original - 30, 5))
+        demo.apply(moving)
+        released, left = decode(mouse(0, MOUSE_MOVED, original - 30, 5), left)
+        self.assertEqual(released, Event("release", original - 30, 5))
+        self.assertFalse(left)
+        demo.apply(released)
+        self.assertIsNone(demo.drag)
+        self.assertEqual(demo.frame.divider.x, original - 30)
+
+    def test_move_with_no_button_change_remains_motion(self):
+        event, left = decode(mouse(0, MOUSE_MOVED, 10, 4), False)
+        self.assertEqual(event, Event("move", 10, 4))
+        self.assertFalse(left)
+        event, left = decode(mouse(LEFT_BUTTON, MOUSE_MOVED, 10, 4), left)
+        self.assertEqual(event, Event("press", 10, 4))
+        self.assertTrue(left)
+        event, left = decode(mouse(LEFT_BUTTON | 0x0002, MOUSE_MOVED, 11, 4), left)
+        self.assertEqual(event, Event("move", 11, 4))
+        self.assertTrue(left)
+
+    def test_ctrl_alt_modified_shortcuts_cannot_trigger_demo_commands(self):
+        raw = INPUT_RECORD()
+        raw.EventType = KEY_EVENT
+        raw.Event.KeyEvent.bKeyDown = True
+        raw.Event.KeyEvent.UnicodeChar = ord("Q")
+        for mask in (0x1, 0x2, 0x4, 0x8, 0xF):
+            with self.subTest(mask=mask):
+                raw.Event.KeyEvent.dwControlKeyState = mask
+                self.assertEqual(decode(raw, False), (None, False))
+                raw.Event.KeyEvent.wVirtualKeyCode = 0x1B
+                self.assertEqual(decode(raw, True), (None, True))
+                raw.Event.KeyEvent.wVirtualKeyCode = 0
+        raw.Event.KeyEvent.dwControlKeyState = 0x10  # Shift only
+        self.assertEqual(decode(raw, False)[0], Event("key", value="q"))
 
     def test_duplicate_down_and_unrelated_records_do_not_fake_press(self):
         event, left = decode(mouse(1), True)

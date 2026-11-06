@@ -31,6 +31,9 @@ MOUSE_MOVED = 0x0001
 MOUSE_WHEELED = 0x0004
 MOUSE_HWHEELED = 0x0008
 LEFT_BUTTON = 0x0001
+# Ctrl/Alt-modified input is not an unmodified demo command. Production
+# recovery bindings are owned by the future semantic command layer.
+CTRL_ALT_MASK = 0x000F
 
 
 class COORD(ctypes.Structure):
@@ -127,7 +130,7 @@ def decode(record: INPUT_RECORD, previous_left: bool,
         return Event("resize", max(1, size.X), max(1, size.Y)), previous_left
     if kind == KEY_EVENT:
         key = record.Event.KeyEvent
-        if not key.bKeyDown:
+        if not key.bKeyDown or key.dwControlKeyState & CTRL_ALT_MASK:
             return None, previous_left
         if key.wVirtualKeyCode == 0x1B:
             return Event("key", value="Escape"), previous_left
@@ -149,6 +152,11 @@ def decode(record: INPUT_RECORD, previous_left: bool,
         return Event("wheel", x, y, delta), previous_left
     left = bool(mouse.dwButtonState & LEFT_BUTTON)
     if flags == MOUSE_MOVED:
+        # Windows can coalesce a button transition into a movement record.
+        # Preserve a paired press/release, especially for divider capture:
+        # treating a move with left=up as a drag would leave capture stuck.
+        if left != previous_left:
+            return Event("press" if left else "release", x, y), left
         return Event("move", x, y), left
     if flags == 0:
         if left and not previous_left:

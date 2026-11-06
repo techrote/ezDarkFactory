@@ -60,3 +60,19 @@ claiming PHYSICAL-TUI acceptance. Source-only/hosted tests do not satisfy that g
 The deterministic histogram/receipt tests are in
 tests/test_edf006_probe_metrics.py. Their bounded storage, overflow, no-leak and
 create-only checks establish implementation properties, not native acceptance.
+
+## Coalesced native input and modifier safety (source qualification)
+
+The Win32 decoder now synthesizes a left-button press/release when `MOUSE_MOVED`
+changes the left-button state, instead of leaving divider capture active after
+a release that arrived as movement. Normal held-button motion remains movement;
+this is only native-record normalization, not a claim about physical host event
+sequencing. Three deterministic regressions cover coalesced down/up and actual
+layout drag commit, unchanged movement, and modified-key refusal.
+
+`Ctrl`- or `Alt`-modified key events cannot trigger this inert probe's bare
+`q`/`m`/`t`/`Escape` shortcuts. The future production command layer must handle
+reserved `Ctrl+P` / `Ctrl+T` recovery bindings explicitly; this probe does not
+implement or qualify those bindings. Paste safety and Windows Terminal event
+behavior are still PHYSICAL-TUI pending. The decoder fix does not select or pin
+a production TUI stack and does not satisfy the EDF-006 merge gate on its own.
