@@ -8,7 +8,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
 from edf006_winconsole_probe import (
     Demo, Event, INPUT_RECORD, KEY_EVENT, MOUSE_EVENT,
     WINDOW_BUFFER_SIZE_EVENT, FOCUS_EVENT, MOUSE_MOVED,
-    MOUSE_WHEELED, decode, frame_text, WindowsConsole,
+    MOUSE_WHEELED, decode, frame_text, WindowsConsole, Viewport,
+    CONSOLE_SCREEN_BUFFER_INFO, SMALL_RECT, require_physical_viewport,
 )
 
 
@@ -82,6 +83,46 @@ class NativeInputTests(unittest.TestCase):
 
     def test_win32_input_record_abi_is_portable_and_exact(self):
         self.assertEqual(ctypes.sizeof(INPUT_RECORD), 20)
+        self.assertEqual(ctypes.sizeof(SMALL_RECT), 8)
+        self.assertEqual(ctypes.sizeof(CONSOLE_SCREEN_BUFFER_INFO), 22)
+
+    def test_visible_console_window_not_backing_buffer_is_authoritative(self):
+        info = CONSOLE_SCREEN_BUFFER_INFO()
+        info.dwSize.X, info.dwSize.Y = 512, 900
+        info.srWindow.Left, info.srWindow.Top = 100, 300
+        info.srWindow.Right, info.srWindow.Bottom = 259, 347
+        self.assertEqual(Viewport.from_buffer_info(info), Viewport(100, 300, 160, 48))
+
+    def test_native_mouse_coordinates_subtract_visible_window_origin(self):
+        visible = Viewport(100, 300, 160, 48)
+        event, left = decode(mouse(1, x=115, y=310), False, visible)
+        self.assertEqual(event, Event("press", 15, 10))
+        self.assertTrue(left)
+        event, _ = decode(mouse(0, x=99, y=299), left, visible)
+        self.assertEqual(event, Event("release", -1, -1))
+
+    def test_native_resize_uses_viewport_not_buffer_dimensions(self):
+        raw = INPUT_RECORD()
+        raw.EventType = WINDOW_BUFFER_SIZE_EVENT
+        raw.Event.WindowBufferSizeEvent.X = 300
+        raw.Event.WindowBufferSizeEvent.Y = 900
+        self.assertEqual(decode(raw, False, Viewport(40, 80, 80, 24))[0],
+                         Event("resize", 80, 24))
+
+    def test_physical_size_flags_are_assertions_not_software_override(self):
+        visible = Viewport(100, 300, 160, 48)
+        self.assertEqual(require_physical_viewport(visible, None, None), (160, 48))
+        self.assertEqual(require_physical_viewport(visible, 160, 48), (160, 48))
+        with self.assertRaises(ValueError):
+            require_physical_viewport(visible, 80, 24)
+        with self.assertRaises(ValueError):
+            require_physical_viewport(Viewport(0, 0, 301, 48), None, None)
+
+    def test_invalid_visible_window_fails_closed(self):
+        info = CONSOLE_SCREEN_BUFFER_INFO()
+        info.srWindow.Left, info.srWindow.Right = 20, 10
+        with self.assertRaises(ValueError):
+            Viewport.from_buffer_info(info)
 
 
 class InertDemoTests(unittest.TestCase):
@@ -107,6 +148,16 @@ class InertDemoTests(unittest.TestCase):
         self.demo.apply(Event("focus_loss"))
         self.assertIsNone(self.demo.drag)
         self.assertEqual(self.demo.split.ratio, old)
+
+    def test_noncompact_resize_cancels_drag_and_original_ratio_survives(self):
+        start = self.demo.split.ratio
+        self.demo.apply(Event("press", self.demo.frame.divider.x, 5))
+        self.demo.apply(Event("move", 45, 5))
+        self.demo.apply(Event("resize", 200, 60))
+        self.assertIsNone(self.demo.drag)
+        self.assertEqual(self.demo.split.ratio, start)
+        self.assertFalse(self.demo.frame.compact)
+        self.assertEqual((self.demo.width, self.demo.height), (200, 60))
 
     def test_resize_to_compact_cancels_drag(self):
         self.demo.apply(Event("press", self.demo.frame.divider.x, 5))

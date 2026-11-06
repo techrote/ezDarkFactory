@@ -37,6 +37,17 @@ class COORD(ctypes.Structure):
     _fields_ = [("X", ctypes.c_short), ("Y", ctypes.c_short)]
 
 
+class SMALL_RECT(ctypes.Structure):
+    _fields_ = [("Left", ctypes.c_short), ("Top", ctypes.c_short),
+                ("Right", ctypes.c_short), ("Bottom", ctypes.c_short)]
+
+
+class CONSOLE_SCREEN_BUFFER_INFO(ctypes.Structure):
+    _fields_ = [("dwSize", COORD), ("dwCursorPosition", COORD),
+                ("wAttributes", WIN_WORD), ("srWindow", SMALL_RECT),
+                ("dwMaximumWindowSize", COORD)]
+
+
 class KEY_EVENT_RECORD(ctypes.Structure):
     _fields_ = [("bKeyDown", WIN_BOOL), ("wRepeatCount", WIN_WORD),
                 ("wVirtualKeyCode", WIN_WORD), ("wVirtualScanCode", WIN_WORD),
@@ -69,7 +80,37 @@ class Event:
     value: int | str = 0
 
 
-def decode(record: INPUT_RECORD, previous_left: bool) -> tuple[Event | None, bool]:
+@dataclass(frozen=True)
+class Viewport:
+    """Visible console window, distinct from its underlying screen buffer."""
+    left: int
+    top: int
+    width: int
+    height: int
+
+    @classmethod
+    def from_buffer_info(cls, info: CONSOLE_SCREEN_BUFFER_INFO) -> Viewport:
+        rect = info.srWindow
+        width, height = rect.Right - rect.Left + 1, rect.Bottom - rect.Top + 1
+        if width < 1 or height < 1:
+            raise ValueError("invalid console visible-window geometry")
+        return cls(rect.Left, rect.Top, width, height)
+
+
+def require_physical_viewport(viewport: Viewport,
+                              expected_width: int | None,
+                              expected_height: int | None) -> tuple[int, int]:
+    """CLI size flags assert actual native viewport; they never fabricate one."""
+    if not 1 <= viewport.width <= 300 or not 1 <= viewport.height <= 100:
+        raise ValueError("viewport outside supported diagnostic bounds")
+    if ((expected_width is not None and expected_width != viewport.width)
+            or (expected_height is not None and expected_height != viewport.height)):
+        raise ValueError("expected viewport does not match actual console window")
+    return viewport.width, viewport.height
+
+
+def decode(record: INPUT_RECORD, previous_left: bool,
+           viewport: Viewport | None = None) -> tuple[Event | None, bool]:
     """Translate native records; key-up is ignored, focus loss resets capture.
 
     Mouse wheel uses signed high word; never interprets wheel delta as button.
@@ -79,6 +120,9 @@ def decode(record: INPUT_RECORD, previous_left: bool) -> tuple[Event | None, boo
         return (Event("focus_gain") if record.Event.FocusEvent.bSetFocus
                 else Event("focus_loss")), False if not record.Event.FocusEvent.bSetFocus else previous_left
     if kind == WINDOW_BUFFER_SIZE_EVENT:
+        if viewport is not None:
+            return Event("resize", viewport.width, viewport.height), previous_left
+        # Synthetic ABI-only tests without a native console keep buffer dimensions.
         size = record.Event.WindowBufferSizeEvent
         return Event("resize", max(1, size.X), max(1, size.Y)), previous_left
     if kind == KEY_EVENT:
@@ -95,6 +139,10 @@ def decode(record: INPUT_RECORD, previous_left: bool) -> tuple[Event | None, boo
         return None, previous_left
     mouse = record.Event.MouseEvent
     x, y = mouse.dwMousePosition.X, mouse.dwMousePosition.Y
+    if viewport is not None:
+        # Win32 mouse positions are screen-buffer coordinates, not visible-window
+        # offsets. Scrollback/viewport origin must not shift hit-test targets.
+        x, y = x - viewport.left, y - viewport.top
     flags = mouse.dwEventFlags
     if flags in (MOUSE_WHEELED, MOUSE_HWHEELED):
         delta = ctypes.c_short((mouse.dwButtonState >> 16) & 0xFFFF).value
@@ -136,11 +184,13 @@ class Demo:
             if event.x > 300 or event.y > 100:
                 self.running = False  # Refuse unbounded repaint, restore console.
                 return
+            # Any resize ends an in-progress transaction: its original
+            # geometry is no longer valid even when both viewports are wide.
+            if self.drag and self.drag.active:
+                self.split = replace(self.split, ratio=self.drag.finish("focus_loss"))
+                self.drag = None
             self.width, self.height = event.x, event.y
             self.frame = solve(self.width, self.height, self.split, self.focus)
-            if self.drag and self.drag.active and self.frame.compact:
-                self.drag.move(self.frame, 0, 0)
-                self.drag = None
         elif event.kind == "key":
             if event.value == "Escape":
                 if self.drag and self.drag.active:
@@ -217,6 +267,9 @@ class WindowsConsole:
             getattr(kernel, function).restype = wintypes.BOOL
         kernel.ReadConsoleInputW.argtypes = [wintypes.HANDLE, ctypes.POINTER(INPUT_RECORD), wintypes.DWORD, ctypes.POINTER(wintypes.DWORD)]
         kernel.ReadConsoleInputW.restype = wintypes.BOOL
+        kernel.GetConsoleScreenBufferInfo.argtypes = [
+            wintypes.HANDLE, ctypes.POINTER(CONSOLE_SCREEN_BUFFER_INFO)]
+        kernel.GetConsoleScreenBufferInfo.restype = wintypes.BOOL
         self.kernel = kernel
         self.input_handle = kernel.GetStdHandle(wintypes.DWORD(-10))
         self.output_handle = kernel.GetStdHandle(wintypes.DWORD(-11))
@@ -247,6 +300,13 @@ class WindowsConsole:
             self.kernel.SetConsoleMode(self.input_handle, self.input_mode.value)
             self.kernel.SetConsoleMode(self.output_handle, self.output_mode.value)
 
+    def viewport(self) -> Viewport:
+        info = CONSOLE_SCREEN_BUFFER_INFO()
+        if not self.kernel.GetConsoleScreenBufferInfo(
+                self.output_handle, ctypes.byref(info)):
+            raise OSError(ctypes.get_last_error(), "GetConsoleScreenBufferInfo failed")
+        return Viewport.from_buffer_info(info)
+
     def read(self) -> INPUT_RECORD:
         record, count = INPUT_RECORD(), wintypes.DWORD()
         if not self.kernel.ReadConsoleInputW(self.input_handle, ctypes.byref(record), 1, ctypes.byref(count)) or count.value != 1:
@@ -265,18 +325,25 @@ def main() -> int:
     metrics = ProbeMetrics()
     try:
         with WindowsConsole() as native:
-            terminal = os.get_terminal_size(sys.stdout.fileno())
-            width = opts.width if opts.width is not None else terminal.columns
-            height = opts.height if opts.height is not None else terminal.lines
-            if not (1 <= width <= 300 and 1 <= height <= 100):
-                raise ValueError("viewport outside supported diagnostic bounds")
+            # The console buffer can be taller/wider than the visible viewport.
+            # Native screen-buffer information is the geometry authority.
+            width, height = require_physical_viewport(
+                native.viewport(), opts.width, opts.height)
             demo = Demo(width, height)
             sys.stdout.write(frame_text(demo))
             sys.stdout.flush()
             while demo.running:
                 record = native.read()
                 read_return_ns = time.perf_counter_ns()
-                event, previous_left = decode(record, previous_left)
+                current_view = (native.viewport() if record.EventType in
+                                (MOUSE_EVENT, WINDOW_BUFFER_SIZE_EVENT) else None)
+                # A mouse event may arrive before a buffer-size event; never
+                # hit-test against geometry that no longer matches the viewport.
+                if (current_view is not None and record.EventType == MOUSE_EVENT
+                        and (current_view.width, current_view.height)
+                        != (demo.width, demo.height)):
+                    demo.apply(Event("resize", current_view.width, current_view.height))
+                event, previous_left = decode(record, previous_left, current_view)
                 if event is not None:
                     demo.apply(event)
                     if demo.running:
