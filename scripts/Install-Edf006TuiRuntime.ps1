@@ -141,11 +141,12 @@ try {
 
     $python = Join-Path $runtime 'python.exe'
     if (-not (Test-Path -LiteralPath $python -PathType Leaf)) { throw 'Verified embedded CPython is missing python.exe.' }
-    $identity = @(& $python -I -c 'import json,sys,textual; print(json.dumps({"python":sys.version.split()[0],"textual":textual.__version__},sort_keys=True))') -join ''
-    if ($LASTEXITCODE -ne 0) { throw 'Verified TUI runtime failed its import/version probe.' }
-    $parsedIdentity = $identity | ConvertFrom-Json
-    if ($parsedIdentity.python -cne [string]$lock.python.version -or $parsedIdentity.textual -cne [string]$lock.framework.version) {
-        throw "Installed runtime identity mismatch: $identity"
+    $identity = @(& $python -I -c 'import sys,textual; print(sys.version.split()[0]); print(textual.__version__)')
+    if ($LASTEXITCODE -ne 0 -or $identity.Count -ne 2) { throw 'Verified TUI runtime failed its import/version probe.' }
+    $pythonVersion = ([string]$identity[0]).Trim()
+    $textualVersion = ([string]$identity[1]).Trim()
+    if ($pythonVersion -cne [string]$lock.python.version -or $textualVersion -cne [string]$lock.framework.version) {
+        throw "Installed runtime identity mismatch: python=$pythonVersion textual=$textualVersion"
     }
 
     Remove-Item -LiteralPath $downloads -Recurse -Force
