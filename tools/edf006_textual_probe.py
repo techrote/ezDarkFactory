@@ -38,7 +38,7 @@ REQUIRED_WINDOWS_DRIVER_SEQUENCES = (
 
 class RuntimeProbe(App[None]):
     CSS = "#surface { width: 100%; height: 100%; }"
-    BINDINGS = [("ctrl+t", "semantic_probe", "Semantic probe", False)]
+    BINDINGS = [("ctrl+t", "semantic_probe", "Semantic probe")]
 
     def __init__(self) -> None:
         super().__init__()
