@@ -25,6 +25,17 @@ try {
     $receiptPath = Join-Path $OutputDirectory 'edf006-tui-fast-ci.json'
     [IO.File]::WriteAllText($receiptPath, ($result | ConvertTo-Json -Depth 8) + "`n", (New-Object Text.UTF8Encoding($false)))
     Write-Host ('EDF-006 TUI FAST-CI PASS: {0}' -f $resultText)
+
+    # Synthetic-only event bridge for the actual selected Textual fixture.
+    $fixtureText = @(& $python -I (Join-Path $root 'tools/edf006_physical_tui.py') --headless-smoke) -join ''
+    if ($LASTEXITCODE -ne 0) { throw 'EDF-006 physical fixture headless smoke failed.' }
+    $fixture = $fixtureText | ConvertFrom-Json
+    if ($fixture.evidence -cne 'FAST-CI-HEADLESS' -or $fixture.physical_tui -or
+        $fixture.actions.menu_open -ne 1 -or $fixture.actions.paste_allowed -ne 1 -or
+        $fixture.actions.recover -ne 1) {
+        throw 'EDF-006 physical fixture synthetic receipt failed validation.'
+    }
+    Write-Host ('EDF-006 Textual physical fixture HEADLESS PASS: {0}' -f $fixtureText)
 }
 finally {
     if (Test-Path -LiteralPath $workspace) { Remove-Item -LiteralPath $workspace -Recurse -Force }
