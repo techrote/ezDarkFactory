@@ -51,7 +51,7 @@ try {
     $testTemp = Join-Path $fixture 'test temporary files'
     [void][IO.Directory]::CreateDirectory($testTemp)
     $executable = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
-    if ($ExpectedMajor -eq 7) { $executable = & (Join-Path $PSScriptRoot 'Install-Edf006ResilientTestPowerShell.ps1') -DestinationRoot $fixture }
+    if ($ExpectedMajor -eq 7) { $executable = & (Join-Path $PSScriptRoot 'Install-TestPowerShell.ps1') -DestinationRoot $fixture }
     $support = Join-Path $fixture 'Edf003PrivateAclHostedSupport.ps1'
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'Edf003PrivateAclHostedSupport.ps1') -Destination $support -ErrorAction Stop
     function ConvertTo-AclFixtureLiteral { param([string]$Value) return ("'" + $Value.Replace("'", "''") + "'") }

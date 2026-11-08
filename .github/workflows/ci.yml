@@ -163,7 +163,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          .\\scripts\\Invoke-Edf003PrivateAclHosted.ps1 -ExpectedMajor ${{ matrix.major }} -OutputDirectory (Join-Path $env:RUNNER_TEMP 'edf003-acl-evidence')
+          .\\scripts\\Invoke-Edf006PrivateAclHosted.ps1 -ExpectedMajor ${{ matrix.major }} -OutputDirectory (Join-Path $env:RUNNER_TEMP 'edf003-acl-evidence')
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Retain red baseline, green ordinary-user, account cleanup receipts
         if: always()

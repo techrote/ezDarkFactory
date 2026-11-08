@@ -35,6 +35,8 @@ The imported historical Keys/Runtime owner patches remain unproven until EDF-003
 
 ## Pinned PowerShell 7 test-runtime transport resilience
 
+The EDF-003 hosted ordinary-user test script is also recorded in immutable repair provenance. The EDF-006 workflow therefore uses a source-identical `scripts/Invoke-Edf006PrivateAclHosted.ps1` qualification wrapper, differing only in its call to the new pinned-runtime acquisition helper, while retaining the original EDF-003 script byte-for-byte for historical verification.
+
 The original EDF-002 imported `scripts/Install-TestPowerShell.ps1` remains byte-identical to accepted historical provenance. Current hosted/developer lanes use the EDF-006-owned `scripts/Install-Edf006ResilientTestPowerShell.ps1` instead.
 
 The exact `7.6.6` Windows x64 ZIP, expected byte length and SHA-256 remain
