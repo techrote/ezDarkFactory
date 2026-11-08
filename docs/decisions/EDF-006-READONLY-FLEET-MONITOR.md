@@ -221,3 +221,32 @@ pause without a real delay and a deliberately slow collector. They prove
 that harvest and completion times cannot revive aged data. This is software
 clock/freshness evidence, **not** native Windows Terminal, offline-drive,
 physical input-to-presented-frame, or human acceptance evidence.
+
+## Non-joining exit with a blocked trusted read (SOURCE / FAST-CI)
+
+Python's standard `ThreadPoolExecutor.shutdown(wait=False)` does not stop a
+running collector, and its non-daemon workers are still joined by the
+interpreter's shutdown hook. Previously, pressing `q` could close the Textual
+screen yet leave the Python host process and terminal handoff waiting for a
+slow or indefinitely blocked portable-workspace filesystem operation.
+
+The metadata bootstrap and physical per-root worker launcher now use one
+first-party, daemon-backed `Future` per scheduled read. The unchanged
+generation-aware scheduler retains the **two concurrent per-root slots** and
+128-intent queue limit; the registry loader still permits **one current job**
+with at most one coalesced explicit follow-up. No background thread may
+publish a stale result after its owning monitor closes. Synthetic subprocess
+regressions prove an intentionally blocked Python reader no longer forces
+interpreter exit to wait for it.
+
+This is an **interpreter-exit** remedy, not permission to forget subprocess
+ownership: a daemon thread can be terminated at Python shutdown without
+running its Python cleanup. Trusted PowerShell readers still have bounded
+normal-path capture/deadlines, but an abrupt host exit can outlive its
+read-only child. The native Windows Terminal acceptance must therefore
+inspect remaining PowerShell process identities after `q`, including when
+a registered network volume is unavailable. Do not claim physical child
+termination, restored modes, input-to-frame performance or PHYSICAL-TUI PASS
+from these synthetic tests. The production EDF-007 manager must explicitly
+own cooperative child cancellation/reaping before it acquires effectful
+commands.
