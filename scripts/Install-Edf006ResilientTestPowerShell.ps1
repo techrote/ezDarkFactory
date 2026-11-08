@@ -27,42 +27,76 @@ $oldTls = [Net.ServicePointManager]::SecurityProtocol
 $ProgressPreference = 'SilentlyContinue'
 try {
     [Net.ServicePointManager]::SecurityProtocol = $oldTls -bor [Net.SecurityProtocolType]::Tls12
-    # The SourceForge project is a third-party bit-for-bit mirror, not an
-    # alternate package authority. Both transports MUST pass the SAME exact
-    # upstream byte-length and SHA-256 checks before any extraction or execution.
-    # A successful HTTP response with wrong bytes fails closed rather than
-    # silently trying a different source (a supply-chain anomaly is not an outage).
+    # All transports are untrusted byte couriers for the SAME upstream ZIP.
+    # A returned HTML/error page or a corrupt archive must never be extracted.
+    # Reject that candidate before trying another explicitly reviewed transport.
+    # Asset 551207033 is the official v7.6.6 win-x64 ZIP as published by
+    # PowerShell/PowerShell; updating the PowerShell pin requires reviewing it.
+    if ($pin.version -cne '7.6.6') {
+        throw 'Review the official REST asset ID when changing the PowerShell CI pin.'
+    }
+    $apiAssetUrl = 'https://api.github.com/repos/PowerShell/PowerShell/releases/assets/551207033'
     $mirrorUrl = 'https://downloads.sourceforge.net/project/powershell.mirror/v' + $pin.version + '/PowerShell-' + $pin.version + '-win-x64.zip'
+    $directMirrorUrl = 'https://master.dl.sourceforge.net/project/powershell.mirror/v' + $pin.version + '/PowerShell-' + $pin.version + '-win-x64.zip'
     $sources = @(
-        [pscustomobject]@{ Label = 'GitHub Releases'; Url = $pin.url; Attempts = 3 },
-        [pscustomobject]@{ Label = 'SourceForge exact-version mirror'; Url = $mirrorUrl; Attempts = 2 }
+        [pscustomobject]@{ Label = 'GitHub Releases'; Url = $pin.url; Attempts = 2; Api = $false },
+        [pscustomobject]@{ Label = 'Official GitHub REST asset'; Url = $apiAssetUrl; Attempts = 2; Api = $true },
+        [pscustomobject]@{ Label = 'SourceForge routed mirror'; Url = $mirrorUrl; Attempts = 2; Api = $false },
+        [pscustomobject]@{ Label = 'SourceForge direct mirror'; Url = $directMirrorUrl; Attempts = 1; Api = $false }
     )
     $downloaded = $false
     $sourceLabel = ''
     foreach ($source in $sources) {
         for ($attempt = 1; $attempt -le $source.Attempts; $attempt++) {
             try {
-                Invoke-WebRequest -Uri $source.Url -OutFile $archive -UseBasicParsing -TimeoutSec 60
+                $request = @{
+                    Uri = $source.Url
+                    OutFile = $archive
+                    UseBasicParsing = $true
+                    TimeoutSec = 35
+                }
+                if ($source.Api) {
+                    $request.Headers = @{
+                        Accept = 'application/octet-stream'
+                        'User-Agent' = 'ezDarkFactory-pinned-ci'
+                    }
+                }
+                Invoke-WebRequest @request
+                if (-not (Test-Path -LiteralPath $archive -PathType Leaf)) {
+                    throw 'The selected transport returned no archive.'
+                }
+                if ((Get-Item -LiteralPath $archive).Length -ne $pin.sizeBytes) {
+                    Write-Warning ('Rejected nonmatching PowerShell transport bytes ({0}, length).' -f $source.Label)
+                    continue
+                }
+                if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $pin.sha256) {
+                    Write-Warning ('Rejected nonmatching PowerShell transport bytes ({0}, SHA-256).' -f $source.Label)
+                    continue
+                }
                 $downloaded = $true
                 $sourceLabel = $source.Label
                 break
             }
             catch {
-                if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
                 Write-Warning ('Pinned PowerShell transport unavailable: {0} attempt {1}/{2} ({3}).' -f $source.Label, $attempt, $source.Attempts, $_.Exception.GetType().Name)
                 if ($attempt -lt $source.Attempts) { Start-Sleep -Seconds 2 }
+            }
+            finally {
+                if (-not $downloaded -and (Test-Path -LiteralPath $archive)) {
+                    Remove-Item -LiteralPath $archive -Force
+                }
             }
         }
         if ($downloaded) { break }
     }
     if (-not $downloaded) {
-        throw 'Could not acquire the pinned PowerShell test runtime via either bounded, fixed-version transport. No unverified payload was used.'
+        throw 'Could not acquire the byte-length and SHA-256 verified pinned PowerShell test runtime from any reviewed transport. No unverified payload was executed.'
     }
-    if ((Get-Item -LiteralPath $archive).Length -ne $pin.sizeBytes) {
-        throw 'The PowerShell test-runtime download has the wrong byte length. No payload was extracted or executed.'
-    }
-    if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $pin.sha256) {
-        throw 'The PowerShell test-runtime SHA-256 does not match tests/tooling.json. No payload was extracted or executed.'
+    # Defensive recheck immediately before extraction; every transport is
+    # required to satisfy the immutable official length and checksum.
+    if ((Get-Item -LiteralPath $archive).Length -ne $pin.sizeBytes -or
+        (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $pin.sha256) {
+        throw 'Verified PowerShell archive changed before extraction; refusing execution.'
     }
     Expand-Archive -LiteralPath $archive -DestinationPath $target
     $executable = Join-Path $target 'pwsh.exe'

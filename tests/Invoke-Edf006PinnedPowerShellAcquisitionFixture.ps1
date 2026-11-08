@@ -11,6 +11,8 @@ $installer = Join-Path $repo 'scripts/Install-Edf006ResilientTestPowerShell.ps1'
 $pin = Get-Content -LiteralPath (Join-Path $repo 'tests/tooling.json') -Raw | ConvertFrom-Json
 $official = [string]$pin.powerShell7.url
 $mirror = 'https://downloads.sourceforge.net/project/powershell.mirror/v' + $pin.powerShell7.version + '/PowerShell-' + $pin.powerShell7.version + '-win-x64.zip'
+$api = 'https://api.github.com/repos/PowerShell/PowerShell/releases/assets/551207033'
+$direct = 'https://master.dl.sourceforge.net/project/powershell.mirror/v' + $pin.powerShell7.version + '/PowerShell-' + $pin.powerShell7.version + '-win-x64.zip'
 $global:EDF006FixtureOfficial = $official
 $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('edf006-pinned-pwsh-fixture-' + [Guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($fixtureRoot)
@@ -22,7 +24,7 @@ $global:EDF006FixtureMode = ''
 function global:Invoke-WebRequest {
     [CmdletBinding()]
     param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing,
-          [int]$TimeoutSec)
+          [int]$TimeoutSec, [hashtable]$Headers)
     $global:EDF006FixtureUris += $Uri
     if ($global:EDF006FixtureMode -eq 'all-down' -or
         ($global:EDF006FixtureMode -eq 'official-down' -and $Uri -eq $global:EDF006FixtureOfficial)) {
@@ -34,9 +36,9 @@ function global:Start-Sleep { param([int]$Seconds) }  # no delay for fake outage
 
 try {
     foreach ($case in @(
-        @{ Name = 'official-corrupt'; Mode = 'official-corrupt'; Expected = @($official); Refusal = 'wrong byte length' },
-        @{ Name = 'official-down-mirror-corrupt'; Mode = 'official-down'; Expected = @($official, $official, $official, $mirror); Refusal = 'wrong byte length' },
-        @{ Name = 'both-transports-down'; Mode = 'all-down'; Expected = @($official, $official, $official, $mirror, $mirror); Refusal = 'Could not acquire' }
+        @{ Name = 'official-corrupt'; Mode = 'official-corrupt'; Expected = @($official, $api, $mirror, $direct); Refusal = 'Could not acquire' },
+        @{ Name = 'official-down-other-payloads-corrupt'; Mode = 'official-down'; Expected = @($official, $official, $api, $mirror, $direct); Refusal = 'Could not acquire' },
+        @{ Name = 'all-transports-down'; Mode = 'all-down'; Expected = @($official, $official, $api, $api, $mirror, $mirror, $direct); Refusal = 'Could not acquire' }
     )) {
         $global:EDF006FixtureMode = $case.Mode
         $global:EDF006FixtureUris = @()
