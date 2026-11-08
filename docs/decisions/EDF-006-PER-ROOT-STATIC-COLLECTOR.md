@@ -43,8 +43,12 @@ operation lease or write any registry/config/control file.
 
 Python source regressions test exact argv and deadline, immutable one-root
 identity/schema checks, misleading states, no unsupported live reads, refusal,
-timeout, and threaded isolation with an inert blocked runner. The Windows
-lane additionally executes a real trusted PowerShell negative-path smoke.
+timeout, and threaded isolation with an inert blocked runner. The Windows Python lane additionally executes a real trusted PowerShell
+negative-path smoke. Both Windows PowerShell 5.1 and PowerShell 7 EDF-005
+control harnesses exercise a **positive two-root fixture** through the actual
+per-enrollment child script, proving one selected schema-1 row, correct factory
+ID, unknown instance inventory, stale last-known metadata and no factory
+revision mutation.
 No physical Windows Terminal input/presentation/p95 measurement is produced.
 A registry read still checks all registered path **metadata** in the accepted
 EDF-005 module; this is not proof of isolation against a filesystem metadata

@@ -1040,3 +1040,45 @@ Add-EzDarkFactoryTest -Name 'EDF-005: deleted submission transitions through unk
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
 }
+
+
+Add-EzDarkFactoryTest -Name 'EDF-006: trusted per-enrollment static child returns only the selected factory' -ScriptBlock {
+    $a = New-EzDarkFactoryCheckoutFixture -Prefix 'edf006 selected A'
+    $b = New-EzDarkFactoryCheckoutFixture -Prefix 'edf006 unselected B'
+    $workspace = New-EzDarkFactoryTestDirectory -Prefix 'edf006 single root workspace'
+    try {
+        $identityA = Initialize-EzDarkFactoryIdentity -Root $a
+        $null = Initialize-EzDarkFactoryIdentity -Root $b
+        $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
+        $enrollmentA = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $a -Alias 'A' -AuthorizeLocalExecution
+        $enrollmentB = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $b -Alias 'B' -AuthorizeLocalExecution
+        $revisionBefore = Get-EzDarkFactoryControlRevision -Root $a
+        $script = Join-Path (Join-Path $PSScriptRoot '..') 'scripts/Invoke-Edf006RootObservation.ps1'
+        $exe = if ($PSVersionTable.PSVersion.Major -eq 5) {
+            Join-Path $PSHOME 'powershell.exe'
+        } else {
+            Join-Path $PSHOME 'pwsh.exe'
+        }
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $script -Workspace $workspace -EnrollmentId $enrollmentA.enrollment_id
+        $exit = $LASTEXITCODE
+        Assert-EzDarkFactoryEqual -Actual $exit -Expected 0
+        $snapshot = ($output | Out-String | ConvertFrom-Json)
+        Assert-EzDarkFactoryEqual -Actual $snapshot.schemaVersion -Expected 1
+        Assert-EzDarkFactoryEqual -Actual $snapshot.kind -Expected 'edf005-static-roots'
+        $records = @($snapshot.records)
+        Assert-EzDarkFactoryEqual -Actual $records.Count -Expected 1
+        Assert-EzDarkFactoryEqual -Actual $records[0].enrollment_id -Expected $enrollmentA.enrollment_id
+        Assert-EzDarkFactoryTrue -Condition ($records[0].enrollment_id -cne $enrollmentB.enrollment_id)
+        Assert-EzDarkFactoryEqual -Actual $records[0].factory_id -Expected $identityA.factory_id
+        Assert-EzDarkFactoryEqual -Actual $records[0].observed_factory_id -Expected $identityA.factory_id
+        Assert-EzDarkFactoryEqual -Actual $records[0].state -Expected 'current'
+        Assert-EzDarkFactoryEqual -Actual $records[0].inventory_state -Expected 'unknown'
+        Assert-EzDarkFactoryEqual -Actual $records[0].last_known.freshness -Expected 'stale'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlRevision -Root $a) -Expected $revisionBefore
+    }
+    finally {
+        Remove-EzDarkFactoryTestDirectory -Path $a
+        Remove-EzDarkFactoryTestDirectory -Path $b
+        Remove-EzDarkFactoryTestDirectory -Path $workspace
+    }
+}
