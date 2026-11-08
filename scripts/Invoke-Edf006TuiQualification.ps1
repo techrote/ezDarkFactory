@@ -31,8 +31,13 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'EDF-006 physical fixture headless smoke failed.' }
     $fixture = $fixtureText | ConvertFrom-Json
     if ($fixture.evidence -cne 'FAST-CI-HEADLESS' -or $fixture.physical_tui -or
-        $fixture.actions.menu_open -ne 1 -or $fixture.actions.paste_allowed -ne 1 -or
-        $fixture.actions.recover -ne 1) {
+        $fixture.actions.menu_open -ne 2 -or $fixture.actions.menu_escape -ne 1 -or
+        $fixture.actions.menu_dismiss_consumed -ne 1 -or
+        $fixture.actions.divider_begin -ne 4 -or
+        $fixture.actions.divider_commit -ne 1 -or $fixture.actions.divider_cancel -ne 3 -or
+        $fixture.actions.paste_refused -ne 1 -or $fixture.actions.paste_allowed -ne 1 -or
+        $fixture.actions.recover -ne 1 -or
+        $fixture.input_to_visible_frame_p95_ms -ne $null) {
         throw 'EDF-006 physical fixture synthetic receipt failed validation.'
     }
     Write-Host ('EDF-006 Textual physical fixture HEADLESS PASS: {0}' -f $fixtureText)
