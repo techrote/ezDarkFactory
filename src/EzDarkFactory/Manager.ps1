@@ -54,7 +54,8 @@ function Get-EzDarkFactoryManagerRegistryMetadata {
             $entry.last_factory_id -cnotmatch '^fct_[a-f0-9]{32}$' -or
             $entry.execution_authorized -isnot [bool] -or
             $entry.alias -isnot [string] -or $entry.alias.Length -gt 128 -or
-            $entry.api_major -isnot [int] -or $entry.api_minor -isnot [int] -or
+            ($entry.api_major -isnot [int] -and $entry.api_major -isnot [long]) -or
+            ($entry.api_minor -isnot [int] -and $entry.api_minor -isnot [long]) -or
             $entry.last_verified_at -isnot [string] -or
             $entry.last_verified_at.Length -gt 128) {
             throw 'Manager registry metadata is malformed; no repair-on-read is permitted.'
