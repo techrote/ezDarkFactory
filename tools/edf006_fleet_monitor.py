@@ -111,6 +111,15 @@ class FleetSession:
         for enrollment in self._rows:
             self.refresh(enrollment)
 
+    def invalidate_registry(self) -> None:
+        """Withdraw every old registration without releasing live worker slots.
+
+        A malformed/unavailable registry must never leave prior 'current'
+        observations on screen. Retain the pump so retries cannot spawn a
+        second pool before the previous bounded workers have been reaped.
+        """
+        self.reconcile(())
+
     def refresh(self, enrollment: str):
         if enrollment not in self._rows:
             raise KeyError(enrollment)
@@ -200,8 +209,7 @@ def make_app(workspace: Path, *,
                     # A failed/invalid new registry cannot leave old 'current'
                     # claims visible as if the registration were still trusted.
                     if self.fleet is not None:
-                        self.fleet.close()
-                        self.fleet = None
+                        self.fleet.invalidate_registry()
                     self.bootstrap_state = "refused"
                 if self._reload_pending:
                     self._reload_pending = False
@@ -218,7 +226,7 @@ def make_app(workspace: Path, *,
                 (" / prior snapshot while revalidating"
                  if self.bootstrap_state == "refreshing" else ""),
             ]
-            if self.fleet is not None:
+            if self.fleet is not None and self.fleet._rows:
                 lines.extend(
                     f"fct {factory} / enr ...{enr}: {state}"
                     for enr, factory, state in self.fleet.states(time.monotonic())
@@ -312,7 +320,9 @@ async def headless_smoke():
         else:
             raise AssertionError("failed registry refresh retained old fresh rows")
         screen = str(app.query_one("#surface").render())
-        if (app.fleet is not None or "PRIVATE-REGISTRY-DIAGNOSTIC" in screen
+        if (app.fleet is not None
+                and app.fleet.states(time.monotonic())
+                or "PRIVATE-REGISTRY-DIAGNOSTIC" in screen
                 or "Static registry discovery pending or refused" not in screen):
             raise AssertionError("registry error exposed stale rows or diagnostics")
         await pilot.press("r")

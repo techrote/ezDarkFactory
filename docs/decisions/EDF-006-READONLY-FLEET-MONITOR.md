@@ -108,9 +108,11 @@ and then require **new** per-root evidence before any current status.
 
 Rapid repeated refresh requests coalesce to at most one follow-up reload.
 If trusted registry bootstrap fails or returns invalid metadata, the monitor
-closes the old session and explicitly shows `refused` rather than preserving
-apparently-current data from a no-longer-trusted registry. A later **r** retries
-bootstrap. These transitions are exercised by Python model tests and the
+withdraws all old registered rows and explicitly shows `refused` rather than
+preserving apparently-current data from a no-longer-trusted registry. It retains
+the original worker pool and counts previously launched reads against the
+same two-slot budget until they finish; a later **r** retries bootstrap without
+creating a second worker pool. These transitions are exercised by Python model tests and the
 pinned real-Textual synthetic event-loop smoke, including failure and recovery.
 
 This is SOURCE/FAST-CI-HEADLESS safety behavior, not physical native Windows

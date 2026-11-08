@@ -212,5 +212,36 @@ class FleetMonitorTests(unittest.TestCase):
             fleet.close()
 
 
+    def test_invalidated_registry_keeps_old_busy_slot_until_reaped(self):
+        started, release = threading.Event(), threading.Event()
+        a = "enr_" + "a"*32
+        def collect(workspace, token, timeout):
+            if token.enrollment == a:
+                started.set()
+                release.wait(1)
+                return WorkerResult("current")
+            return WorkerResult("current")
+        fleet = FleetSession((row("a"),), Path("C:/synthetic"), collect)
+        try:
+            self.assertEqual(fleet.poll(time.monotonic()).launched, 1)
+            self.assertTrue(started.wait(.5))
+            fleet.invalidate_registry()
+            self.assertEqual(fleet.states(time.monotonic()), ())
+            self.assertEqual(fleet.scheduler.active_count, 1)
+            fleet.reconcile((row("b"), row("c")))
+            first = fleet.poll(time.monotonic())
+            self.assertEqual(first.launched, 1)
+            self.assertEqual(first.active, 2)
+            wait_until(fleet, lambda: any(
+                x[2] == "current" for x in fleet.states(time.monotonic())))
+            self.assertLessEqual(fleet.scheduler.active_count, 2)
+            release.set()
+            wait_until(fleet, lambda: all(
+                x[2] == "current" for x in fleet.states(time.monotonic())))
+        finally:
+            release.set()
+            fleet.close()
+
+
 if __name__ == "__main__":
     unittest.main()
