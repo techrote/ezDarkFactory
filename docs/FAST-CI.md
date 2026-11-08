@@ -39,26 +39,34 @@ The EDF-003 hosted ordinary-user test script is also recorded in immutable repai
 
 The original EDF-002 imported `scripts/Install-TestPowerShell.ps1` remains byte-identical to accepted historical provenance. Current hosted/developer lanes use the EDF-006-owned `scripts/Install-Edf006ResilientTestPowerShell.ps1` instead.
 
-The exact `7.6.6` Windows x64 ZIP, expected byte length and SHA-256 remain
-locked in `tests/tooling.json`. `scripts/Install-Edf006ResilientTestPowerShell.ps1` first
-attempts the official GitHub Releases URL (up to three bounded transports).
-Only if all official requests fail at the transport layer does it attempt
-the exact-version SourceForge project mirror (up to two bounded requests).
-The mirror is **not** an independent version or trust authority: both routes
-are checked against the **same reviewed upstream bytes and digest** before
-extraction or execution. A completed download with the wrong size or hash
-fails immediately, with no fallback to a different archive or system `pwsh`.
-Acquisition still writes only outside the source tree, and failed downloads
-are removed. SourceForge is an availability dependency, not an authentication
-substitute.
+The exact `7.6.6` Windows x64 ZIP, byte length (106328873) and official
+SHA-256 remain locked in `tests/tooling.json`. The EDF-006 test installer
+tries only fixed, reviewed transport routes for that **same** package, in
+order: GitHub Releases (two attempts), the official GitHub REST release asset
+`551207033` (two attempts), the SourceForge versioned routed mirror (two
+attempts), and its versioned direct mirror (one attempt). The official REST
+asset ID was reconciled against the PowerShell v7.6.6 release metadata;
+changing the pin requires explicit review of that route. SourceForge is a
+third-party bit courier, not independent version or signature authority.
 
-The Windows PowerShell 5.1 repository-contract lane runs an entirely offline
-mocked-transport fixture at
-`tests/Invoke-Edf006PinnedPowerShellAcquisitionFixture.ps1`. It verifies
-official-first ordering, exact-version fallback after transport exhaustion,
-refusal of mismatching archive bytes without extraction, all-sources-down
-refusal and temporary-file cleanup. Normal PowerShell 7 CI lanes remain the
-actual-download/hash/version integration qualification.
+**Every completed download is checked against the official byte length and
+SHA-256 before it can be extracted or executed.** A failed transport or
+nonmatching HTTP payload (including a mirror-supplied HTML error page) is
+discarded and its temporary archive removed before another reviewed route
+is attempted. A source that returns nonmatching bytes is not retried; none
+of its bytes are executed. If every route fails, acquisition refuses closed.
+A second byte-length/hash check immediately precedes extraction, followed
+by a pinned `pwsh` version check. No fallback to the runner's unpinned
+system PowerShell or arbitrary downloaded payload is permitted. CI payloads
+are installed outside the repository; historical EDF-002/003 imported
+installer files remain untouched.
+
+The Windows PowerShell 5.1 repository-contract job executes the offline
+`tests/Invoke-Edf006PinnedPowerShellAcquisitionFixture.ps1` mock, checking
+official-first and reviewed fallback order, malformed payload rejection,
+all-routes-down refusal and cleanup. Actual pinned-runtime jobs exercise the
+real network, SHA and version verification. **An offline mock PASS does not
+establish that any particular external download endpoint is reachable.**
 
 ## EDF-003 additional Windows gates
 
