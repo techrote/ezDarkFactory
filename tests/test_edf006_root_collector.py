@@ -71,6 +71,37 @@ class SingleRootCollectorTests(unittest.TestCase):
             self.assertEqual(kwargs["timeout"], 2.5)
             self.assertIs(kwargs["check"], False)
 
+
+    def test_workspace_metadata_checks_never_stat_unavailable_path_before_child(self):
+        """The deadline-bounded trusted child owns workspace and reparse checks."""
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as folder:
+            missing = Path(folder) / "unavailable-workspace"
+            invoked = []
+            def fake_run(argv, **kwargs):
+                invoked.append((argv, kwargs))
+                return SimpleNamespace(returncode=0, stdout=payload(), stderr=b"")
+            orig_dir, orig_link = Path.is_dir, Path.is_symlink
+            def guard(original):
+                def checked(path):
+                    if path == missing:
+                        raise AssertionError("unbounded workspace filesystem probe")
+                    return original(path)
+                return checked
+            with patch.object(Path, "is_dir", guard(orig_dir)), \
+                    patch.object(Path, "is_symlink", guard(orig_link)):
+                result = collect_root(missing, token(), 1.75, runner=fake_run)
+            self.assertEqual(result.state, "current")
+            self.assertEqual(invoked[0][0][-6:-4], ["-Workspace", str(missing)])
+            self.assertEqual(invoked[0][1]["timeout"], 1.75)
+
+    def test_real_windows_child_rejects_missing_workspace_without_phantom_current(self):
+        if sys.platform != "win32":
+            self.skipTest("real trusted PowerShell workspace refusal runs on Windows")
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaises(StaticReadError):
+                collect_root(Path(folder) / "unavailable", token(), 3.0)
+
     def test_result_must_match_exact_enrollment_and_factory_and_one_record(self):
         for response in (payload(ENR_B), payload(factory=FCT_B),
                          payload(path="D:/relocated/alpha"),

@@ -159,6 +159,37 @@ class StaticAdapterTests(unittest.TestCase):
             self.assertEqual(kwargs["check"], False)
             self.assertNotIn("shell", kwargs)
 
+
+    def test_workspace_metadata_checks_never_stat_unavailable_path_before_child(self):
+        """The subprocess, not an unbounded Python is_dir/is_symlink, validates roots."""
+        from unittest.mock import patch
+        with tempfile.TemporaryDirectory() as folder:
+            missing = Path(folder) / "unavailable-workspace"
+            invoked = []
+            def fake_run(argv, **kwargs):
+                invoked.append((argv, kwargs))
+                return SimpleNamespace(returncode=0, stdout=payload(row()), stderr=b"")
+            orig_dir, orig_link = Path.is_dir, Path.is_symlink
+            def guard(original):
+                def checked(path):
+                    if path == missing:
+                        raise AssertionError("unbounded workspace filesystem probe")
+                    return original(path)
+                return checked
+            with patch.object(Path, "is_dir", guard(orig_dir)), \
+                    patch.object(Path, "is_symlink", guard(orig_link)):
+                result = collect_static(missing, timeout=1.75, runner=fake_run)
+            self.assertEqual(result[0].factory_id, "fct_" + "a" * 32)
+            self.assertEqual(invoked[0][0][-1], str(missing))
+            self.assertEqual(invoked[0][1]["timeout"], 1.75)
+
+    def test_real_windows_child_rejects_missing_workspace_without_phantom_current(self):
+        if sys.platform != "win32":
+            self.skipTest("real trusted PowerShell workspace refusal runs on Windows")
+        with tempfile.TemporaryDirectory() as folder:
+            with self.assertRaises(StaticReadError):
+                collect_static(Path(folder) / "unavailable", timeout=3.0)
+
     def test_runner_failure_and_timeout_are_not_current(self):
         with tempfile.TemporaryDirectory() as workspace:
             with self.assertRaises(StaticReadError):

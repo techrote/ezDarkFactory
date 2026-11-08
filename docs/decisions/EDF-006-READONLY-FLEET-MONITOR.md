@@ -135,3 +135,25 @@ pinned real-Textual synthetic event-loop smoke, including failure and recovery.
 This is SOURCE/FAST-CI-HEADLESS safety behavior, not physical native Windows
 Terminal acceptance and not a guarantee that a real unavailable drive meets
 the specified latency budget.
+
+## Inaccessible-workspace deadline isolation (8 November 2026)
+
+The metadata bootstrap and individual-root worker previously called Python
+`Path.is_symlink()` and `Path.is_dir()` on the **portable manager workspace**
+*before* launching their deadline-bounded PowerShell children. These are
+filesystem operations; a stalled network/missing-volume path could occupy
+the bootstrap or one of the two observation threads indefinitely, even though
+the subsequent child had a ten-second deadline.
+
+The read-only Python bridges now validate only **path spelling and bounded
+argument length** without probing the workspace. The local checked-in script
+still undergoes its own source-file/reparse check. The trusted PowerShell
+child uses EDF-005 `Assert-EzDarkFactorySafePath` to check the workspace,
+its ancestors and registry under the bounded subprocess lifetime; invalid,
+reparse-point or absent workspaces remain **refused**, never `current`.
+No untrusted root code is executed. Linux synthetic-runner tests deliberately
+prohibit Python workspace stat calls; Windows tests use the actual trusted
+PowerShell child to reject missing workspaces. This reduces a pre-deadline
+hang path but does **not** prove physical disconnected-drive behavior,
+Windows process-launch latency or whole-system real-time guarantees.
+

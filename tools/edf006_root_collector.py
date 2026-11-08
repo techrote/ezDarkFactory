@@ -57,9 +57,13 @@ def collect_root(workspace: Path, token: Request, timeout_seconds: float,
         raise StaticReadError("invalid portable manager workspace") from exc
     trusted_script = (Path(__file__).resolve().parents[1] / "scripts" /
                       "Invoke-Edf006RootObservation.ps1")
-    if (not workspace.is_absolute() or workspace.is_symlink()
-            or not workspace.is_dir() or not trusted_script.is_file()
-            or trusted_script.is_symlink()):
+    # Do not stat/resolve a potentially unavailable portable manager workspace
+    # in this worker before the bounded child starts. Its trusted EDF-005
+    # SafePath check refuses junctions, symlinks, UNC and invalid registries.
+    workspace_text = str(workspace)
+    if (not workspace.is_absolute() or not 0 < len(workspace_text) <= 4096
+            or any(ord(c) < 32 or ord(c) == 127 for c in workspace_text)
+            or not trusted_script.is_file() or trusted_script.is_symlink()):
         raise StaticReadError("invalid workspace or trusted root adapter")
     argv = ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive", "-File",
             str(trusted_script), "-Workspace", str(workspace),

@@ -8,6 +8,7 @@ A registered workspace is optional; direct factory-by-path remains EDF-005's job
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from math import isfinite
 import json
 import ntpath
 from pathlib import Path
@@ -163,11 +164,21 @@ def collect_static(workspace: Path, *, timeout: float = 10.0,
     Default capture retains at most 256 KiB stdout and 16 KiB stderr; these
     limits apply while reading, before JSON validation. Run only on a worker.
     """
-    workspace = Path(workspace)
+    try:
+        workspace = Path(workspace)
+    except (TypeError, ValueError) as exc:
+        raise StaticReadError("invalid portable manager workspace") from exc
     trusted_script = Path(__file__).resolve().parents[1] / "scripts" / "Invoke-Edf006StaticObservation.ps1"
-    if (not workspace.is_absolute() or workspace.is_symlink()
-            or not workspace.is_dir() or not trusted_script.is_file()
-            or trusted_script.is_symlink() or not 0 < timeout <= 30):
+    # No is_dir/is_symlink/resolve/stat on the optional workspace here.
+    # An inaccessible/reparse-point workspace can stall a filesystem probe
+    # BEFORE run_bounded starts its deadline. The trusted PowerShell child
+    # performs all path/reparse-point/registry validation under that deadline.
+    workspace_text = str(workspace)
+    if (not workspace.is_absolute() or not 0 < len(workspace_text) <= 4096
+            or any(ord(c) < 32 or ord(c) == 127 for c in workspace_text)
+            or not trusted_script.is_file() or trusted_script.is_symlink()
+            or type(timeout) not in (int, float) or not isfinite(timeout)
+            or not 0 < timeout <= 30):
         raise StaticReadError("invalid workspace, trusted adapter or deadline")
     command = ["powershell.exe", "-NoLogo", "-NoProfile", "-NonInteractive",
                "-File", str(trusted_script), "-Workspace", str(workspace)]
