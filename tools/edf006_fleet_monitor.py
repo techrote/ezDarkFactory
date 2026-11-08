@@ -184,6 +184,7 @@ def make_app(workspace: Path, *,
              collector: Callable[..., WorkerResult] = collect_root):
     """Build the selected, source-verified Textual host UI (read-only)."""
     from textual.app import App, ComposeResult
+    from textual.containers import VerticalScroll
     from textual.widgets import Static
     from edf006_textual_probe import verify_installed_runtime_source
 
@@ -191,7 +192,7 @@ def make_app(workspace: Path, *,
     workspace = Path(workspace)
 
     class FleetApp(App[None]):
-        CSS = "#surface { width: 100%; height: 100%; overflow: hidden; }"
+        CSS = "#roots { width: 100%; height: 100%; } #surface { width: 100%; height: auto; }"
         BINDINGS = [("r", "refresh_fleet", "Refresh"), ("q", "quit", "Quit")]
 
         def __init__(self):
@@ -204,10 +205,15 @@ def make_app(workspace: Path, *,
             self._bootstrap_force_refresh = True
             self._next_registry_reload = 0.0
             self.last_poll = None
+            self._rendered_frame: str | None = None
+            self._presentation_updates = 0
 
         def compose(self) -> ComposeResult:
-            yield Static("EDF-006 read-only static fleet / initializing", id="surface",
-                         markup=False)
+            # An unbounded Static with overflow:hidden hides all but the first
+            # screenful of a large portable registry. Keep its rows scrollable.
+            with VerticalScroll(id="roots"):
+                yield Static("EDF-006 read-only static fleet / initializing",
+                             id="surface", markup=False)
 
         def on_mount(self):
             # All registry discovery/reconciliation runs away from the UI loop.
@@ -280,7 +286,13 @@ def make_app(workspace: Path, *,
                 )
             else:
                 lines.append("Static registry discovery pending or refused")
-            self.query_one("#surface", Static).update("\n".join(lines))
+            frame = "\n".join(lines)
+            # The 50-ms observer tick is not a reason to invalidate an
+            # unchanged Textual renderable or reset a human scroll position.
+            if frame != self._rendered_frame:
+                self.query_one("#surface", Static).update(frame)
+                self._rendered_frame = frame
+                self._presentation_updates += 1
 
         def action_refresh_fleet(self):
             # A real registry reload, not merely a reread of cached enrollments.
@@ -305,6 +317,7 @@ async def headless_smoke():
     This explicitly cannot prove native terminal presentation or WHPX.
     """
     import asyncio
+    from textual.containers import VerticalScroll
     from edf006_readonly_bridge import StaticRoot
 
     def row(char: str, state: str = "current"):
@@ -406,6 +419,33 @@ async def headless_smoke():
         if (calls.count(row("d").enrollment_id) != observations_before
                 or app.fleet.states(time.monotonic())[0][2] != "current"):
             raise AssertionError("unchanged registry auto reload superseded observation")
+        # A 50-ms UI tick with unchanged observation/registry content must not
+        # issue another Static.update, which would waste terminal work and can
+        # disturb the position of an operator inspecting a long roster.
+        updates_before = app._presentation_updates
+        await asyncio.sleep(0.2)
+        await pilot.pause()
+        if app._presentation_updates != updates_before:
+            raise AssertionError("unchanged UI model triggered redundant renders")
+
+        # A maximum-size metadata roster must remain reachable beyond one
+        # 80x24 viewport. Synthetic rows only; no candidate paths are opened.
+        scroll_rows = tuple(
+            StaticRoot(f"enr_{i:032x}", f"fct_{i:032x}", f"fct_{i:032x}",
+                       f"C:/synthetic/root-{i}", "synthetic", "unknown",
+                       "synthetic", "synthetic")
+            for i in range(MAX_ROOTS)
+        )
+        app.fleet.reconcile(scroll_rows, refresh_unchanged=False)
+        app._show()
+        await pilot.pause()
+        roots_view = app.query_one("#roots", VerticalScroll)
+        roots_view.scroll_end(animate=False)
+        await pilot.pause()
+        if (len(app.fleet.states(time.monotonic())) != MAX_ROOTS
+                or roots_view.scroll_y <= 0):
+            raise AssertionError("maximum-size registry is clipped and unscrollable")
+
     return {
         "schemaVersion": 1, "evidence": "FAST-CI-HEADLESS",
         "physical_tui": False, "live_instances_observed": False,
