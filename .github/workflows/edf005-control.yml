@@ -24,6 +24,12 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: Restore verified PowerShell archive cache (installer rechecks SHA-256)
+        if: matrix.major == 7
+        uses: actions/cache@9255dc7a253b0ccc959486e2bca901246202afeb # reviewed v5.0.1, Node 24
+        with:
+          path: ${{ runner.temp }}/edf006-pwsh-7.6.6-win-x64.zip
+          key: edf-pwsh-7.6.6-${{ hashFiles('tests/tooling.json') }}
       - name: Acquire pinned PowerShell 7
         if: matrix.major == 7
         shell: powershell

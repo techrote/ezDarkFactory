@@ -21,6 +21,7 @@ $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('edf006-pinned-pwsh-fixture
 # record URL order and never access a real network or supply valid ZIP bytes.
 $global:EDF006FixtureUris = @()
 $global:EDF006FixtureMode = ''
+$cache = Join-Path $fixtureRoot ('edf006-pwsh-' + $pin.powerShell7.version + '-win-x64.zip')
 function global:Invoke-WebRequest {
     [CmdletBinding()]
     param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing,
@@ -38,10 +39,14 @@ try {
     foreach ($case in @(
         @{ Name = 'official-corrupt'; Mode = 'official-corrupt'; Expected = @($official, $api, $mirror, $direct); Refusal = 'Could not acquire' },
         @{ Name = 'official-down-other-payloads-corrupt'; Mode = 'official-down'; Expected = @($official, $official, $api, $mirror, $direct); Refusal = 'Could not acquire' },
-        @{ Name = 'all-transports-down'; Mode = 'all-down'; Expected = @($official, $official, $api, $api, $mirror, $mirror, $direct); Refusal = 'Could not acquire' }
+        @{ Name = 'all-transports-down'; Mode = 'all-down'; Expected = @($official, $official, $api, $api, $mirror, $mirror, $direct); Refusal = 'Could not acquire' },
+        @{ Name = 'invalid-cache-all-down'; Mode = 'all-down'; Expected = @($official, $official, $api, $api, $mirror, $mirror, $direct); Refusal = 'Could not acquire' }
     )) {
         $global:EDF006FixtureMode = $case.Mode
         $global:EDF006FixtureUris = @()
+        if ($case.Name -eq 'invalid-cache-all-down') {
+            [IO.File]::WriteAllBytes($cache, [byte[]](0x50, 0x4b, 0x03, 0x04))
+        }
         $refused = $false
         try {
             $null = & $installer -DestinationRoot $fixtureRoot

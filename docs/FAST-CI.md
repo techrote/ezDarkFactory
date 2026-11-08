@@ -39,10 +39,28 @@ The EDF-003 hosted ordinary-user test script is also recorded in immutable repai
 
 The original EDF-002 imported `scripts/Install-TestPowerShell.ps1` remains byte-identical to accepted historical provenance. Current hosted/developer lanes use the EDF-006-owned `scripts/Install-Edf006ResilientTestPowerShell.ps1` instead.
 
+The checked-in developer `Invoke-FastCheck.ps1` now acquires its pinned test
+runtime in a unique OS temporary directory outside the repository and cleans
+that directory in a `finally` block. The previous repository-internal
+`runtime/test-tools` target contradicted the verified installer's deliberate
+outside-repository guard and prevented the documented entry point from running
+unless an executable path was supplied explicitly.
+
+The GitHub-hosted PowerShell 7 lanes now use the SHA-pinned `actions/cache`
+v5.0.1 action to retain the **exact official ZIP bytes** under an immutable
+key tied to `tests/tooling.json`. Every cache hit is treated as untrusted:
+the installer verifies the same official byte length and SHA-256 before
+copying or executing any file. A corrupted cache is discarded and normal
+pinned-source acquisition is attempted. A successful verified download
+atomically populates the temporary archive cache. A failed cache save cannot
+silently change the test result or bypass pin verification. This reduces
+repeated dependency on intermittently failing upstream GitHub Releases
+downloads; cold-cache jobs still require a reviewed transport.
+
 The exact `7.6.6` Windows x64 ZIP, byte length (106328873) and official
 SHA-256 remain locked in `tests/tooling.json`. The EDF-006 test installer
 tries only fixed, reviewed transport routes for that **same** package, in
-order: GitHub Releases (two attempts), the official GitHub REST release asset
+order: GitHub Releases (two attempts; 90-second per-request deadline), the official GitHub REST release asset
 `551207033` (two attempts), the SourceForge versioned routed mirror (two
 attempts), and its versioned direct mirror (one attempt). The official REST
 asset ID was reconciled against the PowerShell v7.6.6 release metadata;

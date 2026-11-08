@@ -23,6 +23,9 @@ if ($destination.FullName -ieq $repositoryRoot -or $destination.FullName.StartsW
 
 $target = Join-Path $destination.FullName ('ezdarkfactory-test-powershell-' + $pin.version + '-' + [Guid]::NewGuid().ToString('N'))
 $archive = $target + '.zip'
+# An Actions cache is only an untrusted transport. Its exact bytes are
+# rechecked against the first-party immutable size/SHA pin on EVERY use.
+$cache = Join-Path $destination.FullName ('edf006-pwsh-' + $pin.version + '-win-x64.zip')
 $oldTls = [Net.ServicePointManager]::SecurityProtocol
 $ProgressPreference = 'SilentlyContinue'
 try {
@@ -46,6 +49,19 @@ try {
     )
     $downloaded = $false
     $sourceLabel = ''
+    if (Test-Path -LiteralPath $cache -PathType Leaf) {
+        if ((Get-Item -LiteralPath $cache).Length -eq $pin.sizeBytes -and
+            (Get-FileHash -LiteralPath $cache -Algorithm SHA256).Hash -ieq $pin.sha256) {
+            Copy-Item -LiteralPath $cache -Destination $archive
+            $downloaded = $true
+            $sourceLabel = 'SHA-256 verified local cache'
+        }
+        else {
+            Write-Warning 'Discarding nonmatching pinned PowerShell archive cache.'
+            Remove-Item -LiteralPath $cache -Force
+        }
+    }
+    if (-not $downloaded) {
     foreach ($source in $sources) {
         for ($attempt = 1; $attempt -le $source.Attempts; $attempt++) {
             try {
@@ -53,7 +69,7 @@ try {
                     Uri = $source.Url
                     OutFile = $archive
                     UseBasicParsing = $true
-                    TimeoutSec = 35
+                    TimeoutSec = 90
                 }
                 if ($source.Api) {
                     $request.Headers = @{
@@ -89,6 +105,7 @@ try {
         }
         if ($downloaded) { break }
     }
+    }
     if (-not $downloaded) {
         throw 'Could not acquire the byte-length and SHA-256 verified pinned PowerShell test runtime from any reviewed transport. No unverified payload was executed.'
     }
@@ -97,6 +114,26 @@ try {
     if ((Get-Item -LiteralPath $archive).Length -ne $pin.sizeBytes -or
         (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $pin.sha256) {
         throw 'Verified PowerShell archive changed before extraction; refusing execution.'
+    }
+    # Publish ONLY authenticated bytes to the ephemeral cross-job cache.
+    # A cache write failure must not turn an already verified runtime into an
+    # acquisition failure. Each future restore revalidates both checks.
+    if ($sourceLabel -ne 'SHA-256 verified local cache') {
+        $staged = $cache + '.' + [Guid]::NewGuid().ToString('N') + '.tmp'
+        try {
+            Copy-Item -LiteralPath $archive -Destination $staged
+            if ((Get-Item -LiteralPath $staged).Length -ne $pin.sizeBytes -or
+                (Get-FileHash -LiteralPath $staged -Algorithm SHA256).Hash -ine $pin.sha256) {
+                throw 'Staged cache copy does not match the official archive pin.'
+            }
+            Move-Item -LiteralPath $staged -Destination $cache -Force
+        }
+        catch {
+            Write-Warning 'Verified pinned PowerShell cache could not be populated.'
+        }
+        finally {
+            if (Test-Path -LiteralPath $staged) { Remove-Item -LiteralPath $staged -Force }
+        }
     }
     Expand-Archive -LiteralPath $archive -DestinationPath $target
     $executable = Join-Path $target 'pwsh.exe'
