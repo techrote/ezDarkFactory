@@ -28,6 +28,42 @@ function Get-EzDarkFactoryManagerRegistry {
     return $registry
 }
 
+# Read-only metadata enumeration for EDF-006. Unlike the authoritative
+# Get-EzDarkFactoryManagerRegistry, this never traverses registered roots.
+# Every entry remains unverified until independently observed.
+function Get-EzDarkFactoryManagerRegistryMetadata {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)][string]$Workspace)
+    $path = Get-EzDarkFactoryManagerRegistryPath -Workspace $Workspace
+    if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+        throw 'Portable manager workspace is not initialized.'
+    }
+    $registry = Read-EzDarkFactoryJson -Path $path -SchemaVersion 1
+    if ($registry.roots -isnot [array] -or $registry.schemaVersion -ne 1 -or
+        @($registry.roots).Count -gt 128) {
+        throw 'Unsupported or oversized manager registry metadata.'
+    }
+    foreach ($entry in @($registry.roots)) {
+        # Check data and path spelling, not the filesystem behind that path.
+        if ($entry.enrollment_id -cnotmatch '^enr_[a-f0-9]{32}$' -or
+            $entry.canonical_path -isnot [string] -or
+            [string]::IsNullOrWhiteSpace($entry.canonical_path) -or
+            $entry.canonical_path.Length -gt 4096 -or
+            $entry.canonical_path -match '[\x00-\x1f\x7f]' -or
+            $entry.canonical_path -notmatch '^[A-Za-z]:[\\/]' -or
+            $entry.last_factory_id -cnotmatch '^fct_[a-f0-9]{32}$' -or
+            $entry.execution_authorized -isnot [bool] -or
+            $entry.alias -isnot [string] -or $entry.alias.Length -gt 128 -or
+            ($entry.api_major -isnot [int] -and $entry.api_major -isnot [long]) -or
+            ($entry.api_minor -isnot [int] -and $entry.api_minor -isnot [long]) -or
+            $entry.last_verified_at -isnot [string] -or
+            $entry.last_verified_at.Length -gt 128) {
+            throw 'Manager registry metadata is malformed; no repair-on-read is permitted.'
+        }
+    }
+    return $registry
+}
+
 function Initialize-EzDarkFactoryManagerWorkspace {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Workspace)

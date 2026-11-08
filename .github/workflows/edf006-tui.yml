@@ -1,0 +1,28 @@
+name: EDF-006 pinned TUI runtime
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  textual-runtime:
+    name: Textual runtime / synthetic integration (Windows)
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - name: Checkout literal PR head or merged main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Acquire hash-pinned portable runtime and run synthetic integration
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $output = Join-Path $env:RUNNER_TEMP 'edf006-tui-proof'
+          .\scripts\Invoke-Edf006TuiQualification.ps1 -OutputDirectory $output
+          Get-Content -LiteralPath (Join-Path $output 'edf006-tui-fast-ci.json') -Raw

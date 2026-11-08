@@ -17,7 +17,7 @@ Export-ModuleMember -Function @(
     'Get-EzDarkFactoryIdentity', 'Initialize-EzDarkFactoryIdentity', 'Get-EzDarkFactoryControlRevision',
     'Get-EzDarkFactoryControlCapabilities', 'Get-EzDarkFactoryInstanceRef', 'Get-EzDarkFactoryControlOperation',
     'Invoke-EzDarkFactoryControl', 'Initialize-EzDarkFactoryManagerWorkspace', 'Get-EzDarkFactoryManagerRegistry',
-    'Get-EzDarkFactoryCandidate', 'Register-EzDarkFactoryManagerRoot', 'Unregister-EzDarkFactoryManagerRoot',
+    'Get-EzDarkFactoryCandidate', 'Get-EzDarkFactoryManagerRegistryMetadata', 'Register-EzDarkFactoryManagerRoot', 'Unregister-EzDarkFactoryManagerRoot',
     'Get-EzDarkFactoryManagerObservations', 'Invoke-EzDarkFactoryManagerControl',
     'Start-EzDarkFactoryDetachedControlOperation', 'Get-EzDarkFactoryControlOperationResult',
     'Invoke-EzDarkFactoryDetachedControlWorker', 'Get-EzDarkFactoryManagedShellDescriptor'

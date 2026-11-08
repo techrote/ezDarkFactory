@@ -998,6 +998,23 @@ Add-EzDarkFactoryTest -Name 'EDF-005: concurrent terminal journal reader retries
 }
 
 
+Add-EzDarkFactoryTest -Name 'EDF-005: a readable malformed receipt refuses immediately without a sharing retry' -ScriptBlock {
+    $root = New-EzDarkFactoryCheckoutFixture -Prefix 'malformed receipt refusal'
+    try {
+        $file = Join-Path $root 'malformed-receipt.json'
+        [IO.File]::WriteAllText($file, '{invalid json', (New-Object Text.UTF8Encoding($false)))
+        $watch = [Diagnostics.Stopwatch]::StartNew()
+        $rejected = $false
+        try { $null = Read-EzDarkFactoryControlReceiptJson -Path $file }
+        catch { $rejected = $true }
+        $watch.Stop()
+        Assert-EzDarkFactoryTrue -Condition $rejected -Message 'Malformed readable receipt must not become an accepted operation.'
+        Assert-EzDarkFactoryTrue -Condition ($watch.ElapsedMilliseconds -lt 3000) -Message 'Malformed receipt must not consume the sharing-retry budget.'
+        Assert-EzDarkFactoryEqual -Actual ([IO.File]::ReadAllText($file)) -Expected '{invalid json'
+    }
+    finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
 Add-EzDarkFactoryTest -Name 'EDF-005: deleted submission transitions through unknown to exact terminal without replay' -ScriptBlock {
     $root = New-EzDarkFactoryCheckoutFixture -Prefix 'submission TOCTOU'
     try {
@@ -1022,4 +1039,109 @@ Add-EzDarkFactoryTest -Name 'EDF-005: deleted submission transitions through unk
         Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlOperationResult -Root $root -OperationId $request.operation_id).state -Expected 'completed'
     }
     finally { Remove-EzDarkFactoryTestDirectory -Path $root }
+}
+
+
+Add-EzDarkFactoryTest -Name 'EDF-005: EDF-006 trusted per-enrollment static child returns only the selected factory' -ScriptBlock {
+    $a = New-EzDarkFactoryCheckoutFixture -Prefix 'edf006 selected A'
+    $b = New-EzDarkFactoryCheckoutFixture -Prefix 'edf006 unselected B'
+    $workspace = New-EzDarkFactoryTestDirectory -Prefix 'edf006 single root workspace'
+    try {
+        $identityA = Initialize-EzDarkFactoryIdentity -Root $a
+        $null = Initialize-EzDarkFactoryIdentity -Root $b
+        $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
+        $enrollmentA = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $a -Alias 'A' -AuthorizeLocalExecution
+        $enrollmentB = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $b -Alias 'B' -AuthorizeLocalExecution
+        $revisionBefore = Get-EzDarkFactoryControlRevision -Root $a
+        $script = Join-Path (Join-Path $PSScriptRoot '..') 'scripts/Invoke-Edf006RootObservation.ps1'
+        $exe = if ($PSVersionTable.PSVersion.Major -eq 5) {
+            Join-Path $PSHOME 'powershell.exe'
+        } else {
+            Join-Path $PSHOME 'pwsh.exe'
+        }
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $script -Workspace $workspace -ExpectedCanonicalPath $enrollmentA.canonical_path -EnrollmentId $enrollmentA.enrollment_id
+        $exit = $LASTEXITCODE
+        Assert-EzDarkFactoryEqual -Actual $exit -Expected 0
+        $snapshot = ($output | Out-String | ConvertFrom-Json)
+        Assert-EzDarkFactoryEqual -Actual $snapshot.schemaVersion -Expected 1
+        Assert-EzDarkFactoryEqual -Actual $snapshot.kind -Expected 'edf005-static-roots'
+        $records = @($snapshot.records)
+        Assert-EzDarkFactoryEqual -Actual $records.Count -Expected 1
+        Assert-EzDarkFactoryEqual -Actual $records[0].enrollment_id -Expected $enrollmentA.enrollment_id
+        Assert-EzDarkFactoryTrue -Condition ($records[0].enrollment_id -cne $enrollmentB.enrollment_id)
+        Assert-EzDarkFactoryEqual -Actual $records[0].factory_id -Expected $identityA.factory_id
+        Assert-EzDarkFactoryEqual -Actual $records[0].observed_factory_id -Expected $identityA.factory_id
+        Assert-EzDarkFactoryEqual -Actual $records[0].state -Expected 'current'
+        Assert-EzDarkFactoryEqual -Actual $records[0].inventory_state -Expected 'unknown'
+        Assert-EzDarkFactoryEqual -Actual $records[0].last_known.freshness -Expected 'stale'
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlRevision -Root $a) -Expected $revisionBefore
+    }
+    finally {
+        Remove-EzDarkFactoryTestDirectory -Path $a
+        Remove-EzDarkFactoryTestDirectory -Path $b
+        Remove-EzDarkFactoryTestDirectory -Path $workspace
+    }
+}
+
+Add-EzDarkFactoryTest -Name 'EDF-005: EDF-006 metadata bootstrap isolates inaccessible peers and never claims fresh identity' -ScriptBlock {
+    $a = New-EzDarkFactoryCheckoutFixture -Prefix 'edf006 metadata A'
+    $b = New-EzDarkFactoryCheckoutFixture -Prefix 'edf006 metadata B'
+    $workspace = New-EzDarkFactoryTestDirectory -Prefix 'edf006 metadata workspace'
+    try {
+        $idA = Initialize-EzDarkFactoryIdentity -Root $a
+        $null = Initialize-EzDarkFactoryIdentity -Root $b
+        $null = Initialize-EzDarkFactoryManagerWorkspace -Workspace $workspace
+        $enrA = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $a -Alias 'A' -AuthorizeLocalExecution
+        $null = Register-EzDarkFactoryManagerRoot -Workspace $workspace -Root $b -Alias 'B' -AuthorizeLocalExecution
+        $before = Get-EzDarkFactoryControlRevision -Root $a
+        $path = Join-Path $workspace 'registry.json'
+        $registry = [IO.File]::ReadAllText($path) | ConvertFrom-Json
+        # Simulate an enrolled drive no longer mounted; avoid network access.
+        $drive = @('Z','Y','X','W','V','U','T','S') | Where-Object {
+            -not (Test-Path -LiteralPath ($_ + ':\\') -PathType Container)
+        } | Select-Object -First 1
+        if (-not $drive) { throw 'A spare unmapped drive letter is required.' }
+        $registry.roots[1].canonical_path = ($drive + ':\\edf006-disconnected')
+        $utf8 = New-Object Text.UTF8Encoding($false)
+        [IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $registry -Depth 16), $utf8)
+        $exe = if ($PSVersionTable.PSVersion.Major -eq 5) {
+            Join-Path $PSHOME 'powershell.exe'
+        } else { Join-Path $PSHOME 'pwsh.exe' }
+        $seed = Join-Path (Join-Path $PSScriptRoot '..') 'scripts/Invoke-Edf006StaticObservation.ps1'
+        $single = Join-Path (Join-Path $PSScriptRoot '..') 'scripts/Invoke-Edf006RootObservation.ps1'
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $seed -Workspace $workspace
+        Assert-EzDarkFactoryEqual -Actual $LASTEXITCODE -Expected 0
+        $initial = $output | Out-String | ConvertFrom-Json
+        Assert-EzDarkFactoryEqual -Actual @($initial.records).Count -Expected 2
+        foreach ($item in @($initial.records)) {
+            Assert-EzDarkFactoryEqual -Actual $item.state -Expected 'unknown'
+            Assert-EzDarkFactoryEqual -Actual $item.inventory_state -Expected 'unknown'
+            Assert-EzDarkFactoryEqual -Actual $item.last_known.freshness -Expected 'stale'
+            Assert-EzDarkFactoryTrue -Condition ($null -eq $item.observed_factory_id)
+            Assert-EzDarkFactoryTrue -Condition ($null -eq $item.api)
+        }
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $single -Workspace $workspace -ExpectedCanonicalPath $enrA.canonical_path -EnrollmentId $enrA.enrollment_id
+        Assert-EzDarkFactoryEqual -Actual $LASTEXITCODE -Expected 0
+        $selected = ($output | Out-String | ConvertFrom-Json).records
+        Assert-EzDarkFactoryEqual -Actual @($selected).Count -Expected 1
+        Assert-EzDarkFactoryEqual -Actual $selected[0].state -Expected 'current'
+        Assert-EzDarkFactoryEqual -Actual $selected[0].observed_factory_id -Expected $idA.factory_id
+        Assert-EzDarkFactoryEqual -Actual (Get-EzDarkFactoryControlRevision -Root $a) -Expected $before
+        $registry.roots[1].last_factory_id = $registry.roots[0].last_factory_id
+        [IO.File]::WriteAllText($path, (ConvertTo-Json -InputObject $registry -Depth 16), $utf8)
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $seed -Workspace $workspace
+        Assert-EzDarkFactoryEqual -Actual $LASTEXITCODE -Expected 0
+        $conflicts = @((($output | Out-String | ConvertFrom-Json).records))
+        Assert-EzDarkFactoryEqual -Actual $conflicts.Count -Expected 2
+        Assert-EzDarkFactoryEqual -Actual $conflicts[0].state -Expected 'conflict'
+        Assert-EzDarkFactoryEqual -Actual $conflicts[1].state -Expected 'conflict'
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $single -Workspace $workspace -ExpectedCanonicalPath $enrA.canonical_path -EnrollmentId $enrA.enrollment_id
+        Assert-EzDarkFactoryEqual -Actual $LASTEXITCODE -Expected 0
+        Assert-EzDarkFactoryEqual -Actual ($output | Out-String | ConvertFrom-Json).records[0].state -Expected 'conflict'
+    }
+    finally {
+        Remove-EzDarkFactoryTestDirectory -Path $a
+        Remove-EzDarkFactoryTestDirectory -Path $b
+        Remove-EzDarkFactoryTestDirectory -Path $workspace
+    }
 }

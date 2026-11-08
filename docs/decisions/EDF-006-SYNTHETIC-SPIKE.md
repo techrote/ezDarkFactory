@@ -1,0 +1,195 @@
+# EDF-006 synthetic layout/input pre-spike — source evidence only
+
+**Status:** partial EDF-006 engineering increment; **not** a TUI framework decision, production manager, native Windows Terminal spike, or EDF-006 acceptance.
+
+**Source:** `ezDarkFactory/main@ae2dd266b7118f68a28500c84def00a18a889d10` at branch creation. Implementation files: `tools/edf006_layout_spike.py` and `tests/test_edf006_layout_spike.py`.
+
+## Authority and scope
+
+This reference reducer targets selected behavior from `docs/rag/03-HUMAN-CONTROL-SURFACE.md` sections 4.3–4.4, 5.5, 10.6–10.8 and 14.5, interpreted using pinned `techrote/specdocz@2e95d6931cc23862a4176c9d8ccb4da78f00c265` (the project-specific specification takes precedence). It is a bounded synthetic proof of geometry and input transaction semantics before a framework is selected and physically tested.
+
+No external packages, terminal driver, executable root discovery, control-plane calls, QEMU operations, filesystem writes, credentials, network operations, provider calls, or manager workspace are used. These reference Python modules must **not** be interpreted as the selected production language or runtime.
+
+## Implemented and exercised
+
+| Mechanism | Concrete invariant | Automated evidence |
+|---|---|---|
+| Split solver | Deterministic columns/rows; one-cell divider; clamped child minimums | Required 40x12 / 80x24 / 120x40 / 160x48 / 200x60 fixtures, rows and extreme ratios |
+| Responsive recovery | Compact focused tile when below 120x40 or unsatisfiable minimums | Compact/focus test; no zero-size crushed panes |
+| Hit map | Final solved rectangles determine tile/divider hits without gaps or outside hits | Every cell at all five viewports audited |
+| Divider drag | Capture requires actual divider, preview may follow pointer outside original divider, release commits once; compact resize cancels capture | Clamp, non-divider refusal, finished-capture refusal and resize rollback |
+| Transaction rollback | Escape or focus loss cancels preview | Dedicated rollback regression |
+| Overlays | Topmost first, outside dismissal consumed, Escape removes exactly one logical layer | Dismissal/no-click-through, stack regression |
+| Session recovery | Visible/hidden state independent from per-tile local state; invalid session does not mutate existing state | Hide/restore and corrupt/unknown/duplicate session regression |
+
+Focused run, using a Linux Python 3.13.5 scratch environment that contains only these two exact Git-blob-identical files:
+
+```text
+python -m unittest discover -s tests -p test_edf006_layout_spike.py -v
+Ran 13 tests in 0.013s — OK
+python -m compileall -q tools tests — PASS
+```
+
+These checks are **SOURCE / synthetic FAST-CI**. The complete Windows `scripts/Invoke-FastCheck.ps1` gate was **NOT RUN** locally: no Windows/PowerShell 5.1 runtime or pinned upstream Git objects were available. The existing `tools/check.py` unittest discovery will include the new test file on exact-head CI.
+
+## Second bounded increment: multi-root observation scheduling
+
+The adjacent `tools/edf006_observation_spike.py` is another **synthetic, framework-neutral** state machine. Its `ObservationScheduler` neither executes a real collector nor reads a real factory. The EDF-005 contract remains the only mutation authority. Exact fixture inputs represent already-verified factory IDs and canonical paths; this code is not root discovery or identity verification.
+
+Implemented/read-model contracts:
+
+- Bounded global in-flight slots and waiting intents, FIFO coalescing of repeated root/class refreshes, and no second simultaneous ordinary class request for one enrollment. Work is **returned** for an external executor; nothing executes on the UI thread here.
+- Immutable observation request tokens bind enrollment, factory ID, root epoch, class and monotonic per-class serial. Late results after a refresh, unregister/re-register/relocation, identity conflict or transient conflict resolution cannot become current. An active worker retains its slot until actual completion/termination; this prototype does **not** pretend to cancel it.
+- Same-factory-ID collision across two verified path fixtures prevents publication; duplicate canonical paths and enrollment IDs refuse registration. Unregister removes only a manager record.
+- Unknown, current, stale, unreachable, incompatible and identity-conflict read-model dispositions are distinct. Retained last-known rows remain visibly non-current after failures, and a clock regression cannot assert freshness.
+- Bounded 10,000-row synthetic log cache acceptance (each input row at most 8,192 characters) and a 16-root/128-row fixture. Log content is **untrusted raw data** and must be sanitized by a production renderer before display.
+
+Focused local qualification on isolated exact Git-blob-identical files:
+
+```text
+python -m unittest discover -s tests -p test_edf006_observation_spike.py -v
+Ran 15 tests — OK (0 failures, 0 skips)
+python -m compileall -q tools tests — PASS (on isolated scratch files)
+```
+
+The slow-root case holds one synthetic slot indefinitely while another factory completes and a third is dispatched. This proves admission/read-model isolation **only**, not actual process termination, a 10-second runtime timeout, scheduled refresh targets, p95 latency or Windows Terminal responsiveness. A real bounded executor must supply trustworthy timeouts, teardown, signed/typed adapters, result-channel backpressure, and safe stale-worker termination without exceeding the real concurrency budget. This implementation does not claim command parity, a chosen UI runtime, native input, persisted manager-state ownership, full repository fast-gate results or release qualification.
+
+## Explicitly unproved EDF-006 obligations
+
+- Framework/runtime comparison, reproducible dependency pins, packaging/license choice and final `docs/decisions/EDF-006-HOST-TUI-STACK.md` ADR.
+- Real mouse button/move/wheel, focus-loss sequences, native paste, resize, Unicode/ASCII/color mode, terminal restoration, input-to-frame latency on actual Windows Terminal.
+- Full semantic command registry/parity; persistent production layout tree; one-writer portable workspace; separate config/registry/session/journal files.
+- EDF-005 typed adapter integration, real factory-by-path registration, a native bounded worker/timeout implementation, actual slow-root runtime isolation and physical/latency qualification. The synthetic identity-collision/generation/queue/16-root/128-row/10,000-row fixtures above cover only state-machine behavior.
+- Full exact-head Windows merge gate; real TCG/WHPX, PHYSICAL-TUI and HUMAN-USABILITY.
+
+**HOLD EDF-006 and the PR as Draft.** Next, select and run an actual Windows Terminal stack candidate against the accepted typed broker, then extend this reference as needed into a real native input/rendering spike and its CI/qualification evidence. Do not adopt a stack or merge solely from these synthetic tests.
+
+
+## Third bounded increment: optional portable workspace and cooperative one-writer admission
+
+The independent `tools/edf006_workspace_spike.py` models **only** the manager's optional, explicitly located cross-factory convenience workspace. It does not register or authorize factory roots, execute the EDF-005 typed adapter, initialize factory identity, or operate QEMU. It is framework-neutral reference code, **not a selected production runtime**.
+
+- The caller must explicitly select an **existing absolute directory**. Observer-only opening never creates manager state and does not require a registry. A directly supplied factory root can remain usable independently of this workspace, as required by the accepted EDF-005 control seam.
+- An active writer holds one cooperative operating-system byte-range lock on a permanent workspace-local marker (`msvcrt.locking` on Windows, `fcntl.flock` on POSIX). A second cooperating writer refuses while observer-only access remains possible. Closing or abnormal process death releases the OS lock; marker bytes, a PID, machine name or path are **not authority**.
+- Only `session.json` is writable by this spike. It accepts a narrowly scoped bounded schema-1 hidden-tile list, refuses duplicate JSON member names and invalid values, rejects symlink destinations, and uses a same-directory flushed temporary file plus atomic replacement. Invalid/corrupt/oversized/missing session data is ignored in favour of an embedded default; `safe_start=True` bypasses restore without deleting stored state.
+- `config.json`, `registry.json`, and `journal.json` are separate files and are **never modified** by the reference session writer. In particular, the factory-local operation receipts and control authority are untouched. No host-hidden application-data directory is consulted.
+
+Focused synthetic FAST-CI source check on an isolated Linux Python 3.13 scratch checkout:
+
+```text
+python -Werror -m unittest discover -s tests -p test_edf006_workspace_spike.py -v
+Ran 10 tests — OK (0 failures, 0 skips)
+python -Werror -m compileall -q tools tests — PASS
+```
+
+This tests same-process and real **second process** lock contention, read-only refusal, release and abnormal-exit recovery, safe-start, corrupted/duplicated/oversize session refusal, rejected-write nonmutation, state-file separation and symlink refusal where supported. The committed source/test blobs must be matched against these exercised files and the exact-head Windows/Ubuntu CI verified separately.
+
+**Limitations:** OS-level locks are cooperative among clients using this same protocol; no adversarial filesystem-rename/unlink, credential/ACL, network filesystem or power-failure durability guarantee is asserted. The narrow session schema intentionally does not implement the production tile/layout tree or full manager config/registry/journal. Windows-native OS lock behavior and full Windows merge gate remain to be qualified on the published exact head; no Windows Terminal event, typed-broker integration, source runtime choice, physical TUI or human acceptance is implied. EDF-006 **remains DRAFT/HOLD**.
+
+
+## Fourth bounded increment: trusted EDF-005 static-root observation bridge
+
+This adds a **real, read-only entry point** to the accepted EDF-005 portable manager module without yet selecting a terminal framework:
+
+- scripts/Invoke-Edf006StaticObservation.ps1 imports the **checked-in manager's** src/EzDarkFactory/Edf005.psm1, not executable code from an encountered factory root. It reads an explicitly selected, already-initialized optional manager workspace via Get-EzDarkFactoryManagerRegistry and Get-EzDarkFactoryManagerObservations, refusing over 128 records and over 256 KiB JSON output. No guest/instance mutations, registration changes, bootstrap or background jobs are initiated.
+- tools/edf006_readonly_bridge.py runs that trusted script with an argument-array invocation (NoProfile/NonInteractive/File, never shell command construction) on a *worker*, with a 30-second maximum configured deadline and exit-code enforcement. It verifies the versioned JSON envelope, exact static-root identity fields, API major/minor, stale-last-known and **unknown inventory** truth, duplicate enrollment/path refusal, and duplicate reachable factory_id conflict holds. Display alias/refusal metadata is control-character-safe. Current identity/API mismatch refuses publication. An invalid result should leave existing UI data visibly non-current when a production reducer is added; this reference returns an exception and never claims to perform that reducer transition.
+- tests/test_edf006_readonly_bridge.py covers payload parsing, duplicate JSON members, false current/READY freshness, conflicting copies, incompatible versions, malformed controls, data budgets, refusal/timeouts and command-vector injection safety. The Windows provenance test also executes the **real checked-in PowerShell 5.1 module** against a disposable, empty manager registry. That smoke is an **automated Windows software gate**, not physical Windows Terminal or actual nonempty-root runtime evidence.
+
+**Source/custody:** this increment extends existing Draft PR #28 from accepted main ae2dd266b7118f68a28500c84def00a18a889d10. Exact final head and GitHub Actions status must be rechecked after the last commit; no preceding-head PASS carries forward. This increment does not modify accepted EDF-005 sources, typed broker operations, first-party VM state, shared provenance pins, or external dependencies.
+
+**Unproved:** nonempty registered-factory observation on real Windows roots; actual typed instance.list/readiness/broker dispatch and detached-worker reconciliation; end-to-end cancellation/termination semantics; per-root slow-call isolation (EDF-005's existing static fleet read remains sequential inside one bounded process); complete native end-to-end bounded output/cancellation beyond the single trusted PowerShell process (the new capture helper now caps stdout at 256 KiB and stderr at 16 KiB while reading); UI thread integration; native Windows Terminal input/render/focus/paste/restore and source-pinned framework selection. EDF-006 remains **DRAFT/HOLD**, with physical/human gates **NOT RUN**.
+
+## Fourth bounded increment: bounded trusted-process capture
+
+The EDF-006 static bridge now uses tools/edf006_bounded_process.py as its
+default executor. Unlike subprocess.run(stdout=PIPE, stderr=PIPE), two
+independent pipe readers cap retained output while the process runs (256 KiB
+stdout; 16 KiB stderr). On overflow or deadline expiry, the trusted direct
+child is killed and reaped; no oversized output is parsed or marked current.
+Stderr content is never surfaced to the UI. The executor rejects shell mode,
+inherits no stdin, and accepts only the narrow argument-array interface. The
+existing bridge test seam can still inject a fake runner.
+
+Seven new real subprocess tests in tests/test_edf006_bounded_process.py cover
+both streams, exact budgets, stdout/stderr overflow, timeout, simultaneous
+draining and invalid execution options. They prove single-process capture
+behavior, NOT child-process-tree termination, native Windows Terminal, real
+QEMU/WHPX, source-pinned TUI selection, or live instance observation. The
+trusted static PowerShell adapter must not create child processes; if that
+contract changes, process-tree termination requires separate qualification.
+
+Focused Linux Python 3.13.5 scratch-run: 7/7 PASS, 0 failures, 0 skips.
+The full Windows PowerShell merge gate and physical terminal checks remain
+NOT RUN locally; hosted exact-head checks must be evaluated separately.
+
+
+## Fifth bounded increment: inert semantic command registry and parity preflight
+
+`tools/edf006_commands_spike.py` declares the tailored section 5.1 minimum
+semantic command catalogue and the additional Escape/overlay-cancel recovery
+intent. The companion `tests/test_edf006_commands_spike.py` exercises route
+convergence and refusal. This is an explicitly **framework-neutral, inert**
+command-intent layer, not executable dispatch or proof of physical TUI input.
+
+- Menu-pointer and palette-keyboard routes for every command converge to the
+  same immutable intent, including factory, instance and generation identities.
+  Reserved Ctrl+P, Ctrl+T, Tab, Shift+Tab and Escape bindings are audited.
+  Routes here are abstract identifiers: EDF-007 must make them practically
+  accessible in a real terminal, including focus-and-act and click consumption.
+- Unsupported current/stale root identities, duplicate factory-ID conflict,
+  missing instance ID/generation or missing advertised EDF-005 capability
+  refuse an operation intent. Refresh and identity-conflict *navigation*
+  remain possible when a root cannot be dispatched.
+- Instance shell handoff maps to the accepted `instance.shell_descriptor`
+  capability; both clone variants map to `instance.clone`. Factory manager
+  registry edits use a separate `workspace-write` concurrency classification.
+- State-sensitive/destructive intents carry consequence-confirmation and
+  reconciliation-only metadata. **No confirmation is performed here**: the
+  selected UI must collect explicit target/consequence acknowledgement.
+  EDF-005 remains the authority for live revision, target identity, locks,
+  operation acceptance and idempotency at the moment of execution.
+- The prototype has no import of discovered roots, VM mutation, filesystem
+  writes, terminal driver, subprocess call, network call or external dependency.
+
+Qualification: focused `python -W error -m unittest discover -s tests -p
+test_edf006_commands_spike.py -v` and the repository full SOURCE/FAST-CI
+suite are required on the exact published head. Prior-head fast gate
+[42075797987](https://github.com/techrote/ezDarkFactory/actions/runs/42075797987)
+actually ended **FAIL**, not pending: 8/9 jobs passed, while pinned
+PowerShell 7.6.6 control-plane harness reported **411 PASS, 1 FAIL**
+in the existing `Portability identity: executable gate requires current-boot
+finalizer completion...` Python subprocess fixture, which exceeded its
+15-second test deadline. This did not execute any new semantic-command code
+and must remain retained negative evidence; no test was skipped or deadline
+weakened in this increment. Do not transfer 120/120 earlier Python successes
+to the new commit without requalification.
+
+**HOLD**: no pinned TUI runtime, native Windows Terminal focus/mouse/resize/
+restoration evidence, real multi-root interaction or final EDF-006 ADR yet.
+
+## Eighth bounded increment: per-root fair admission and total payload budget
+
+The observation scheduler's prior implementation admitted separate observation
+classes for the same enrollment into both global worker slots. With the default
+two-worker budget, one slow root's `summary` and `logs` calls could therefore
+starve every other root. **SOURCE repair:** the scheduler now reserves at most
+one active worker per enrollment, including obsolete workers awaiting actual
+completion/reaping, while preserving independent-root concurrency and the
+existing generation/serial stale-result guards. FIFO pending coalescing is
+unchanged. A cross-root fresh request can enter the available second slot even
+when a second observation class of the slow root is queued.
+
+An already-verified Windows canonical locator is now compared with
+`ntpath.normcase(normpath(...))` for duplicate enrollment; spellings such as
+`C:/root` and `c:\\ROOT` cannot register the same path twice. Observation
+results also have a cumulative 2,000,000-character cap in addition to the
+existing 10,000-row/8,192-character-per-row limits, preventing large accepted
+cache payloads from multiplying memory usage beyond the TUI budget. The
+existing 10,000-short-row qualification remains valid.
+
+Regression tests exercise real scheduler interleavings: two slow classes of
+one root, another healthy root and a late third root, serial supersession,
+Windows locator aliases and payload refusal without consuming a live worker
+slot. This proves **SOURCE / FAST-CI scheduler logic only**: it does not
+terminate a hung child, schedule a live EDF-005 root-specific worker,
+qualify physical Windows Terminal, or satisfy the still-pending native gate.
