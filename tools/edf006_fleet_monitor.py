@@ -8,7 +8,7 @@ No mutating command, guest access, or candidate executable is present.
 from __future__ import annotations
 
 import argparse
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
 import json
 from math import isfinite
 from pathlib import Path
@@ -17,6 +17,7 @@ import time
 from typing import Callable
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from edf006_daemon_future import start_daemon_future
 from edf006_observation_spike import ObservationScheduler
 from edf006_readonly_bridge import (
     ENROLLMENT, FACTORY, STATES, StaticRoot, collect_static,
@@ -197,7 +198,7 @@ def make_app(workspace: Path, *,
 
         def __init__(self):
             super().__init__()
-            self._loader_pool: ThreadPoolExecutor | None = None
+            self._stopping = False
             self._bootstrap: Future | None = None
             self.fleet: FleetSession | None = None
             self.bootstrap_state = "starting"
@@ -217,15 +218,12 @@ def make_app(workspace: Path, *,
 
         def on_mount(self):
             # All registry discovery/reconciliation runs away from the UI loop.
-            self._loader_pool = ThreadPoolExecutor(
-                max_workers=1, thread_name_prefix="edf006-bootstrap"
-            )
             self._request_bootstrap()
             self.set_interval(0.05, self._tick)
             self._show()
 
         def _request_bootstrap(self, *, force_refresh=True):
-            if self._loader_pool is None:
+            if self._stopping:
                 return
             if self._bootstrap is not None:
                 # Only an explicit request queues a second scan; automatic
@@ -236,8 +234,11 @@ def make_app(workspace: Path, *,
             self._bootstrap_force_refresh = force_refresh
             self._next_registry_reload = time.monotonic() + REGISTRY_RELOAD_SECONDS
             self.bootstrap_state = "refreshing" if self.fleet is not None else "starting"
-            self._bootstrap = self._loader_pool.submit(
-                loader, workspace, timeout=BOOTSTRAP_DEADLINE
+            # At most one loader can run; further explicit requests coalesce.
+            # A blocked OS read must not join at interpreter shutdown.
+            self._bootstrap = start_daemon_future(
+                lambda: loader(workspace, timeout=BOOTSTRAP_DEADLINE),
+                name="edf006-bootstrap",
             )
 
         def _tick(self):
@@ -302,11 +303,11 @@ def make_app(workspace: Path, *,
             self._show()
 
         def on_unmount(self):
+            self._stopping = True
             if self.fleet is not None:
                 self.fleet.close()
-            if self._loader_pool is not None:
-                # A native subprocess has its own deadline; never block exit.
-                self._loader_pool.shutdown(wait=False, cancel_futures=True)
+            if self._bootstrap is not None:
+                self._bootstrap.cancel()  # running bootstrap stays daemonized
 
     return FleetApp
 
