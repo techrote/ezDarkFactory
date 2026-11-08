@@ -112,6 +112,19 @@ class FleetMonitorTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     FleetSession(roots, Path("C:/synthetic"), lambda *a: None)
 
+    def test_full_factory_ids_remain_distinct_when_suffixes_collide(self):
+        one = "fct_" + "a" * 24 + "deadbeef"
+        two = "fct_" + "b" * 24 + "deadbeef"
+        fleet = FleetSession((row("a", factory=one), row("b", factory=two)),
+                             Path("C:/synthetic"),
+                             lambda *a: WorkerResult("unreachable"))
+        try:
+            states = fleet.states(time.monotonic())
+            self.assertEqual((states[0][1], states[1][1]), (one, two))
+            self.assertNotEqual(states[0][1], states[1][1])
+        finally:
+            fleet.close()
+
     def test_stale_state_and_noncurrent_errors_never_become_ready(self):
         fleet = FleetSession((row("a", "stale"),),
                              Path("C:/synthetic"),

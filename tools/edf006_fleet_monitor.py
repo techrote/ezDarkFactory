@@ -88,7 +88,7 @@ class FleetSession:
                 status = self._held[enrollment]
             else:
                 status, _ = self.scheduler.view(enrollment, "summary", now)
-            result.append((enrollment[-8:], row.factory_id[-8:], status))
+            result.append((enrollment[-8:], row.factory_id, status))
         return tuple(result)
 
     def close(self):
@@ -154,7 +154,7 @@ def make_app(workspace: Path, *,
             ]
             if self.fleet is not None:
                 lines.extend(
-                    f"enr ...{enr} / fct ...{factory}: {state}"
+                    f"fct {factory} / enr ...{enr}: {state}"
                     for enr, factory, state in self.fleet.states(time.monotonic())
                 )
             else:

@@ -37,8 +37,8 @@ consume both worker slots. Static conflicts and incompatible roots are held
 until authoritative full-fleet identity reconciliation; an isolated successful
 read cannot clear those holds. Duplicate factory IDs display conflict.
 
-The screen intentionally shows only enrollment/factory suffixes, freshness
-state and evidence labels, not paths, untrusted aliases, raw errors, credentials
+The screen intentionally shows full factory IDs (so identical short suffixes
+cannot make roots ambiguous), enrollment suffixes, freshness state and evidence labels, not paths, untrusted aliases, raw errors, credentials
 or raw child output. The display uses Textual `Static(markup=False)`; the
 session is a read-only view model and is never control authority. Closing
 the UI stops launching workers and never waits on a hung callback.
