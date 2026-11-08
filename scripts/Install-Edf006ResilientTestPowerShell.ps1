@@ -67,11 +67,11 @@ try {
                 }
                 if ((Get-Item -LiteralPath $archive).Length -ne $pin.sizeBytes) {
                     Write-Warning ('Rejected nonmatching PowerShell transport bytes ({0}, length).' -f $source.Label)
-                    continue
+                    break
                 }
                 if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ine $pin.sha256) {
                     Write-Warning ('Rejected nonmatching PowerShell transport bytes ({0}, SHA-256).' -f $source.Label)
-                    continue
+                    break
                 }
                 $downloaded = $true
                 $sourceLabel = $source.Label
