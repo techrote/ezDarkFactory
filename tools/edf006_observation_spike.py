@@ -83,6 +83,15 @@ class ObservationScheduler:
     def active_count(self) -> int:
         return len(self._active)
 
+    def has_outstanding(self, enrollment: str, kind: str) -> bool:
+        """A pending intent or an unreaped worker still owns this read class.
+
+        Timed refresh must not supersede a live request and discard its result.
+        A stale-generation worker continues occupying its physical slot.
+        """
+        key = (enrollment, kind)
+        return key in self._pending or key in self._active
+
     def register(self, enrollment: str, factory_id: str, canonical_path: str) -> None:
         """Admit an already verified root; registration has zero side effects."""
         # The accepted EDF-005 adapter supplies verified canonical Windows paths.

@@ -26,6 +26,7 @@ from edf006_worker_pump import ObservationPump, WorkerResult
 
 MAX_ROOTS = 128
 BOOTSTRAP_DEADLINE = 10.0
+AUTO_REFRESH_SECONDS = 10.0  # bounded retry cadence, not a completion SLA
 
 
 class FleetSession:
@@ -52,6 +53,7 @@ class FleetSession:
         self.scheduler = ObservationScheduler(max_inflight=2, max_pending=MAX_ROOTS)
         self._rows: dict[str, StaticRoot] = {}
         self._held: dict[str, str] = {}
+        self._next_auto: dict[str, float | None] = {}
         self.pump = ObservationPump(
             self.scheduler,
             lambda token, timeout: collector(self.workspace, token, timeout),
@@ -108,6 +110,9 @@ class FleetSession:
                 self.scheduler.register(enrollment, row.factory_id, row.canonical_path)
         self._rows = candidate
         self._held = held
+        # Restart cadence only after this registry generation is validated.
+        # Held roots must not schedule read-only child processes.
+        self._next_auto = {key: None for key in candidate if key not in held}
         for enrollment in self._rows:
             self.refresh(enrollment)
 
@@ -128,6 +133,22 @@ class FleetSession:
         return self.pump.enqueue(enrollment, "summary")
 
     def poll(self, now: float):
+        """Resample enrolled roots on a bounded cadence without UI waits.
+
+        The bootstrap already enqueued one sample. Arm the next cycle on the
+        first poll; if a worker is still running or its intent is queued, do
+        not supersede that generation merely because its interval elapsed.
+        A failed root is retried, not spun on every 50-ms Textual tick.
+        """
+        if type(now) not in (float, int) or not isfinite(now) or now < 0:
+            raise ValueError("finite nonnegative observation clock required")
+        for enrollment, due in tuple(self._next_auto.items()):
+            if due is None:
+                self._next_auto[enrollment] = now + AUTO_REFRESH_SECONDS
+            elif (now >= due
+                  and not self.scheduler.has_outstanding(enrollment, "summary")):
+                self.refresh(enrollment)
+                self._next_auto[enrollment] = now + AUTO_REFRESH_SECONDS
         return self.pump.poll(now)
 
     def states(self, now: float) -> tuple[tuple[str, str, str], ...]:

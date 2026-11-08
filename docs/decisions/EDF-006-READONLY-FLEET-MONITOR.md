@@ -51,6 +51,23 @@ The monitor has no live instance inventory, operation dispatch, durable
 layout, or manager-workspace editing. It does not replace the separate
 EDF-006 physical operator fixture.
 
+## Periodic bounded observation cadence (8 November 2026)
+
+The executable monitor now schedules **automatic** summary re-observation of
+unheld enrollments every 10 seconds, instead of observing only at startup or
+after pressing **r**. The initial registry discovery still seeds only
+`unknown`, and each subsequent `current` reading remains static identity
+rather than an instance/READY claim. Failure retries occur at the same bounded
+cadence, not every 50-ms UI tick. A pending or actively running sample is never
+superseded by a timer; it retains its physical slot until actually reaped.
+Changes to the trusted registry still require an explicit **r** reload;
+automatic re-observation is not an implicit discovery or mutation operation.
+
+The interval is an **attempt cadence**, not a promise of completion within 10
+seconds. At many roots or with slow subprocesses the two-worker queue may take
+longer to drain. Actual Windows Terminal event-to-frame latency and physical
+unreachable-root behavior remain unmeasured and mandatory for EDF-006.
+
 ## Verification
 
 `python -m unittest discover -s tests -p test_edf006_fleet_monitor.py -v`

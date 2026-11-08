@@ -45,6 +45,58 @@ class FleetMonitorTests(unittest.TestCase):
             release.set()
             fleet.close()
 
+    def test_periodic_reobservation_has_bounded_cadence(self):
+        serials = []
+        def collect(workspace, token, timeout):
+            serials.append(token.serial)
+            return WorkerResult("current")
+        fleet = FleetSession((row("a"),), Path("C:/synthetic"), collect)
+        try:
+            start = time.monotonic()
+            self.assertEqual(fleet.poll(start).launched, 1)
+            wait_until(fleet, lambda: fleet.scheduler.active_count == 0)
+            self.assertEqual(serials, [1])
+            self.assertEqual(fleet.poll(start + 9.9).launched, 0)
+            self.assertEqual(fleet.poll(start + 10.1).launched, 1)
+            wait_until(fleet, lambda: (fleet.scheduler.active_count == 0
+                                      and len(serials) == 2))
+            self.assertEqual(serials, [1, 2])
+            for _ in range(25):
+                fleet.poll(start + 10.2)
+            self.assertEqual(serials, [1, 2])
+            self.assertEqual(fleet.scheduler.pending_count, 0)
+        finally:
+            fleet.close()
+
+    def test_periodic_retry_never_discards_inflight_result(self):
+        entered, release = threading.Event(), threading.Event()
+        serials = []
+        def collect(workspace, token, timeout):
+            serials.append(token.serial)
+            if token.serial == 1:
+                entered.set()
+                release.wait(2)
+            return WorkerResult("current")
+        fleet = FleetSession((row("a"),), Path("C:/synthetic"), collect)
+        try:
+            start = time.monotonic()
+            self.assertEqual(fleet.poll(start).launched, 1)
+            self.assertTrue(entered.wait(.5))
+            for dt in (11, 20, 31):
+                self.assertEqual(fleet.poll(start + dt).launched, 0)
+                self.assertEqual(fleet.scheduler.pending_count, 0)
+                self.assertEqual(fleet.scheduler.active_count, 1)
+            release.set()
+            wait_until(fleet, lambda: fleet.scheduler.active_count == 0)
+            self.assertEqual(serials, [1])
+            self.assertEqual(fleet.poll(start + 31.1).launched, 1)
+            wait_until(fleet, lambda: (fleet.scheduler.active_count == 0
+                                      and len(serials) == 2))
+            self.assertEqual(serials, [1, 2])
+        finally:
+            release.set()
+            fleet.close()
+
     def test_one_blocked_root_allows_peer_and_refresh(self):
         entered = threading.Event()
         release = threading.Event()
