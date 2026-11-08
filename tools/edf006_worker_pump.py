@@ -13,7 +13,7 @@ must enforce termination independently (e.g. run_bounded).
 
 from __future__ import annotations
 
-from concurrent.futures import Future, ThreadPoolExecutor
+from concurrent.futures import Future
 from dataclasses import dataclass
 from math import isfinite
 import time
@@ -21,8 +21,10 @@ from typing import Callable
 
 if __package__:
     from .edf006_observation_spike import ObservationScheduler, Request
+    from .edf006_daemon_future import start_daemon_future
 else:
     from edf006_observation_spike import ObservationScheduler, Request
+    from edf006_daemon_future import start_daemon_future
 
 
 @dataclass(frozen=True)
@@ -73,8 +75,6 @@ class ObservationPump:
         self.scheduler = scheduler
         self._collector = collector
         self._timeout = float(timeout_seconds)
-        self._executor = ThreadPoolExecutor(max_workers=scheduler.max_inflight,
-                                            thread_name_prefix="edf006-readonly")
         self._futures: dict[Future[_CollectedSample], Request] = {}
         self._closed = False
 
@@ -130,7 +130,13 @@ class ObservationPump:
         launched = 0
         for token in self.scheduler.dispatch():
             # Active ownership was registered by dispatch() before submission.
-            self._futures[self._executor.submit(self._collect, token)] = token
+            # dispatch() already reserved at most max_inflight physical slots.
+            # A daemon worker cannot make Python shutdown wait indefinitely
+            # for a blocked external read; the child has its own deadline.
+            future = start_daemon_future(
+                lambda token=token: self._collect(token), name="edf006-readonly"
+            )
+            self._futures[future] = token
             launched += 1
         return PollResult(finished, published, dropped, failed_closed, launched,
                           self.scheduler.active_count, self.scheduler.pending_count)
@@ -144,4 +150,5 @@ class ObservationPump:
         """
         if not self._closed:
             self._closed = True
-            self._executor.shutdown(wait=False, cancel_futures=True)
+            for future in self._futures:
+                future.cancel()  # running jobs remain owned until process exit
