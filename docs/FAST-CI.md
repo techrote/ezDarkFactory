@@ -33,6 +33,29 @@ unit fixtures and repository boundaries. **No real guest, QEMU/WHPX execution,
 Windows Terminal user interaction or human qualification is performed.**
 The imported historical Keys/Runtime owner patches remain unproven until EDF-003.
 
+## Pinned PowerShell 7 test-runtime transport resilience
+
+The exact `7.6.6` Windows x64 ZIP, expected byte length and SHA-256 remain
+locked in `tests/tooling.json`. `scripts/Install-TestPowerShell.ps1` first
+attempts the official GitHub Releases URL (up to three bounded transports).
+Only if all official requests fail at the transport layer does it attempt
+the exact-version SourceForge project mirror (up to two bounded requests).
+The mirror is **not** an independent version or trust authority: both routes
+are checked against the **same reviewed upstream bytes and digest** before
+extraction or execution. A completed download with the wrong size or hash
+fails immediately, with no fallback to a different archive or system `pwsh`.
+Acquisition still writes only outside the source tree, and failed downloads
+are removed. SourceForge is an availability dependency, not an authentication
+substitute.
+
+The Windows PowerShell 5.1 repository-contract lane runs an entirely offline
+mocked-transport fixture at
+`tests/Invoke-Edf006PinnedPowerShellAcquisitionFixture.ps1`. It verifies
+official-first ordering, exact-version fallback after transport exhaustion,
+refusal of mismatching archive bytes without extraction, all-sources-down
+refusal and temporary-file cleanup. Normal PowerShell 7 CI lanes remain the
+actual-download/hash/version integration qualification.
+
 ## EDF-003 additional Windows gates
 
 The Keys/Runtime public-source repair adds **four** required Windows jobs to

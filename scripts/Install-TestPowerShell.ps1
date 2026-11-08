@@ -27,16 +27,36 @@ $oldTls = [Net.ServicePointManager]::SecurityProtocol
 $ProgressPreference = 'SilentlyContinue'
 try {
     [Net.ServicePointManager]::SecurityProtocol = $oldTls -bor [Net.SecurityProtocolType]::Tls12
-    for ($attempt = 1; $attempt -le 3; $attempt++) {
-        try {
-            Invoke-WebRequest -Uri $pin.url -OutFile $archive -UseBasicParsing -TimeoutSec 60
-            break
+    # The SourceForge project is a third-party bit-for-bit mirror, not an
+    # alternate package authority. Both transports MUST pass the SAME exact
+    # upstream byte-length and SHA-256 checks before any extraction or execution.
+    # A successful HTTP response with wrong bytes fails closed rather than
+    # silently trying a different source (a supply-chain anomaly is not an outage).
+    $mirrorUrl = 'https://downloads.sourceforge.net/project/powershell.mirror/v' + $pin.version + '/PowerShell-' + $pin.version + '-win-x64.zip'
+    $sources = @(
+        [pscustomobject]@{ Label = 'GitHub Releases'; Url = $pin.url; Attempts = 3 },
+        [pscustomobject]@{ Label = 'SourceForge exact-version mirror'; Url = $mirrorUrl; Attempts = 2 }
+    )
+    $downloaded = $false
+    $sourceLabel = ''
+    foreach ($source in $sources) {
+        for ($attempt = 1; $attempt -le $source.Attempts; $attempt++) {
+            try {
+                Invoke-WebRequest -Uri $source.Url -OutFile $archive -UseBasicParsing -TimeoutSec 60
+                $downloaded = $true
+                $sourceLabel = $source.Label
+                break
+            }
+            catch {
+                if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
+                Write-Warning ('Pinned PowerShell transport unavailable: {0} attempt {1}/{2} ({3}).' -f $source.Label, $attempt, $source.Attempts, $_.Exception.GetType().Name)
+                if ($attempt -lt $source.Attempts) { Start-Sleep -Seconds 2 }
+            }
         }
-        catch {
-            if (Test-Path -LiteralPath $archive) { Remove-Item -LiteralPath $archive -Force }
-            if ($attempt -eq 3) { throw 'Could not download the pinned PowerShell test runtime after three bounded attempts. Retry CI when GitHub release downloads are reachable.' }
-            Start-Sleep -Seconds 2
-        }
+        if ($downloaded) { break }
+    }
+    if (-not $downloaded) {
+        throw 'Could not acquire the pinned PowerShell test runtime via either bounded, fixed-version transport. No unverified payload was used.'
     }
     if ((Get-Item -LiteralPath $archive).Length -ne $pin.sizeBytes) {
         throw 'The PowerShell test-runtime download has the wrong byte length. No payload was extracted or executed.'
@@ -50,7 +70,7 @@ try {
     if ($LASTEXITCODE -ne 0 -or $version -cne $pin.version) {
         throw "The verified PowerShell payload did not execute as version $($pin.version)."
     }
-    Write-Host ('Verified official PowerShell {0} test runtime (SHA-256 {1}).' -f $pin.version, $pin.sha256)
+    Write-Host ('Verified PowerShell {0} test runtime via {1} (official SHA-256 {2}).' -f $pin.version, $sourceLabel, $pin.sha256)
     Write-Output $executable
 }
 catch {

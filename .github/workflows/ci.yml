@@ -61,6 +61,12 @@ jobs:
           $ErrorActionPreference = 'Stop'
           .\\scripts\\Invoke-CiCheck.ps1 -Check Repository -ExpectedMajor 5
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Verify pinned PowerShell fallback and fail-closed payload refusal
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\\tests\\Invoke-Edf006PinnedPowerShellAcquisitionFixture.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
   control-plane:
     name: Control plane (${{ matrix.label }})
