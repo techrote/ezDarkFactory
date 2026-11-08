@@ -158,7 +158,9 @@ class SingleRootCollectorTests(unittest.TestCase):
                     entered.set()
                     slow.wait(2.0)
                 result = payload(enrollment=enrollment,
-                                 factory=FCT_A if enrollment == ENR_A else FCT_B)
+                                 factory=FCT_A if enrollment == ENR_A else FCT_B,
+                                 path="C:/fixtures/alpha" if enrollment == ENR_A
+                                 else "C:/fixtures/beta")
                 return SimpleNamespace(returncode=0, stdout=result, stderr=b"")
             scheduler = ObservationScheduler(max_inflight=2)
             scheduler.register(ENR_A, FCT_A, "C:/fixtures/alpha")
