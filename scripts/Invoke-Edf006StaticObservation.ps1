@@ -1,19 +1,45 @@
 #requires -Version 5.1
-# EDF-006: SOURCE/FAST-CI read-only bridge to the accepted EDF-005 manager API.
-# Never imports scripts from a discovered/candidate factory root.
+# EDF-006 trusted metadata-only read; never probe registered candidate roots.
 [CmdletBinding()]
 param([Parameter(Mandatory = $true)][string]$Workspace)
-
 Set-StrictMode -Version 2.0
 $ErrorActionPreference = 'Stop'
 $ProgressPreference = 'SilentlyContinue'
 try {
     $trustedModule = Join-Path (Join-Path $PSScriptRoot '..') 'src/EzDarkFactory/Edf005.psm1'
     Import-Module -Name $trustedModule -Force -ErrorAction Stop
-    $registry = Get-EzDarkFactoryManagerRegistry -Workspace $Workspace
-    if (@($registry.roots).Count -gt 128) { throw 'Observation budget exceeded.' }
-    $rows = @(Get-EzDarkFactoryManagerObservations -Workspace $Workspace)
-    if ($rows.Count -gt 128) { throw 'Observation budget exceeded.' }
+    $registry = Get-EzDarkFactoryManagerRegistryMetadata -Workspace $Workspace
+    $entries = @($registry.roots)
+    $rows = @()
+    foreach ($entry in $entries) {
+        # A metadata duplicate holds both enrollments even before probing.
+        $duplicates = @($entries | Where-Object {
+            $_.last_factory_id -ceq $entry.last_factory_id
+        }).Count -gt 1
+        $state = if ($duplicates) { 'conflict' }
+                 elseif (-not $entry.execution_authorized) { 'incompatible' }
+                 else { 'unknown' }
+        $rows += [pscustomobject][ordered]@{
+            schemaVersion = 1
+            enrollment_id = $entry.enrollment_id
+            alias = $entry.alias
+            canonical_path = $entry.canonical_path
+            factory_id = $entry.last_factory_id
+            observed_factory_id = $null
+            api = $null
+            state = $state
+            inventory_state = 'unknown'
+            last_known = [pscustomobject]@{
+                factory_id = $entry.last_factory_id
+                api_major = $entry.api_major
+                api_minor = $entry.api_minor
+                verified_at = $entry.last_verified_at
+                freshness = 'stale'
+            }
+            observed_at = [DateTime]::UtcNow.ToString('o')
+            reason = 'Registry-only identity; per-root verification pending.'
+        }
+    }
     $snapshot = [pscustomobject][ordered]@{
         schemaVersion = 1
         kind = 'edf005-static-roots'
@@ -28,7 +54,6 @@ try {
     exit 0
 }
 catch {
-    # No raw workspace path, guest data, exception string or credentials on stderr.
     [Console]::Error.WriteLine('EDF006_STATIC_READ_REFUSED')
     exit 2
 }

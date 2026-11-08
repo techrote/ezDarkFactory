@@ -16,7 +16,7 @@ try {
     }
     $trustedModule = Join-Path (Join-Path $PSScriptRoot '..') 'src/EzDarkFactory/Edf005.psm1'
     Import-Module -Name $trustedModule -Force -ErrorAction Stop
-    $registry = Get-EzDarkFactoryManagerRegistry -Workspace $Workspace
+    $registry = Get-EzDarkFactoryManagerRegistryMetadata -Workspace $Workspace
     $entries = @($registry.roots)
     if ($entries.Count -gt 128) { throw 'Registry observation budget exceeded.' }
     $selected = @($entries | Where-Object { $_.enrollment_id -ceq $EnrollmentId })

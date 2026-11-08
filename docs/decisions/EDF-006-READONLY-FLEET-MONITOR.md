@@ -27,9 +27,9 @@ Press **r** for a new static identity read; **q** to exit. There are no
 mutation-capable commands or guest input forwarding.
 
 The initial `collect_static()` is itself a bounded trusted process on a
-**background** thread, not the Textual event loop; it supplies verified
-enrollment/identity metadata. All statuses start at **unknown**, regardless of
-the bootstrap state: initial provenance is not a per-root fresh read. Per-root
+**background** thread, not the Textual event loop. It supplies unverified
+registry enrollment metadata only; no bootstrap row is a fresh root reading.
+Unconflicted statuses start at **unknown**, regardless of registry history. Per-root
 `collect_root()` calls use `ObservationPump`, two physical worker slots,
 one worker per enrollment, 10-second independent subprocess deadlines and
 generation-aware completion rejection. A stale/missing/failed root cannot
@@ -43,10 +43,9 @@ or raw child output. The display uses Textual `Static(markup=False)`; the
 session is a read-only view model and is never control authority. Closing
 the UI stops launching workers and never waits on a hung callback.
 
-**Limitations:** The first whole-fleet discovery subprocess may still be
-delayed by an inaccessible root before bounded timeout. This is a startup
-availability limitation, not a claim of complete unresponsive-root isolation;
-EDF-007 should source a trusted metadata-only registry listing when available.
+**Limitations:** Unavailable/corrupt manager-workspace storage can still
+stall the bounded bootstrap process. A physically disconnected/network-root
+acceptance test has not been performed.
 The monitor has no live instance inventory, operation dispatch, durable
 layout, or manager-workspace editing. It does not replace the separate
 EDF-006 physical operator fixture.
@@ -66,3 +65,23 @@ That is a **synthetic, actual-Textual event-loop integration**, labelled
 `FAST-CI-HEADLESS` with `physical_tui=false` and null externally measured
 input-to-visible-frame p95. Native Windows Terminal acceptance and EDF-006
 physical sign-off are still required before PR #28 may merge.
+
+## Read-only registry bootstrap isolation (8 November 2026)
+
+The trusted EDF-005 metadata reader `Get-EzDarkFactoryManagerRegistryMetadata`
+uses the bounded schema-1 registry loader on the *manager workspace* without
+following registered candidate paths. This removes the old full-fleet
+`Get-EzDarkFactoryManagerObservations` serial root scan. The initial seed
+cannot assert fresh identity, reachability, API compatibility, or READY:
+all unconflicted registrations are `unknown`, with null observed identity
+and API. Duplicate enrolled factory IDs are held as `conflict`; unauthorized
+registrations are `incompatible`. Per-enrollment trusted reads use the same
+metadata seam and inspect only their selected registered path under an
+independently bounded child process. EDF-005's effectful dispatch still uses
+authoritative full-fleet checks and remains unchanged.
+
+The focused Windows PowerShell test edits only disposable registry fixtures:
+one enrollment is on an unmapped drive while the other remains observable,
+and a synthetic duplicate enrolled identity holds both rows. This proves
+the read-only software path, not real network-drive hang performance,
+native Windows Terminal PHYSICAL-TUI behavior or live VM readiness.
