@@ -133,3 +133,32 @@ The selected runtime introduces CPython (PSF) plus Textual (MIT) and its locked 
 ## Acceptance disposition
 
 The implementation stack is now **selected and reproducibly pinned**, and the automated integration seam is defined. EDF-006 is **not accepted yet** because the required exact-candidate PHYSICAL-TUI campaign has not been run. Do not mark PR #28 Ready, merge it, or close issue #6 until that evidence is attached and the final exact-head automated checks are green.
+
+## Bounded asynchronous observation worker seam (8 November 2026)
+
+The issue branch additionally carries `tools/edf006_worker_pump.py` and
+`tests/test_edf006_worker_pump.py`. Unlike the scheduler's earlier
+dispatch-only model, this executes an injected read-only collector on
+at most `max_inflight` actual Python worker threads. The Textual/UI thread
+alone queues requests, harvests only already-finished futures and updates
+the immutable observation read model. A slow root cannot occupy a second
+worker slot under another observation class, and independent roots can
+still progress. Exceptions and oversized/malformed records fail closed to
+`unreachable`, retaining prior records only as noncurrent. Refreshed,
+removed or relocated enrollment tokens cannot publish late results.
+Closing the pump stops new work without falsely releasing running worker
+capacity or waiting on a stuck adapter. Tests use inert threaded collectors;
+no factory or VM is touched.
+
+**Critical execution boundary:** This is a concrete concurrent
+orchestration test, **not yet a production per-root adapter**. The collector
+injection is trusted and must enforce its own independent process deadline
+and in-stream capture limits; no Python thread can safely force-kill a
+wedged collector. `tools/edf006_bounded_process.py` already provides a
+restricted trusted *single-process* capture for the existing static
+workspace bridge, but actual per-root EDF-005 adapter invocation,
+root-isolated live observation, close/reap on physical Windows, idle memory,
+and the under-100-ms presented-frame budget remain unmeasured. EDF-007
+must not map a workspace-wide sequential static read onto separate
+per-root thread tasks and claim isolation. The selected native framework,
+physical operator and final acceptance gates above remain unchanged.
