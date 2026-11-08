@@ -73,6 +73,51 @@ class PhysicalFixtureTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             create_only_receipt("relative.json", Fixture().summary())
 
+    def test_menu_open_during_capture_cancels_and_late_release_is_inert(self):
+        f = Fixture(160, 48)
+        x = f.frame.divider.x
+        f.press(x, 15)
+        f.move(x + 12, 15)
+        self.assertIsNotNone(f.preview)
+        f.menu()
+        self.assertIsNone(f.drag)
+        self.assertEqual(f.split.ratio, .5)
+        self.assertEqual(f.actions["divider_cancel"], 1)
+        # The overlay's outside click is consumed; its paired release cannot
+        # commit the old preview or redirect focus to the underlying tile.
+        f.press(1, 12)
+        f.release()
+        self.assertEqual(f.actions["menu_dismiss_consumed"], 1)
+        self.assertEqual(f.actions["divider_commit"], 0)
+        self.assertEqual(f.actions["tile_focus"], 0)
+        self.assertEqual(f.split.ratio, .5)
+
+    def test_duplicate_down_cannot_replace_pointer_capture(self):
+        f = Fixture(160, 48)
+        x = f.frame.divider.x
+        f.press(x, 15)
+        f.move(x + 8, 15)
+        expected_preview = f.preview
+        f.press(x, 15)
+        f.press(2, 15)
+        self.assertEqual(f.actions["captured_press_ignored"], 2)
+        self.assertEqual(f.actions["divider_begin"], 1)
+        self.assertEqual(f.preview, expected_preview)
+        f.release()
+        self.assertEqual(f.actions["divider_commit"], 1)
+        self.assertGreater(f.split.ratio, .5)
+
+    def test_resize_discards_modal_from_old_viewport(self):
+        f = Fixture(160, 48)
+        f.menu()
+        self.assertTrue(f.overlays.overlays)
+        f.resize(80, 24)
+        self.assertFalse(f.overlays.overlays)
+        self.assertEqual(f.actions["overlay_resize_dismiss"], 1)
+        f.press(1, 12)
+        self.assertEqual(f.actions["menu_dismiss_consumed"], 0)
+        self.assertEqual(f.actions["tile_focus"], 1)
+
     def test_ascii_responsive_layout_and_recovery(self):
         for w, h in ((40, 12), (80, 24), (160, 48)):
             f = Fixture(w, h)

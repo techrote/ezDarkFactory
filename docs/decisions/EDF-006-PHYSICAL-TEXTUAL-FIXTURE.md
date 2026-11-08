@@ -32,3 +32,21 @@ Select a new absolute receipt filename outside the source repository per run. Re
 The tracked unit tests check first-party model invariants and redaction. The exact pinned runtime qualification also runs --headless-smoke against this actual Textual class, but that is FAST-CI-HEADLESS, not physical acceptance.
 
 Keep PR #28 **Draft/HOLD**, issue #6 open and EDF-007 dependency-blocked until independently witnessed PHYSICAL-TUI evidence and exact-head automated checks qualify the entire required issue matrix.
+
+## Cross-event transaction safety (source + pinned-runtime regression)
+
+The selected Textual fixture now treats modal opening as a capture-cancellation
+boundary, rejects a second down during a live divider transaction, and dismisses
+old-coordinate overlays on terminal resize. The headless integration exercises
+the **actual Textual mouse/key/resize event bridge**, including an interleaving
+in which a menu opens during a drag and the old mouse-up arrives afterwards.
+Source regression tests additionally cover duplicate down and stale overlay
+hit geometry.
+
+During the physical campaign, repeat that sequence with a real pointer:
+hold the divider, move it, open the menu with the keyboard, then release the
+mouse. The stored ratio must remain unchanged. Repeat with a resize while the
+menu is open; no unreachable modal must retain input focus. Record failures
+as observed physical failures, not as headless successes. None of these
+regressions changes the `UNVERIFIED_INTERACTIVE_DIAGNOSTIC` receipt class or
+supplies external input-to-presented-frame timing.

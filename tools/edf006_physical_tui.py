@@ -57,6 +57,11 @@ class Fixture:
         if (width, height) != (self.width, self.height):
             self.events["resize"] += 1
             self.cancel()
+            # Modal rectangles use viewport coordinates. Do not leave an
+            # unreachable old-viewport overlay intercepting post-resize input.
+            if self.overlays.overlays:
+                self.overlays.overlays.clear()
+                self.actions["overlay_resize_dismiss"] += 1
             self.width, self.height = width, height
             self._solve()
             self.last = "resize"
@@ -68,6 +73,13 @@ class Fixture:
 
     def press(self, x, y, button=1):
         self.events["mouse_down"] += 1
+        # A capture owns the pointer transaction until release/cancellation.
+        # Duplicate/nested down events must not replace its initial geometry,
+        # refocus another tile or leak through a simultaneously opening overlay.
+        if self.drag is not None:
+            self.actions["captured_press_ignored"] += 1
+            self.last = "captured_press_ignored"
+            return
         if button != 1:
             if button == 3:
                 self.events["right_click"] += 1
@@ -103,6 +115,9 @@ class Fixture:
             self.last = "divider_commit"
 
     def menu(self):
+        # A keyboard-opened modal is a new interaction boundary. In particular,
+        # its closing mouse-up must never commit a pre-menu divider preview.
+        self.cancel()
         self.overlays.push("menu", Rect(max(0, self.width // 4),
                                         max(1, self.height // 4),
                                         max(1, self.width // 2),
@@ -373,6 +388,28 @@ async def headless_smoke():
         await pilot.press("ctrl+t")
         if app.model.actions["recover"] != 1 or app.model.input_armed:
             raise AssertionError("recovery did not reset fixture")
+
+        # Cross-event race: keyboard menu while button remains held must roll
+        # back the preview. The late mouse-up may not commit the old capture.
+        await pilot.resize_terminal(160, 48)
+        divider = app.model.frame.divider
+        if divider is None:
+            raise AssertionError("fleet divider unavailable after recovery")
+        before_menu = app.model.split.ratio
+        await pilot.mouse_down("#surface", offset=(divider.x, 15))
+        await pilot.hover("#surface", offset=(divider.x + 8, 15))
+        await pilot.press("m")
+        if (app.model.drag is not None
+                or app.model.split.ratio != before_menu
+                or app.model.actions["divider_cancel"] != 4):
+            raise AssertionError("opening modal did not cancel active capture")
+        await pilot.mouse_up("#surface", offset=(divider.x + 8, 15))
+        if (app.model.split.ratio != before_menu
+                or app.model.actions["divider_commit"] != 1):
+            raise AssertionError("late mouse-up committed a pre-modal drag")
+        await pilot.resize_terminal(80, 24)
+        if app.model.overlays.overlays or app.model.actions["overlay_resize_dismiss"] != 1:
+            raise AssertionError("resize retained stale modal hit geometry")
 
     return {"evidence": "FAST-CI-HEADLESS", "physical_tui": False,
             "actions": dict(app.model.actions),
