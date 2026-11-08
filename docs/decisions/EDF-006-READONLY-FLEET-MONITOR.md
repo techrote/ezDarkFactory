@@ -172,3 +172,29 @@ No daemon, hidden host-local state, write or VM lifecycle operation is added.
 The pinned Textual headless smoke explicitly exercises automatic metadata
 reload without unnecessary worker supersession. Physical Windows Terminal
 latency, offline-volume timing and human usability remain unmeasured.
+
+## Viewport-safe multi-root presentation (source/FAST-CI only)
+
+The read-only monitor's first executable Textual integration used one
+full-screen `Static` with `overflow: hidden`. Beyond a small viewport's
+first screenful, additional registered factories were silently clipped,
+despite the registry and observation scheduler supporting 128 enrollments.
+The monitor now places that trusted text inside a vertical scroll container
+so a human can inspect the entire roster (mouse wheel or terminal scroll
+control) without changing the authoritative registry, collector or worker
+limits. Factory identities remain complete and no alias/path/guest text is
+rendered.
+
+The 50-ms polling clock also used to call `Static.update` on every tick,
+even when the displayed state was identical. The presentation layer now
+compares the complete bounded visible text to the last presented text and
+only invalidates the Textual widget when that content changes. This avoids
+gratuitous renderable updates while preserving observation freshness and
+live registry additions/removals. It does not claim a measured terminal
+frame rate or native input-to-presented-frame p95.
+
+The selected Textual runtime's headless integration verifies that unchanged
+ticks do not repeatedly update the widget and that a synthetic maximum-size
+128-root roster can actually scroll beyond an 80x24 viewport. These checks
+are **FAST-CI-HEADLESS**, not physical Windows Terminal mouse-wheel,
+accessibility, latency or human usability evidence.
