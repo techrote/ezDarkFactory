@@ -441,11 +441,24 @@ async def headless_smoke():
         app._show()
         await pilot.pause()
         roots_view = app.query_one("#roots", VerticalScroll)
-        roots_view.scroll_end(animate=False)
-        await pilot.pause()
+        # Textual's layout/scroll geometry is calculated asynchronously after
+        # Static.update. One Pilot pause is not a deterministic reflow barrier
+        # on slower hosted Windows runners. Still require real scroll travel.
+        deadline = time.monotonic() + 3.0
+        while time.monotonic() < deadline and roots_view.scroll_y <= 0:
+            roots_view.scroll_end(animate=False)
+            await pilot.pause()
+            if roots_view.scroll_y > 0:
+                break
+            await asyncio.sleep(.05)
         if (len(app.fleet.states(time.monotonic())) != MAX_ROOTS
                 or roots_view.scroll_y <= 0):
-            raise AssertionError("maximum-size registry is clipped and unscrollable")
+            raise AssertionError(
+                "maximum-size registry is clipped and unscrollable: "
+                f"rows={len(app.fleet.states(time.monotonic()))}, "
+                f"scroll_y={roots_view.scroll_y}, "
+                f"virtual_height={roots_view.virtual_size.height}"
+            )
 
     return {
         "schemaVersion": 1, "evidence": "FAST-CI-HEADLESS",
