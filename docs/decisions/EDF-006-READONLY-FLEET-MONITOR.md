@@ -156,4 +156,3 @@ prohibit Python workspace stat calls; Windows tests use the actual trusted
 PowerShell child to reject missing workspaces. This reduces a pre-deadline
 hang path but does **not** prove physical disconnected-drive behavior,
 Windows process-launch latency or whole-system real-time guarantees.
-
