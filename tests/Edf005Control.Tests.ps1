@@ -1135,7 +1135,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: EDF-006 metadata bootstrap isolates inacce
         Assert-EzDarkFactoryEqual -Actual $conflicts.Count -Expected 2
         Assert-EzDarkFactoryEqual -Actual $conflicts[0].state -Expected 'conflict'
         Assert-EzDarkFactoryEqual -Actual $conflicts[1].state -Expected 'conflict'
-        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $single -Workspace $workspace -EnrollmentId $enrA.enrollment_id
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $single -Workspace $workspace -ExpectedCanonicalPath $enrA.canonical_path -EnrollmentId $enrA.enrollment_id
         Assert-EzDarkFactoryEqual -Actual $LASTEXITCODE -Expected 0
         Assert-EzDarkFactoryEqual -Actual ($output | Out-String | ConvertFrom-Json).records[0].state -Expected 'conflict'
     }
