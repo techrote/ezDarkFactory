@@ -1042,7 +1042,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: deleted submission transitions through unk
 }
 
 
-Add-EzDarkFactoryTest -Name 'EDF-006: trusted per-enrollment static child returns only the selected factory' -ScriptBlock {
+Add-EzDarkFactoryTest -Name 'EDF-005: EDF-006 trusted per-enrollment static child returns only the selected factory' -ScriptBlock {
     $a = New-EzDarkFactoryCheckoutFixture -Prefix 'edf006 selected A'
     $b = New-EzDarkFactoryCheckoutFixture -Prefix 'edf006 unselected B'
     $workspace = New-EzDarkFactoryTestDirectory -Prefix 'edf006 single root workspace'
