@@ -1059,7 +1059,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: EDF-006 trusted per-enrollment static chil
         } else {
             Join-Path $PSHOME 'pwsh.exe'
         }
-        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $script -Workspace $workspace -EnrollmentId $enrollmentA.enrollment_id
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $script -Workspace $workspace -ExpectedCanonicalPath $enrollmentA.canonical_path -EnrollmentId $enrollmentA.enrollment_id
         $exit = $LASTEXITCODE
         Assert-EzDarkFactoryEqual -Actual $exit -Expected 0
         $snapshot = ($output | Out-String | ConvertFrom-Json)
@@ -1120,7 +1120,7 @@ Add-EzDarkFactoryTest -Name 'EDF-005: EDF-006 metadata bootstrap isolates inacce
             Assert-EzDarkFactoryTrue -Condition ($null -eq $item.observed_factory_id)
             Assert-EzDarkFactoryTrue -Condition ($null -eq $item.api)
         }
-        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $single -Workspace $workspace -EnrollmentId $enrA.enrollment_id
+        $output = & $exe -NoLogo -NoProfile -NonInteractive -File $single -Workspace $workspace -ExpectedCanonicalPath $enrA.canonical_path -EnrollmentId $enrA.enrollment_id
         Assert-EzDarkFactoryEqual -Actual $LASTEXITCODE -Expected 0
         $selected = ($output | Out-String | ConvertFrom-Json).records
         Assert-EzDarkFactoryEqual -Actual @($selected).Count -Expected 1

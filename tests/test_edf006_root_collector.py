@@ -25,14 +25,16 @@ FCT_A = "fct_" + "a" * 32
 FCT_B = "fct_" + "b" * 32
 
 
-def token(enrollment=ENR_A, factory=FCT_A, kind="summary", serial=1):
-    return Request(enrollment, factory, 1, kind, serial)
+def token(enrollment=ENR_A, factory=FCT_A, kind="summary", serial=1,
+          path="C:/fixtures/alpha"):
+    return Request(enrollment, factory, 1, kind, serial, path)
 
 
-def payload(enrollment=ENR_A, factory=FCT_A, state="current", records=1):
+def payload(enrollment=ENR_A, factory=FCT_A, state="current", records=1,
+            path="C:\\fixtures\\alpha"):
     row = {
         "schemaVersion": 1, "enrollment_id": enrollment, "alias": "Alpha",
-        "canonical_path": "C:\\fixtures\\alpha", "factory_id": factory,
+        "canonical_path": path, "factory_id": factory,
         "observed_factory_id": factory, "api": {"major": 1, "minor": 0},
         "state": state, "inventory_state": "unknown",
         "last_known": {
@@ -62,13 +64,16 @@ class SingleRootCollectorTests(unittest.TestCase):
             self.assertEqual(argv[:5], ["powershell.exe", "-NoLogo", "-NoProfile",
                                         "-NonInteractive", "-File"])
             self.assertTrue(argv[5].endswith("Invoke-Edf006RootObservation.ps1"))
-            self.assertEqual(argv[-4:], ["-Workspace", folder, "-EnrollmentId", ENR_A])
+            self.assertEqual(argv[-6:], ["-Workspace", folder,
+                                         "-ExpectedCanonicalPath", "C:/fixtures/alpha",
+                                         "-EnrollmentId", ENR_A])
             self.assertNotIn("-Command", argv)
             self.assertEqual(kwargs["timeout"], 2.5)
             self.assertIs(kwargs["check"], False)
 
     def test_result_must_match_exact_enrollment_and_factory_and_one_record(self):
         for response in (payload(ENR_B), payload(factory=FCT_B),
+                         payload(path="D:/relocated/alpha"),
                          payload(records=0), payload(records=2), b"not JSON"):
             with self.subTest(response=response[:55]):
                 with tempfile.TemporaryDirectory() as folder:
@@ -77,6 +82,23 @@ class SingleRootCollectorTests(unittest.TestCase):
                                      runner=lambda *a, **kw: SimpleNamespace(
                                          returncode=0, stdout=response, stderr=b""))
 
+    def test_locator_is_bound_to_generation_and_windows_case_is_equivalent(self):
+        scheduler = ObservationScheduler()
+        scheduler.register(ENR_A, FCT_A, "C:/fixtures/alpha")
+        original = scheduler.request(ENR_A, "summary")
+        scheduler.unregister(ENR_A)
+        scheduler.register(ENR_A, FCT_A, "D:/moved/alpha")
+        moved = scheduler.request(ENR_A, "summary")
+        self.assertEqual(original.canonical_path, "C:/fixtures/alpha")
+        self.assertEqual(moved.canonical_path, "D:/moved/alpha")
+        self.assertNotEqual(original.root_epoch, moved.root_epoch)
+        with tempfile.TemporaryDirectory() as folder:
+            result = collect_root(Path(folder), token(), 3,
+                                  runner=lambda *args, **kw: SimpleNamespace(
+                                      returncode=0,
+                                      stdout=payload(path="c:/FIXTURES/ALPHA"),
+                                      stderr=b""))
+            self.assertEqual(result.state, "current")
     def test_noncurrent_states_are_never_promoted_to_current(self):
         with tempfile.TemporaryDirectory() as folder:
             for state, expected in (("conflict", "incompatible"),
@@ -106,7 +128,9 @@ class SingleRootCollectorTests(unittest.TestCase):
                 raise AssertionError("must refuse before launching a child")
             for bad_token, timeout in (
                 (token(enrollment="bad"), 1), (token(factory="bad"), 1),
-                (token(kind="execute"), 1), (token(), 0),
+                (token(kind="execute"), 1),
+                (token(path=""), 1), (token(path="relative/root"), 1),
+                (token(path="C:/bad\nroot"), 1), (token(), 0),
                 (token(), 31), (token(), float("nan")), (token(), True),
                 (Request(ENR_A, FCT_A, True, "summary", 1), 1),
             ):

@@ -4,7 +4,8 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)][string]$Workspace,
-    [Parameter(Mandatory = $true)][string]$EnrollmentId
+    [Parameter(Mandatory = $true)][string]$EnrollmentId,
+    [Parameter(Mandatory = $true)][string]$ExpectedCanonicalPath
 )
 
 Set-StrictMode -Version 2.0
@@ -24,6 +25,13 @@ try {
         throw 'Enrollment absent, ambiguous, or unauthorized.'
     }
     $entry = $selected[0]
+    # Refuse relocation before examining any replacement candidate root.
+    if ([string]::IsNullOrWhiteSpace($ExpectedCanonicalPath) -or
+        $ExpectedCanonicalPath.Length -gt 4096 -or
+        -not [string]::Equals([string]$entry.canonical_path,
+            $ExpectedCanonicalPath, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Enrollment locator changed since dispatch."
+    }
     # Registry metadata may be inspected for obvious duplicate identity, but
     # NO other candidate root is probed: a hung root must not hold this child.
     $duplicate = @($entries | Where-Object {

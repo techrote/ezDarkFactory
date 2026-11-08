@@ -25,6 +25,8 @@ class Request:
     root_epoch: int
     kind: str
     serial: int
+    # Frozen enrolled locator; empty only in scheduler-only fixture tokens.
+    canonical_path: str = ""
 
     @property
     def key(self) -> tuple[str, str]:
@@ -143,7 +145,8 @@ class ObservationScheduler:
             return None
         serial = self._serials.get(key, 0) + 1
         self._serials[key] = serial
-        intent = Request(enrollment, root.factory_id, root.epoch, kind, serial)
+        intent = Request(enrollment, root.factory_id, root.epoch, kind, serial,
+                         root.canonical_path)
         # OrderedDict assignment preserves existing FIFO position; no flood priority.
         self._pending[key] = intent
         return intent

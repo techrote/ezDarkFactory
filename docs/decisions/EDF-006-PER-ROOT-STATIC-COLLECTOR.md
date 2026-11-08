@@ -24,8 +24,14 @@ unmodified as the separate existing diagnostic path.
 
 Each attempt uses a separate `run_bounded` subprocess: at most 256 KiB
 stdout/16 KiB stderr, 0–30 s configured deadline, kill/reap on overflow or
-deadline. The Python parser requires exactly one schema-1 static observation
-whose enrollment and factory IDs match the request. Exceptions, malformed
+deadline. The scheduler binds a token to the canonical root locator at request time, alongside
+enrollment, factory, epoch and serial. Before touching any candidate, the trusted
+PowerShell child requires its current registry locator to match that frozen path.
+The Python response parser also requires an exact enrollment/factory and
+Windows-normalized canonical path match. Thus a relocated/repointed enrollment
+cannot be published as current solely because its factory ID remains identical.
+Equivalent Windows path case/slash syntax is accepted by the Python comparison;
+this is a read-only guard, not a replacement for typed EDF-005 mutation checks. Exceptions, malformed
 JSON, missing roots and identity mismatch fail closed. A known duplicate
 factory ID in registry metadata is held as conflict without probing another
 root; the manager's stronger **full-fleet** fresh revalidation remains
