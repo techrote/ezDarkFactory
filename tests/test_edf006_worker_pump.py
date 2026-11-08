@@ -103,6 +103,47 @@ class PumpTests(unittest.TestCase):
             slow.set()
         self._until(pump, lambda p: self.s.view("e0", "logs", time.monotonic())[0] == "current")
 
+    def test_delayed_ui_harvest_cannot_rejuvenate_old_success(self):
+        """Suspend/resume or blocked UI polling must display an old read stale."""
+        pump = self.make_pump(lambda token, timeout: WorkerResult(
+            "current", ("sample-before-ui-stall",)))
+        pump.enqueue("e0", "summary")
+        start = time.monotonic()
+        self.assertEqual(pump.poll(start).launched, 1)
+        deadline = time.monotonic() + 2.0
+        while time.monotonic() < deadline and not all(
+                future.done() for future in pump._futures):
+            time.sleep(.005)
+        self.assertTrue(all(future.done() for future in pump._futures))
+        # Advance the UI clock without harvesting for eleven seconds. No real
+        # sleep is needed; the worker's own timestamp must remain unchanged.
+        resumed_at = start + 11.0
+        completed = pump.poll(resumed_at)
+        self.assertEqual((completed.finished, completed.published), (1, 1))
+        self.assertEqual(self.s.view("e0", "summary", resumed_at),
+                         ("stale", ("sample-before-ui-stall",)))
+        self.assertEqual(self.s.view("e0", "summary", start + 1)[0], "current")
+
+    def test_slow_worker_does_not_get_completion_time_as_freshness_origin(self):
+        entered, release = threading.Event(), threading.Event()
+        def collect(token, timeout):
+            entered.set()
+            release.wait(2)
+            return WorkerResult("current")
+        pump = self.make_pump(collect)
+        try:
+            pump.enqueue("e0", "summary")
+            pump.poll(time.monotonic())
+            self.assertTrue(entered.wait(1))
+            time.sleep(.10)
+            released_at = time.monotonic()
+            release.set()
+            self._until(pump, lambda p: p.finished == 1)
+            sample_at = self.s._roots["e0"].snapshots["summary"].observed_at
+            self.assertLess(sample_at, released_at - .05)
+        finally:
+            release.set()
+
     def test_error_and_bad_response_fail_closed_and_free_capacity(self):
         for bad in (lambda: (_ for _ in ()).throw(RuntimeError("secret path")),
                     lambda: WorkerResult("current", ("x" * 8193,)),

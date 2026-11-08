@@ -198,3 +198,26 @@ ticks do not repeatedly update the widget and that a synthetic maximum-size
 128-root roster can actually scroll beyond an 80x24 viewport. These checks
 are **FAST-CI-HEADLESS**, not physical Windows Terminal mouse-wheel,
 accessibility, latency or human usability evidence.
+
+## Worker-origin freshness under delayed UI polling (SOURCE / FAST-CI)
+
+The live read-model must not renew an old root observation merely because
+Windows Terminal, the operator machine, or the Textual event loop stopped
+polling and later resumed. The previous pump assigned its *UI harvest time*
+to a completed worker result. A result collected minutes before a suspended
+terminal resumed could therefore appear `current` for ten additional seconds.
+
+The observation pump now captures a monotonic timestamp on its background
+worker **before** calling the trusted collector, and publishes this
+conservative lower bound into the existing ten-second freshness model. The
+collector can finish later and UI harvesting can be later still; neither
+restarts the sample's validity clock. A stale successful result may retain
+bounded prior records but is explicitly presented as `stale`, not `current`.
+Exception/refusal results still fail closed as `unreachable`. This changes no
+factory state, subprocess deadline or executable acquisition.
+
+Two cross-platform real-thread regressions simulate an eleven-second UI poll
+pause without a real delay and a deliberately slow collector. They prove
+that harvest and completion times cannot revive aged data. This is software
+clock/freshness evidence, **not** native Windows Terminal, offline-drive,
+physical input-to-presented-frame, or human acceptance evidence.

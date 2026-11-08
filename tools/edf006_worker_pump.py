@@ -16,6 +16,7 @@ from __future__ import annotations
 from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from math import isfinite
+import time
 from typing import Callable
 
 if __package__:
@@ -45,6 +46,14 @@ class PollResult:
     pending: int
 
 
+@dataclass(frozen=True)
+class _CollectedSample:
+    """Conservative sample time captured on the worker, not when UI harvests."""
+
+    result: WorkerResult
+    started_at: float
+
+
 class ObservationPump:
     """Single-thread-owned scheduler/worker bridge with bounded in-flight work.
 
@@ -66,7 +75,7 @@ class ObservationPump:
         self._timeout = float(timeout_seconds)
         self._executor = ThreadPoolExecutor(max_workers=scheduler.max_inflight,
                                             thread_name_prefix="edf006-readonly")
-        self._futures: dict[Future[WorkerResult], Request] = {}
+        self._futures: dict[Future[_CollectedSample], Request] = {}
         self._closed = False
 
     def enqueue(self, enrollment: str, kind: str) -> Request | None:
@@ -75,9 +84,12 @@ class ObservationPump:
             raise RuntimeError("observation pump closed")
         return self.scheduler.request(enrollment, kind)
 
-    def _collect(self, token: Request) -> WorkerResult:
-        # The only method run on a worker. Scheduler state never crosses into it.
-        return self._collector(token, self._timeout)
+    def _collect(self, token: Request) -> _CollectedSample:
+        # Time is captured BEFORE the read. Its actual observation instant is
+        # unknown within the read interval; the start is a conservative bound.
+        # A suspended/blocked UI must not make an old sample freshly 'current'.
+        started_at = time.monotonic()
+        return _CollectedSample(self._collector(token, self._timeout), started_at)
 
     def poll(self, observed_at: float) -> PollResult:
         """Harvest only finished futures, then fill free worker slots.
@@ -97,11 +109,14 @@ class ObservationPump:
             del self._futures[future]
             finished += 1
             try:
-                result = future.result()  # done() guarantees this never waits
-                if type(result) is not WorkerResult:
+                sample = future.result()  # done() guarantees this never waits
+                if type(sample) is not _CollectedSample or type(sample.result) is not WorkerResult:
                     raise ValueError("unrecognised collector result")
-                accepted = self.scheduler.complete(token, result.state,
-                                                    observed_at, result.records)
+                # A late UI poll can only age a sample, never renew freshness.
+                # Clamp for a poll clock captured just before worker completion.
+                sample_at = min(observed_at, sample.started_at)
+                accepted = self.scheduler.complete(token, sample.result.state,
+                                                    sample_at, sample.result.records)
             except Exception:
                 # Do not include exception text, root path, raw stdout or guest
                 # data in logs or the read model. Even a malformed completion
