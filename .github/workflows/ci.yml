@@ -92,7 +92,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $executable = .\\scripts\\Install-TestPowerShell.ps1 -DestinationRoot $env:RUNNER_TEMP
+          $executable = .\\scripts\\Install-Edf006ResilientTestPowerShell.ps1 -DestinationRoot $env:RUNNER_TEMP
           ('EDF_TEST_POWERSHELL=' + $executable) | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Run inherited complete first-party harness (zero/all-skipped fails)
         shell: powershell
@@ -124,7 +124,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
-          $exe = .\\scripts\\Install-TestPowerShell.ps1 -DestinationRoot $env:RUNNER_TEMP
+          $exe = .\\scripts\\Install-Edf006ResilientTestPowerShell.ps1 -DestinationRoot $env:RUNNER_TEMP
           ('EDF_TEST_POWERSHELL=' + $exe) | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Execute 11 required real Windows native/deadline regression cases
         shell: powershell

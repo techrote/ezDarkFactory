@@ -21,7 +21,7 @@ foreach ($check in @('Repository', 'ControlPlane')) {
     if ($LASTEXITCODE -ne 0) { throw "Windows PowerShell 5.1 $check gate failed." }
 }
 if ([string]::IsNullOrWhiteSpace($PowerShell7)) {
-    $PowerShell7 = & (Join-Path $root 'scripts/Install-TestPowerShell.ps1') -DestinationRoot (Join-Path $root 'runtime/test-tools')
+    $PowerShell7 = & (Join-Path $root 'scripts/Install-Edf006ResilientTestPowerShell.ps1') -DestinationRoot (Join-Path $root 'runtime/test-tools')
 }
 if (-not (Test-Path -LiteralPath $PowerShell7 -PathType Leaf)) { throw 'Verified pinned PowerShell 7 executable is missing.' }
 & $PowerShell7 -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $root 'scripts/Invoke-CiCheck.ps1') -Check ControlPlane -ExpectedMajor 7

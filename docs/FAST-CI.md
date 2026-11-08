@@ -35,8 +35,10 @@ The imported historical Keys/Runtime owner patches remain unproven until EDF-003
 
 ## Pinned PowerShell 7 test-runtime transport resilience
 
+The original EDF-002 imported `scripts/Install-TestPowerShell.ps1` remains byte-identical to accepted historical provenance. Current hosted/developer lanes use the EDF-006-owned `scripts/Install-Edf006ResilientTestPowerShell.ps1` instead.
+
 The exact `7.6.6` Windows x64 ZIP, expected byte length and SHA-256 remain
-locked in `tests/tooling.json`. `scripts/Install-TestPowerShell.ps1` first
+locked in `tests/tooling.json`. `scripts/Install-Edf006ResilientTestPowerShell.ps1` first
 attempts the official GitHub Releases URL (up to three bounded transports).
 Only if all official requests fail at the transport layer does it attempt
 the exact-version SourceForge project mirror (up to two bounded requests).

@@ -7,29 +7,30 @@ param()
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
 $repo = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
-$installer = Join-Path $repo 'scripts/Install-TestPowerShell.ps1'
+$installer = Join-Path $repo 'scripts/Install-Edf006ResilientTestPowerShell.ps1'
 $pin = Get-Content -LiteralPath (Join-Path $repo 'tests/tooling.json') -Raw | ConvertFrom-Json
 $official = [string]$pin.powerShell7.url
 $mirror = 'https://downloads.sourceforge.net/project/powershell.mirror/v' + $pin.powerShell7.version + '/PowerShell-' + $pin.powerShell7.version + '-win-x64.zip'
+$global:EDF006FixtureOfficial = $official
 $fixtureRoot = Join-Path ([IO.Path]::GetTempPath()) ('edf006-pinned-pwsh-fixture-' + [Guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($fixtureRoot)
 
 # These functions are dynamically visible to the invoked child script. They
 # record URL order and never access a real network or supply valid ZIP bytes.
-$script:requests = @()
-$script:fixtureMode = ''
-function Invoke-WebRequest {
+$global:EDF006FixtureUris = @()
+$global:EDF006FixtureMode = ''
+function global:Invoke-WebRequest {
     [CmdletBinding()]
     param([string]$Uri, [string]$OutFile, [switch]$UseBasicParsing,
           [int]$TimeoutSec)
-    $script:requests += $Uri
-    if ($script:fixtureMode -eq 'all-down' -or
-        ($script:fixtureMode -eq 'official-down' -and $Uri -eq $official)) {
+    $global:EDF006FixtureUris += $Uri
+    if ($global:EDF006FixtureMode -eq 'all-down' -or
+        ($global:EDF006FixtureMode -eq 'official-down' -and $Uri -eq $global:EDF006FixtureOfficial)) {
         throw 'SYNTHETIC-TRANSPORT-FAILURE'
     }
     [IO.File]::WriteAllBytes($OutFile, [byte[]](0x50, 0x4b, 0x03, 0x04))
 }
-function Start-Sleep { param([int]$Seconds) }  # no delay for fake outages
+function global:Start-Sleep { param([int]$Seconds) }  # no delay for fake outages
 
 try {
     foreach ($case in @(
@@ -37,8 +38,8 @@ try {
         @{ Name = 'official-down-mirror-corrupt'; Mode = 'official-down'; Expected = @($official, $official, $official, $mirror); Refusal = 'wrong byte length' },
         @{ Name = 'both-transports-down'; Mode = 'all-down'; Expected = @($official, $official, $official, $mirror, $mirror); Refusal = 'Could not acquire' }
     )) {
-        $script:fixtureMode = $case.Mode
-        $script:requests = @()
+        $global:EDF006FixtureMode = $case.Mode
+        $global:EDF006FixtureUris = @()
         $refused = $false
         try {
             $null = & $installer -DestinationRoot $fixtureRoot
@@ -52,11 +53,11 @@ try {
         if (-not $refused) {
             throw ('Invalid archive or missing transports were accepted: ' + $case.Name)
         }
-        if (@($script:requests).Count -ne @($case.Expected).Count) {
+        if (@($global:EDF006FixtureUris).Count -ne @($case.Expected).Count) {
             throw ('Incorrect acquisition attempt count: ' + $case.Name)
         }
         for ($i = 0; $i -lt @($case.Expected).Count; $i++) {
-            if ($script:requests[$i] -cne $case.Expected[$i]) {
+            if ($global:EDF006FixtureUris[$i] -cne $case.Expected[$i]) {
                 throw ('Unpinned source or incorrect acquisition order: ' + $case.Name)
             }
         }
@@ -70,4 +71,6 @@ finally {
     if (Test-Path -LiteralPath $fixtureRoot) {
         Remove-Item -LiteralPath $fixtureRoot -Force -Recurse
     }
+    Remove-Item -Path Function:\Invoke-WebRequest,Function:\Start-Sleep -ErrorAction SilentlyContinue
+    Remove-Variable -Name EDF006FixtureOfficial,EDF006FixtureMode,EDF006FixtureUris -Scope Global -ErrorAction SilentlyContinue
 }
