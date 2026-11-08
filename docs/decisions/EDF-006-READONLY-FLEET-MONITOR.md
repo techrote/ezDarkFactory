@@ -23,7 +23,8 @@ $Python = @(& .\scripts\Install-Edf006TuiRuntime.ps1 -DestinationRoot 'D:\edf006
 
 The manager workspace must exist. This application never creates, registers,
 removes, starts, stops, attaches to, or mutates any factory, VM or workspace.
-Press **r** for a new static identity read; **q** to exit. There are no
+Press **r** to reload the portable manager registry and then reobserve
+its current enrolled roots; **q** to exit. There are no
 mutation-capable commands or guest input forwarding.
 
 The initial `collect_static()` is itself a bounded trusted process on a
@@ -85,3 +86,33 @@ one enrollment is on an unmapped drive while the other remains observable,
 and a synthetic duplicate enrolled identity holds both rows. This proves
 the read-only software path, not real network-drive hang performance,
 native Windows Terminal PHYSICAL-TUI behavior or live VM readiness.
+
+## Live registry refresh and generation safety (8 November 2026)
+
+The prior **r** shortcut only enqueued new observations for enrollments held
+in memory. It did not reload the EDF-005 registry. Thus new registrations were
+invisible until restart, removed roots persisted on screen, relocated paths
+could retain old static identity, and a resolved duplicate-ID hold remained
+permanently stuck.
+
+The read-only monitor now rereads registry metadata on its existing bounded
+background executor when **r** is pressed. A whole new envelope and all root
+identities/Windows path equivalences are validated before any change is made.
+The same session and physical worker budget are retained across refreshes:
+unchanged enrolled roots keep eligible recent observations, whereas removed,
+re-keyed, relocated, or newly held/unheld roots invalidate their generations.
+Already-running old collectors still count against the two-slot limit until
+they finish; a late completion cannot restore an old enrollment or path.
+Known duplicate factory IDs are held until registry metadata resolves them
+and then require **new** per-root evidence before any current status.
+
+Rapid repeated refresh requests coalesce to at most one follow-up reload.
+If trusted registry bootstrap fails or returns invalid metadata, the monitor
+closes the old session and explicitly shows `refused` rather than preserving
+apparently-current data from a no-longer-trusted registry. A later **r** retries
+bootstrap. These transitions are exercised by Python model tests and the
+pinned real-Textual synthetic event-loop smoke, including failure and recovery.
+
+This is SOURCE/FAST-CI-HEADLESS safety behavior, not physical native Windows
+Terminal acceptance and not a guarantee that a real unavailable drive meets
+the specified latency budget.

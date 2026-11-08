@@ -19,7 +19,7 @@ from typing import Callable
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from edf006_observation_spike import ObservationScheduler
 from edf006_readonly_bridge import (
-    ENROLLMENT, FACTORY, StaticRoot, collect_static,
+    ENROLLMENT, FACTORY, STATES, StaticRoot, collect_static,
 )
 from edf006_root_collector import collect_root
 from edf006_worker_pump import ObservationPump, WorkerResult
@@ -52,21 +52,62 @@ class FleetSession:
         self.scheduler = ObservationScheduler(max_inflight=2, max_pending=MAX_ROOTS)
         self._rows: dict[str, StaticRoot] = {}
         self._held: dict[str, str] = {}
-        for row in rows:
-            if (not ENROLLMENT.fullmatch(row.enrollment_id)
-                    or not FACTORY.fullmatch(row.factory_id)
-                    or row.enrollment_id in self._rows):
-                raise ValueError("invalid or duplicate fleet identity")
-            # Scheduler checks Windows path aliases as well as duplicate IDs.
-            self.scheduler.register(row.enrollment_id, row.factory_id, row.canonical_path)
-            self._rows[row.enrollment_id] = row
-            if row.state in ("conflict", "incompatible"):
-                self._held[row.enrollment_id] = row.state
         self.pump = ObservationPump(
             self.scheduler,
             lambda token, timeout: collector(self.workspace, token, timeout),
             timeout_seconds,
         )
+        self.reconcile(rows)
+
+    @staticmethod
+    def _validate_rows(rows: tuple[StaticRoot, ...]):
+        """Validate the whole new registry BEFORE changing any live scheduler state."""
+        if (type(rows) is not tuple or len(rows) > MAX_ROOTS
+                or any(type(row) is not StaticRoot for row in rows)):
+            raise ValueError("invalid bounded registry refresh")
+        candidate: dict[str, StaticRoot] = {}
+        validator = ObservationScheduler(max_inflight=2, max_pending=MAX_ROOTS)
+        for row in rows:
+            if (not ENROLLMENT.fullmatch(row.enrollment_id)
+                    or not FACTORY.fullmatch(row.factory_id)
+                    or row.state not in STATES or row.enrollment_id in candidate):
+                raise ValueError("invalid or duplicate refreshed fleet identity")
+            # Reject Windows-equivalent duplicate paths before any live mutation.
+            validator.register(row.enrollment_id, row.factory_id, row.canonical_path)
+            candidate[row.enrollment_id] = row
+        counts: dict[str, int] = {}
+        for row in rows:
+            counts[row.factory_id] = counts.get(row.factory_id, 0) + 1
+        held = {
+            row.enrollment_id: ("conflict" if counts[row.factory_id] > 1 else row.state)
+            for row in rows
+            if counts[row.factory_id] > 1 or row.state in ("conflict", "incompatible")
+        }
+        return candidate, held
+
+    def reconcile(self, rows: tuple[StaticRoot, ...]) -> None:
+        """Apply fresh portable registry metadata without resurrecting stale reads.
+
+        Changed/removed roots invalidate generations. Old worker threads retain
+        physical slots until reaped; their late completions cannot publish into
+        a relocated/re-keyed enrollment. Unchanged roots retain recent readings.
+        A corrupt refresh is rejected atomically, leaving the previous model
+        available only until the owning application fail-closes the session.
+        """
+        candidate, held = self._validate_rows(rows)
+        removed: set[str] = set()
+        for enrollment, previous in tuple(self._rows.items()):
+            current = candidate.get(enrollment)
+            if (current is None or previous.factory_id != current.factory_id
+                    or previous.canonical_path != current.canonical_path
+                    or self._held.get(enrollment) != held.get(enrollment)):
+                self.scheduler.unregister(enrollment)
+                removed.add(enrollment)
+        for enrollment, row in candidate.items():
+            if enrollment not in self._rows or enrollment in removed:
+                self.scheduler.register(enrollment, row.factory_id, row.canonical_path)
+        self._rows = candidate
+        self._held = held
         for enrollment in self._rows:
             self.refresh(enrollment)
 
@@ -116,6 +157,7 @@ def make_app(workspace: Path, *,
             self._bootstrap: Future | None = None
             self.fleet: FleetSession | None = None
             self.bootstrap_state = "starting"
+            self._reload_pending = False
             self.last_poll = None
 
         def compose(self) -> ComposeResult:
@@ -123,25 +165,47 @@ def make_app(workspace: Path, *,
                          markup=False)
 
         def on_mount(self):
-            # Even the initial whole-fleet discovery is never a TUI-loop call.
+            # All registry discovery/reconciliation runs away from the UI loop.
             self._loader_pool = ThreadPoolExecutor(
                 max_workers=1, thread_name_prefix="edf006-bootstrap"
             )
-            self._bootstrap = self._loader_pool.submit(
-                loader, workspace, timeout=BOOTSTRAP_DEADLINE
-            )
+            self._request_bootstrap()
             self.set_interval(0.05, self._tick)
             self._show()
 
+        def _request_bootstrap(self):
+            if self._loader_pool is None:
+                return
+            if self._bootstrap is not None:
+                # Repeated r presses are coalesced; no unbounded task backlog.
+                self._reload_pending = True
+                return
+            self.bootstrap_state = "refreshing" if self.fleet is not None else "starting"
+            self._bootstrap = self._loader_pool.submit(
+                loader, workspace, timeout=BOOTSTRAP_DEADLINE
+            )
+
         def _tick(self):
-            if self.bootstrap_state == "starting" and self._bootstrap.done():
+            if self._bootstrap is not None and self._bootstrap.done():
+                finished = self._bootstrap
+                self._bootstrap = None
                 try:
-                    rows = self._bootstrap.result()
-                    self.fleet = FleetSession(rows, workspace, collector)
+                    rows = finished.result()
+                    if self.fleet is None:
+                        self.fleet = FleetSession(rows, workspace, collector)
+                    else:
+                        self.fleet.reconcile(rows)
                     self.bootstrap_state = "ready"
                 except Exception:
-                    # Do not print exceptions, root paths, stdout or secrets.
+                    # A failed/invalid new registry cannot leave old 'current'
+                    # claims visible as if the registration were still trusted.
+                    if self.fleet is not None:
+                        self.fleet.close()
+                        self.fleet = None
                     self.bootstrap_state = "refused"
+                if self._reload_pending:
+                    self._reload_pending = False
+                    self._request_bootstrap()
             if self.fleet is not None:
                 self.last_poll = self.fleet.poll(time.monotonic())
             self._show()
@@ -150,7 +214,9 @@ def make_app(workspace: Path, *,
             lines = [
                 "EDF-006 STATIC MULTI-ROOT MONITOR / NOT PHYSICAL-TUI PASS",
                 "READ ONLY / NO VM COMMANDS / q quit / r refresh",
-                "Bootstrap: " + self.bootstrap_state,
+                "Registry: " + self.bootstrap_state +
+                (" / prior snapshot while revalidating"
+                 if self.bootstrap_state == "refreshing" else ""),
             ]
             if self.fleet is not None:
                 lines.extend(
@@ -162,9 +228,10 @@ def make_app(workspace: Path, *,
             self.query_one("#surface", Static).update("\n".join(lines))
 
         def action_refresh_fleet(self):
-            if self.fleet is not None:
-                for enrollment in self.fleet._rows:
-                    self.fleet.refresh(enrollment)
+            # A real registry reload, not merely a reread of cached enrollments.
+            # Newly registered/moved/removed roots and resolved conflicts appear
+            # without restarting the monitor. No candidate root access on UI.
+            self._request_bootstrap()
             self._show()
 
         def on_unmount(self):
@@ -190,9 +257,17 @@ async def headless_smoke():
                           "fct_" + char * 32, "C:/fixtures/" + char, char,
                           state, "synthetic", "synthetic")
 
+    loads = [0]
     def seed(path, timeout):
         assert timeout == BOOTSTRAP_DEADLINE
-        return (row("a"), row("b"), row("c", "conflict"))
+        loads[0] += 1
+        if loads[0] == 1:
+            return (row("a"), row("b"), row("c", "conflict"))
+        if loads[0] == 2:
+            return (row("b"), row("d"))
+        if loads[0] == 3:
+            raise ValueError("PRIVATE-REGISTRY-DIAGNOSTIC")
+        return (row("d"),)
 
     def collect(path, token, timeout):
         assert timeout == 10.0 and token.kind == "summary"
@@ -212,8 +287,46 @@ async def headless_smoke():
                 break
         else:
             raise AssertionError("two-root Textual observation did not converge")
+        initial_states = [r[2] for r in app.fleet.states(time.monotonic())]
         await pilot.press("r")
-        await pilot.pause()
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            await asyncio.sleep(.05)
+            await pilot.pause()
+            if (loads[0] == 2 and app.bootstrap_state == "ready"
+                    and app.fleet is not None
+                    and [x[1] for x in app.fleet.states(time.monotonic())]
+                    == [row("b").factory_id, row("d").factory_id]
+                    and [x[2] for x in app.fleet.states(time.monotonic())]
+                    == ["current", "current"]):
+                break
+        else:
+            raise AssertionError("registry refresh did not add/remove enrollments")
+        await pilot.press("r")
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            await asyncio.sleep(.05)
+            await pilot.pause()
+            if loads[0] == 3 and app.bootstrap_state == "refused":
+                break
+        else:
+            raise AssertionError("failed registry refresh retained old fresh rows")
+        screen = str(app.query_one("#surface").render())
+        if (app.fleet is not None or "PRIVATE-REGISTRY-DIAGNOSTIC" in screen
+                or "Static registry discovery pending or refused" not in screen):
+            raise AssertionError("registry error exposed stale rows or diagnostics")
+        await pilot.press("r")
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            await asyncio.sleep(.05)
+            await pilot.pause()
+            if (loads[0] == 4 and app.bootstrap_state == "ready"
+                    and app.fleet is not None
+                    and [x[2] for x in app.fleet.states(time.monotonic())]
+                    == ["current"]):
+                break
+        else:
+            raise AssertionError("registry reload could not recover after refusal")
         screen = str(app.query_one("#surface").render())
         if ("PHYSICAL-TUI PASS" not in screen or
                 "READ ONLY" not in screen or
@@ -222,7 +335,8 @@ async def headless_smoke():
     return {
         "schemaVersion": 1, "evidence": "FAST-CI-HEADLESS",
         "physical_tui": False, "live_instances_observed": False,
-        "bootstrap": "synthetic", "peer_states": ["unreachable", "current", "conflict"],
+        "bootstrap": "synthetic", "peer_states": initial_states,
+        "registry_reload": "add-remove-refuse-recover",
         "input_to_visible_frame_p95_ms": None,
     }
 

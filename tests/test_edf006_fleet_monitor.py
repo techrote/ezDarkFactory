@@ -137,5 +137,80 @@ class FleetMonitorTests(unittest.TestCase):
             fleet.close()
 
 
+    def test_registry_refresh_add_remove_and_relocate_discards_late_result(self):
+        entered, release = threading.Event(), threading.Event()
+        calls = []
+        a = "enr_" + "a"*32
+        def collect(workspace, token, timeout):
+            calls.append((token.enrollment, token.root_epoch))
+            if token.enrollment == a and token.root_epoch == 1:
+                entered.set()
+                release.wait(1)
+                return WorkerResult("incompatible")
+            return WorkerResult("current")
+        fleet = FleetSession((row("a"), row("b")), Path("C:/synthetic"), collect)
+        try:
+            fleet.poll(time.monotonic())
+            self.assertTrue(entered.wait(.5))
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[1][2] == "current")
+            fleet.reconcile((row("a", path="D:/relocated-a"), row("c")))
+            self.assertEqual([r[2] for r in fleet.states(time.monotonic())],
+                             ["unknown", "unknown"])
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[1][2] == "current")
+            self.assertEqual([r[1] for r in fleet.states(time.monotonic())],
+                             [row("a").factory_id, row("c").factory_id])
+            release.set()
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[0][2] == "current")
+            self.assertGreater(len([x for x in calls if x[0] == a]), 1)
+        finally:
+            release.set()
+            fleet.close()
+
+    def test_registry_refresh_conflict_resolution_needs_fresh_read(self):
+        shared = "fct_" + "d"*32
+        fleet = FleetSession((row("a", factory=shared),
+                              row("b", factory=shared)),
+                             Path("C:/synthetic"),
+                             lambda *args: WorkerResult("current"))
+        try:
+            self.assertEqual([r[2] for r in fleet.states(time.monotonic())],
+                             ["conflict", "conflict"])
+            fleet.reconcile((row("a", factory=shared),))
+            self.assertEqual(fleet.states(time.monotonic())[0][2], "unknown")
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[0][2] == "current")
+        finally:
+            fleet.close()
+
+    def test_refresh_incompatible_invalidates_successful_old_read(self):
+        fleet = FleetSession((row("a"),), Path("C:/synthetic"),
+                             lambda *args: WorkerResult("current"))
+        try:
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[0][2] == "current")
+            fleet.reconcile((row("a", state="incompatible"),))
+            self.assertEqual(fleet.states(time.monotonic())[0][2], "incompatible")
+            self.assertIsNone(fleet.refresh("enr_" + "a"*32))
+            fleet.reconcile((row("a"),))
+            self.assertEqual(fleet.states(time.monotonic())[0][2], "unknown")
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[0][2] == "current")
+        finally:
+            fleet.close()
+
+    def test_bad_refresh_is_atomic_and_preserves_existing_scheduler(self):
+        fleet = FleetSession((row("a"),), Path("C:/synthetic"),
+                             lambda *args: WorkerResult("current"))
+        try:
+            for bad in ((row("a"), row("b", path="c:\\FIXTURES\\a")),
+                        (row("a"), row("a")),
+                        (row("a"), row("b", state="invented")),
+                        [row("a")]):
+                with self.subTest(bad=repr(bad)):
+                    with self.assertRaises(ValueError):
+                        fleet.reconcile(bad)
+                    self.assertEqual(len(fleet.states(time.monotonic())), 1)
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[0][2] == "current")
+        finally:
+            fleet.close()
+
+
 if __name__ == "__main__":
     unittest.main()
