@@ -10,10 +10,12 @@ from __future__ import annotations
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from math import isfinite
+import ntpath
 
 
 KINDS = frozenset({"summary", "instances", "logs"})
 RESULT_STATES = frozenset({"current", "unreachable", "incompatible"})
+DEFAULT_RECORD_CHAR_BUDGET = 2_000_000  # UTF-8/Rich output may allocate more than input size.
 
 
 @dataclass(frozen=True)
@@ -54,14 +56,17 @@ class ObservationScheduler:
     """
 
     def __init__(self, max_inflight: int = 2, max_pending: int = 32,
-                 max_records: int = 10_000) -> None:
+                 max_records: int = 10_000,
+                 max_record_chars: int = DEFAULT_RECORD_CHAR_BUDGET) -> None:
         if (type(max_inflight) is not int or max_inflight < 1
                 or type(max_pending) is not int or max_pending < 1
-                or type(max_records) is not int or max_records < 1):
+                or type(max_records) is not int or max_records < 1
+                or type(max_record_chars) is not int or max_record_chars < 1):
             raise ValueError("positive integer observation budgets required")
         self.max_inflight = max_inflight
         self.max_pending = max_pending
         self.max_records = max_records
+        self.max_record_chars = max_record_chars
         self._epochs: dict[str, int] = {}
         self._roots: dict[str, _Root] = {}
         self._serials: dict[tuple[str, str], int] = {}
@@ -78,10 +83,14 @@ class ObservationScheduler:
 
     def register(self, enrollment: str, factory_id: str, canonical_path: str) -> None:
         """Admit an already verified root; registration has zero side effects."""
+        # The accepted EDF-005 adapter supplies verified canonical Windows paths.
+        # Compare their *locator* equivalence, not their display spelling:
+        # C:/root, c:\\ROOT and paths with redundant separators are one root.
+        path_key = ntpath.normcase(ntpath.normpath(canonical_path)) if isinstance(canonical_path, str) else ""
         if (not all(isinstance(v, str) and bool(v.strip())
                     for v in (enrollment, factory_id, canonical_path))
                 or enrollment in self._roots
-                or any(root.canonical_path == canonical_path
+                or any(ntpath.normcase(ntpath.normpath(root.canonical_path)) == path_key
                        for root in self._roots.values())):
             raise ValueError("invalid or duplicate enrollment/path")
         epoch = self._epochs.get(enrollment, 0) + 1
@@ -142,11 +151,16 @@ class ObservationScheduler:
     def dispatch(self) -> tuple[Request, ...]:
         """Return work for an external executor; never run a collector here."""
         dispatched: list[Request] = []
+        # Reserve at most one physical worker per enrollment. Without this,
+        # summary+logs of a single hung root can consume the entire default
+        # two-worker budget and starve a newly arriving healthy factory.
+        # Count stale in-flight workers until they really complete/reap.
+        busy_enrollments = {key[0] for key in self._active}
         for key, intent in tuple(self._pending.items()):
             if len(self._active) >= self.max_inflight:
                 break
-            if key in self._active:
-                continue  # no overlapping same-class work even across generations
+            if intent.enrollment in busy_enrollments:
+                continue  # a different class is not another worker slot
             root = self._roots.get(intent.enrollment)
             if (root is None or root.epoch != intent.root_epoch
                     or root.factory_id != intent.factory_id
@@ -154,6 +168,7 @@ class ObservationScheduler:
                 del self._pending[key]
                 continue
             self._active[key] = intent
+            busy_enrollments.add(intent.enrollment)
             del self._pending[key]
             dispatched.append(intent)
         return tuple(dispatched)
@@ -166,7 +181,8 @@ class ObservationScheduler:
         if (not isinstance(observed_at, (int, float)) or not isfinite(observed_at)
                 or observed_at < 0 or not isinstance(records, tuple)
                 or len(records) > self.max_records
-                or any(not isinstance(x, str) or len(x) > 8192 for x in records)):
+                or any(not isinstance(x, str) or len(x) > 8192 for x in records)
+                or sum(len(x) for x in records) > self.max_record_chars):
             raise ValueError("invalid bounded observation fixture")
         key = intent.key
         if self._active.get(key) != intent:

@@ -166,3 +166,30 @@ to the new commit without requalification.
 
 **HOLD**: no pinned TUI runtime, native Windows Terminal focus/mouse/resize/
 restoration evidence, real multi-root interaction or final EDF-006 ADR yet.
+
+## Eighth bounded increment: per-root fair admission and total payload budget
+
+The observation scheduler's prior implementation admitted separate observation
+classes for the same enrollment into both global worker slots. With the default
+two-worker budget, one slow root's `summary` and `logs` calls could therefore
+starve every other root. **SOURCE repair:** the scheduler now reserves at most
+one active worker per enrollment, including obsolete workers awaiting actual
+completion/reaping, while preserving independent-root concurrency and the
+existing generation/serial stale-result guards. FIFO pending coalescing is
+unchanged. A cross-root fresh request can enter the available second slot even
+when a second observation class of the slow root is queued.
+
+An already-verified Windows canonical locator is now compared with
+`ntpath.normcase(normpath(...))` for duplicate enrollment; spellings such as
+`C:/root` and `c:\\ROOT` cannot register the same path twice. Observation
+results also have a cumulative 2,000,000-character cap in addition to the
+existing 10,000-row/8,192-character-per-row limits, preventing large accepted
+cache payloads from multiplying memory usage beyond the TUI budget. The
+existing 10,000-short-row qualification remains valid.
+
+Regression tests exercise real scheduler interleavings: two slow classes of
+one root, another healthy root and a late third root, serial supersession,
+Windows locator aliases and payload refusal without consuming a live worker
+slot. This proves **SOURCE / FAST-CI scheduler logic only**: it does not
+terminate a hung child, schedule a live EDF-005 root-specific worker,
+qualify physical Windows Terminal, or satisfy the still-pending native gate.

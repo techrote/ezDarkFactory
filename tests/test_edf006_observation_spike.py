@@ -131,16 +131,67 @@ class ObservationTests(unittest.TestCase):
         self.assertEqual(self.scheduler.active_count, 1)
         self.assertEqual(self.scheduler.view("enr2", "summary", 2), ("current", ("ready",)))
 
-    def test_at_most_one_inflight_per_root_and_class(self):
+    def test_per_root_single_flight_even_for_distinct_classes(self):
         summary = self.scheduler.request("enr0", "summary")
-        self.scheduler.dispatch()
+        self.assertEqual(self.scheduler.dispatch(), (summary,))
         self.scheduler.request("enr0", "summary")
         instances = self.scheduler.request("enr0", "instances")
-        self.assertEqual(self.scheduler.dispatch(), (instances,))
+        other = self.scheduler.request("enr1", "summary")
+        self.assertEqual(self.scheduler.dispatch(), (other,))
         self.assertEqual(self.scheduler.active_count, 2)
+        self.assertEqual(self.scheduler.pending_count, 2)
+        # An obsolete completion cannot publish but still releases its true slot.
         self.assertFalse(self.scheduler.complete(summary, "current", 1))
-        self.assertTrue(self.scheduler.complete(instances, "current", 1))
-        self.assertEqual(len(self.scheduler.dispatch()), 1)
+        refreshed = self.scheduler.dispatch()
+        self.assertEqual(len(refreshed), 1)
+        self.assertEqual(refreshed[0].enrollment, "enr0")
+        self.assertEqual(self.scheduler.active_count, 2)
+        self.assertEqual(self.scheduler.dispatch(), ())
+        self.assertTrue(self.scheduler.complete(refreshed[0], "current", 2))
+        self.assertEqual(self.scheduler.dispatch(), (instances,))
+        self.assertTrue(self.scheduler.complete(instances, "current", 3))
+        self.assertTrue(self.scheduler.complete(other, "current", 4))
+
+    def test_two_slow_classes_on_one_root_cannot_starve_unrelated_roots(self):
+        slow = self.scheduler.request("enr0", "summary")
+        same_root_logs = self.scheduler.request("enr0", "logs")
+        fast = self.scheduler.request("enr1", "summary")
+        self.assertEqual(self.scheduler.dispatch(), (slow, fast))
+        self.assertEqual(self.scheduler.pending_count, 1)
+        self.assertTrue(self.scheduler.complete(fast, "current", 1, ("healthy",)))
+        new_factory = self.scheduler.request("enr2", "summary")
+        self.assertEqual(self.scheduler.dispatch(), (new_factory,))
+        self.assertEqual(self.scheduler.view("enr1", "summary", 1),
+                         ("current", ("healthy",)))
+        self.assertTrue(self.scheduler.complete(new_factory, "current", 2))
+        self.assertEqual(self.scheduler.dispatch(), ())
+        self.assertEqual(self.scheduler.pending_count, 1)
+        self.assertTrue(self.scheduler.complete(slow, "unreachable", 3))
+        self.assertEqual(self.scheduler.dispatch(), (same_root_logs,))
+
+    def test_windows_path_alias_cannot_register_same_root_twice(self):
+        self.scheduler.register("new", "factory-new", r"C:\\Fixtures\\New\\.")
+        with self.assertRaises(ValueError):
+            self.scheduler.register("alias", "factory-other", "c:/fixtures/new")
+        with self.assertRaises(ValueError):
+            self.scheduler.register("alias", "factory-other", "C:/FIXTURES/root0/")
+        self.assertEqual(self.scheduler.active_count, 0)
+
+    def test_total_record_character_budget_does_not_retain_large_cache(self):
+        s = ObservationScheduler(max_inflight=2, max_pending=4,
+                                 max_records=10_000, max_record_chars=8)
+        s.register("a", "f-a", "C:/a")
+        token = s.request("a", "logs")
+        self.assertEqual(s.dispatch(), (token,))
+        with self.assertRaises(ValueError):
+            s.complete(token, "current", 1, ("123456789",))
+        self.assertEqual(s.active_count, 1)
+        self.assertTrue(s.complete(token, "current", 2, ("1234", "5678")))
+        self.assertEqual(s.view("a", "logs", 2), ("current", ("1234", "5678")))
+        for invalid in (False, 0, -1, 1.5):
+            with self.subTest(invalid=invalid):
+                with self.assertRaises(ValueError):
+                    ObservationScheduler(max_record_chars=invalid)
 
     def test_unknown_stale_unreachable_and_incompatible_are_distinct(self):
         self.assertEqual(self.scheduler.view("enr0", "summary", 10), ("unknown", ()))
