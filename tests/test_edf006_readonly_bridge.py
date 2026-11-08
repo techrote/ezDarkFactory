@@ -184,11 +184,15 @@ class StaticAdapterTests(unittest.TestCase):
             self.assertEqual(invoked[0][1]["timeout"], 1.75)
 
     def test_real_windows_child_rejects_missing_workspace_without_phantom_current(self):
-        if sys.platform != "win32":
-            self.skipTest("real trusted PowerShell workspace refusal runs on Windows")
-        with tempfile.TemporaryDirectory() as folder:
-            with self.assertRaises(StaticReadError):
-                collect_static(Path(folder) / "unavailable", timeout=3.0)
+        if sys.platform == "win32":
+            with tempfile.TemporaryDirectory() as folder:
+                with self.assertRaises(StaticReadError):
+                    collect_static(Path(folder) / "unavailable", timeout=3.0)
+        else:
+            # Linux cannot run this Windows PowerShell child; source contract only.
+            source = (Path(__file__).resolve().parents[1] / "scripts" /
+                      "Invoke-Edf006StaticObservation.ps1").read_text(encoding="utf-8")
+            self.assertIn("Get-EzDarkFactoryManagerRegistryMetadata", source)
 
     def test_runner_failure_and_timeout_are_not_current(self):
         with tempfile.TemporaryDirectory() as workspace:

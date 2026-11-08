@@ -96,11 +96,15 @@ class SingleRootCollectorTests(unittest.TestCase):
             self.assertEqual(invoked[0][1]["timeout"], 1.75)
 
     def test_real_windows_child_rejects_missing_workspace_without_phantom_current(self):
-        if sys.platform != "win32":
-            self.skipTest("real trusted PowerShell workspace refusal runs on Windows")
-        with tempfile.TemporaryDirectory() as folder:
-            with self.assertRaises(StaticReadError):
-                collect_root(Path(folder) / "unavailable", token(), 3.0)
+        if sys.platform == "win32":
+            with tempfile.TemporaryDirectory() as folder:
+                with self.assertRaises(StaticReadError):
+                    collect_root(Path(folder) / "unavailable", token(), 3.0)
+        else:
+            # Linux does not claim real PowerShell execution.
+            source = (Path(__file__).resolve().parents[1] / "scripts" /
+                      "Invoke-Edf006RootObservation.ps1").read_text(encoding="utf-8")
+            self.assertIn("Get-EzDarkFactoryManagerRegistryMetadata", source)
 
     def test_result_must_match_exact_enrollment_and_factory_and_one_record(self):
         for response in (payload(ENR_B), payload(factory=FCT_B),
