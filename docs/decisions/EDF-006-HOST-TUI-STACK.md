@@ -162,3 +162,25 @@ and the under-100-ms presented-frame budget remain unmeasured. EDF-007
 must not map a workspace-wide sequential static read onto separate
 per-root thread tasks and claim isolation. The selected native framework,
 physical operator and final acceptance gates above remain unchanged.
+
+## Interpreter-exit behavior of concurrent observation workers
+
+The EDF-006 read-only monitor previously used `ThreadPoolExecutor` workers
+for the portable registry reader and per-root static collectors. Calling
+`shutdown(wait=False)` is nonblocking to the UI thread but does **not**
+prevent CPython from joining those worker threads when the interpreter exits.
+A hung filesystem read could therefore prevent the host terminal from
+returning even after the Textual application visibly closed.
+
+The spike now launches daemon-backed `Future` tasks through
+`edf006_daemon_future.py`; its existing scheduler and single-bootstrap
+coalescing strictly bound runnable workers. Offline subprocess regressions
+verify that closing while a synthetic reader is blocked does not wait for
+the 45-second blocked task at interpreter exit.
+
+The remedy is narrowly scoped to read-only diagnostics. Daemon termination
+does not prove that a launched trusted PowerShell child was terminated: native
+Windows Terminal tests must check process-tree cleanup for normal exit and
+unavailable registered drives. EDF-007's effectful operation broker must
+instead use explicit, cooperatively cancellable and reaped process ownership.
+The PHYSICAL-TUI acceptance requirement and exact-head CI gate are unchanged.
