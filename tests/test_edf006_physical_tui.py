@@ -118,6 +118,50 @@ class PhysicalFixtureTests(unittest.TestCase):
         self.assertEqual(f.actions["menu_dismiss_consumed"], 0)
         self.assertEqual(f.actions["tile_focus"], 1)
 
+    def test_modal_keyboard_and_paste_are_not_background_commands(self):
+        f = Fixture(160, 48)
+        f.input_armed = True
+        f.menu()
+        f.paste("q;Ctrl+P;PRIVATE-MODAL-FIXTURE")
+        self.assertEqual(f.actions["paste_refused"], 1)
+        self.assertEqual(f.pasted_chars, 0)
+        for key in ("m", "i", "q"):
+            self.assertFalse(f.handle_key(key))
+        self.assertEqual(f.actions["overlay_key_consumed"], 3)
+        self.assertEqual(f.actions["menu_open"], 1)
+        self.assertTrue(f.input_armed)
+        f.menu()
+        self.assertEqual(f.actions["menu_duplicate_ignored"], 1)
+        self.assertFalse(f.handle_key("escape"))
+        self.assertFalse(f.overlays.overlays)
+        f.paste("allowed")
+        self.assertEqual(f.actions["paste_allowed"], 1)
+        self.assertNotIn("PRIVATE-MODAL-FIXTURE", str(f.summary()))
+        self.assertFalse(f.handle_key("i"))
+        self.assertTrue(f.handle_key("q"))
+
+    def test_right_click_context_is_clamped_and_overlay_is_first(self):
+        f = Fixture(160, 48)
+        f.press(158, 45, 3)
+        self.assertEqual(f.focus, "inspector")
+        self.assertEqual(f.actions["context_menu_open"], 1)
+        name, rect = f.overlays.overlays[-1]
+        self.assertEqual(name, "menu")
+        self.assertTrue(rect.contains(158, 45))
+        self.assertLessEqual(rect.x + rect.width, f.width)
+        self.assertLessEqual(rect.y + rect.height, f.height)
+        f.press(158, 45, 3)
+        self.assertEqual(f.actions["overlay_pointer_consumed"], 1)
+        self.assertEqual(f.actions["context_menu_open"], 1)
+        f.press(1, 12, 3)
+        self.assertEqual(f.actions["menu_dismiss_consumed"], 1)
+        self.assertEqual(f.actions["context_menu_open"], 1)
+        self.assertFalse(f.overlays.overlays)
+        self.assertEqual(f.focus, "inspector")
+        f.press(1, 12, 3)
+        self.assertEqual(f.focus, "fleet")
+        self.assertEqual(f.actions["context_menu_open"], 2)
+
     def test_ascii_responsive_layout_and_recovery(self):
         for w, h in ((40, 12), (80, 24), (160, 48)):
             f = Fixture(w, h)

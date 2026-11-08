@@ -80,16 +80,30 @@ class Fixture:
             self.actions["captured_press_ignored"] += 1
             self.last = "captured_press_ignored"
             return
-        if button != 1:
-            if button == 3:
-                self.events["right_click"] += 1
+        if button == 3:
+            self.events["right_click"] += 1
+        if button not in (1, 3):
             return
+        # Top overlay owns every pointer button. A right-click outside the
+        # modal may dismiss it, but must not open a second menu underneath.
         target = self.overlays.pointer(self.frame, x, y)
-        if target == "divider":
+        if target == "dismiss-consumed":
+            self.actions["menu_dismiss_consumed"] += 1
+        elif target is not None and target.startswith("overlay:"):
+            self.actions["overlay_pointer_consumed"] += 1
+        elif button == 3:
+            if target in ("fleet", "inspector"):
+                self.focus = target
+                self._solve()
+                self.menu(anchor=(x, y))
+                self.actions["context_menu_open"] += 1
+                self.last = "context_menu_open:" + target
+            else:
+                self.last = "context_ignored"
+            return
+        elif target == "divider":
             self.drag = DividerDrag.begin(self.split, self.frame, x, y)
             self.actions["divider_begin"] += 1
-        elif target == "dismiss-consumed":
-            self.actions["menu_dismiss_consumed"] += 1
         elif target in ("fleet", "inspector"):
             self.focus = target
             self._solve()
@@ -114,14 +128,20 @@ class Fixture:
             self._solve()
             self.last = "divider_commit"
 
-    def menu(self):
-        # A keyboard-opened modal is a new interaction boundary. In particular,
-        # its closing mouse-up must never commit a pre-menu divider preview.
+    def menu(self, anchor=None):
+        # A modal cancels any active divider transaction. Re-opening the same
+        # menu must not create invisible stacked menus after one Escape.
         self.cancel()
-        self.overlays.push("menu", Rect(max(0, self.width // 4),
-                                        max(1, self.height // 4),
-                                        max(1, self.width // 2),
-                                        max(1, self.height // 3)))
+        if self.overlays.overlays:
+            self.actions["menu_duplicate_ignored"] += 1
+            return
+        width, height = max(1, self.width // 2), max(1, self.height // 3)
+        if anchor is None:
+            left, top = self.width // 4, max(1, self.height // 4)
+        else:
+            left = max(0, min(anchor[0], self.width - width))
+            top = max(0, min(anchor[1], self.height - height))
+        self.overlays.push("menu", Rect(left, top, width, height))
         self.actions["menu_open"] += 1
         self.last = "menu_open"
 
@@ -137,12 +157,32 @@ class Fixture:
     def paste(self, data):
         # Never retain/display/log payload or treat a pasted command as an action.
         self.events["paste"] += 1
-        if self.input_armed:
+        if self.input_armed and not self.overlays.overlays:
             self.pasted_chars += min(len(data), 100000)
             self.actions["paste_allowed"] += 1
         else:
             self.actions["paste_refused"] += 1
         self.last = "paste"
+
+    def handle_key(self, key):
+        """Route key commands through the top-modal barrier; return quit intent.
+
+        Only the explicit Ctrl+T recovery / Ctrl+X crash bindings are global.
+        """
+        self.events["key"] += 1
+        if key == "escape":
+            self.escape()
+        elif self.overlays.overlays:
+            self.actions["overlay_key_consumed"] += 1
+            self.last = "overlay_key_consumed"
+        elif key == "m" and not self.input_armed:
+            self.menu()
+        elif key == "i":
+            self.input_armed = not self.input_armed
+        elif key == "q" and not self.input_armed:
+            self.actions["quit_requested"] += 1
+            return True
+        return False
 
     def recover(self):
         self.cancel()
@@ -287,14 +327,7 @@ def make_app(ascii_only=False):
             self.show()
 
         def on_key(self, event: events.Key):
-            self.model.events["key"] += 1
-            if event.key == "escape":
-                self.model.escape()
-            elif event.key == "m" and not self.model.input_armed:
-                self.model.menu()
-            elif event.key == "i":
-                self.model.input_armed = not self.model.input_armed
-            elif event.key == "q" and not self.model.input_armed:
+            if self.model.handle_key(event.key):
                 self.exit()
                 return
             self.show()
@@ -410,6 +443,46 @@ async def headless_smoke():
         await pilot.resize_terminal(80, 24)
         if app.model.overlays.overlays or app.model.actions["overlay_resize_dismiss"] != 1:
             raise AssertionError("resize retained stale modal hit geometry")
+
+        # A visible overlay must swallow background commands and paste, even
+        # when a field was previously armed. Exercise real Textual key/paste
+        # routing, then use a context-menu right-click near the screen edge.
+        await pilot.resize_terminal(160, 48)
+        await pilot.press("m")
+        for key in ("m", "i", "q"):
+            await pilot.press(key)
+        app.post_message(events.Paste("q;Ctrl+P;PRIVATE-MODAL-FIXTURE"))
+        await pilot.pause()
+        if (app.model.actions["menu_open"] != 4
+                or app.model.actions["overlay_key_consumed"] != 3
+                or app.model.actions["paste_refused"] != 2
+                or app.model.input_armed
+                or "PRIVATE-MODAL-FIXTURE" in render(app.model)
+                or "PRIVATE-MODAL-FIXTURE" in str(app.model.summary())):
+            raise AssertionError("modal leaked keyboard/paste into underlying tile")
+        await pilot.press("escape")
+        if app.model.actions["menu_escape"] != 2:
+            raise AssertionError("modal Escape failed to dismiss one level")
+
+        await pilot.click("#surface", offset=(155, 43), button=3)
+        if (app.model.focus != "inspector"
+                or app.model.actions["context_menu_open"] != 1
+                or app.model.actions["menu_open"] != 5):
+            raise AssertionError("right-click missed the pointed tile")
+        menu_rect = app.model.overlays.overlays[-1][1]
+        if not (menu_rect.contains(155, 43)
+                and menu_rect.x + menu_rect.width <= app.model.width
+                and menu_rect.y + menu_rect.height <= app.model.height):
+            raise AssertionError("edge context menu escaped the viewport")
+        await pilot.click("#surface", offset=(155, 43), button=3)
+        if (app.model.actions["overlay_pointer_consumed"] != 1
+                or app.model.actions["menu_open"] != 5):
+            raise AssertionError("right-click inside modal leaked through")
+        await pilot.click("#surface", offset=(2, 12), button=3)
+        if (app.model.actions["menu_dismiss_consumed"] != 2
+                or app.model.actions["context_menu_open"] != 1
+                or app.model.focus != "inspector"):
+            raise AssertionError("outside right-click clicked through the modal")
 
     return {"evidence": "FAST-CI-HEADLESS", "physical_tui": False,
             "actions": dict(app.model.actions),

@@ -50,3 +50,21 @@ menu is open; no unreachable modal must retain input focus. Record failures
 as observed physical failures, not as headless successes. None of these
 regressions changes the `UNVERIFIED_INTERACTIVE_DIAGNOSTIC` receipt class or
 supplies external input-to-presented-frame timing.
+
+## Top-modal input and context-menu safety (source and headless only)
+
+While a menu is visible, typing `m`, `i` or `q` must not open another
+menu, toggle the background paste field or quit the fixture. Paste into a
+previously armed field is refused while a modal is visible; pasted contents
+are neither retained nor displayed. Escape dismisses exactly one menu.
+
+At 160x48, right-click near the inspector tile's lower-right corner.
+The context menu must appear for the pointed tile, entirely inside the
+viewport. Right-click inside the menu must not open another one; right-click
+outside must dismiss without focusing the underlying tile. A *subsequent*
+right-click may legitimately open the newly targeted tile's context menu.
+
+The reducer and selected Textual Pilot tests exercise these transitions,
+but they remain SOURCE / FAST-CI-HEADLESS. In actual Windows Terminal,
+independently check right-click delivery and native selection behavior.
+No PHYSICAL-TUI acceptance or input-to-visible-frame measurement is implied.
