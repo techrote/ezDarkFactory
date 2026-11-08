@@ -45,6 +45,19 @@ try {
         throw 'EDF-006 physical fixture synthetic receipt failed validation.'
     }
     Write-Host ('EDF-006 Textual physical fixture HEADLESS PASS: {0}' -f $fixtureText)
+
+    # Compose trusted bootstrap + bounded per-root workers in an actual Textual
+    # event loop. Synthetic roots only; never native presentation evidence.
+    $monitorText = @(& $python -I (Join-Path $root 'tools/edf006_fleet_monitor.py') --headless-smoke) -join ''
+    if ($LASTEXITCODE -ne 0) { throw 'EDF-006 multi-root Textual monitor headless smoke failed.' }
+    $monitor = $monitorText | ConvertFrom-Json
+    if ($monitor.evidence -cne 'FAST-CI-HEADLESS' -or $monitor.physical_tui -or
+        $monitor.live_instances_observed -or $monitor.input_to_visible_frame_p95_ms -ne $null -or
+        $monitor.bootstrap -cne 'synthetic' -or
+        (@($monitor.peer_states) -join ',') -cne 'unreachable,current,conflict') {
+        throw 'EDF-006 fleet monitor reported invalid synthetic evidence.'
+    }
+    Write-Host ('EDF-006 read-only fleet monitor HEADLESS PASS: {0}' -f $monitorText)
 }
 finally {
     if (Test-Path -LiteralPath $workspace) { Remove-Item -LiteralPath $workspace -Recurse -Force }

@@ -1,0 +1,128 @@
+"""EDF-006 real composition seam, with synthetic roots (not WHPX/physical UI)."""
+from pathlib import Path
+import sys
+import threading
+import time
+import unittest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "tools"))
+from edf006_fleet_monitor import FleetSession
+from edf006_readonly_bridge import StaticRoot
+from edf006_worker_pump import WorkerResult
+
+
+def row(char, state="current", path=None, factory=None):
+    fct = factory or "fct_" + char * 32
+    return StaticRoot("enr_" + char * 32, fct, fct,
+                      path or "C:/fixtures/" + char, "alias", state, "now", "test")
+
+
+def wait_until(session, predicate, seconds=2):
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        session.poll(time.monotonic())
+        if predicate():
+            return
+        time.sleep(.005)
+    raise AssertionError("fleet did not converge")
+
+
+class FleetMonitorTests(unittest.TestCase):
+    def test_static_bootstrap_never_claims_current_without_root_read(self):
+        entered = threading.Event()
+        release = threading.Event()
+        def collect(workspace, token, timeout):
+            entered.set()
+            release.wait(1)
+            return WorkerResult("current")
+        fleet = FleetSession((row("a"),), Path("C:/synthetic"), collect)
+        try:
+            self.assertEqual(fleet.states(time.monotonic())[0][2], "unknown")
+            fleet.poll(time.monotonic())
+            self.assertTrue(entered.wait(.5))
+            self.assertEqual(fleet.states(time.monotonic())[0][2], "unknown")
+        finally:
+            release.set()
+            fleet.close()
+
+    def test_one_blocked_root_allows_peer_and_refresh(self):
+        entered = threading.Event()
+        release = threading.Event()
+        def collect(workspace, token, timeout):
+            self.assertEqual(timeout, 10)
+            if token.enrollment.endswith("a" * 32):
+                entered.set()
+                release.wait(1)
+            return WorkerResult("current", ("Static identity, not READY",))
+        fleet = FleetSession((row("a"), row("b")), Path("C:/synthetic"), collect)
+        try:
+            self.assertEqual(fleet.poll(time.monotonic()).launched, 2)
+            self.assertTrue(entered.wait(.5))
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[1][2] == "current")
+            self.assertEqual([r[2] for r in fleet.states(time.monotonic())],
+                             ["unknown", "current"])
+        finally:
+            release.set()
+        wait_until(fleet, lambda: fleet.states(time.monotonic())[0][2] == "current")
+        fleet.refresh("b" * 0 + "enr_" + "b" * 32)
+        fleet.poll(time.monotonic())
+        wait_until(fleet, lambda: fleet.scheduler.active_count == 0)
+        fleet.close()
+
+    def test_conflict_and_incompatibility_remain_held(self):
+        seen = []
+        def collect(workspace, token, timeout):
+            seen.append(token.enrollment)
+            return WorkerResult("current")
+        fleet = FleetSession((row("a", "conflict"), row("b", "incompatible"),
+                              row("c")), Path("C:/synthetic"), collect)
+        try:
+            fleet.poll(time.monotonic())
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[2][2] == "current")
+            self.assertEqual([r[2] for r in fleet.states(time.monotonic())],
+                             ["conflict", "incompatible", "current"])
+            self.assertEqual(len(seen), 1)
+            self.assertIsNone(fleet.refresh("enr_" + "a"*32))
+        finally:
+            fleet.close()
+
+    def test_duplicate_factory_ids_hold_both_without_running(self):
+        seen = []
+        def collect(*args):
+            seen.append(1)
+            return WorkerResult("current")
+        same = "fct_" + "f"*32
+        fleet = FleetSession((row("a", factory=same), row("b", factory=same)),
+                             Path("C:/synthetic"), collect)
+        try:
+            self.assertEqual(fleet.poll(time.monotonic()).launched, 0)
+            self.assertEqual([r[2] for r in fleet.states(time.monotonic())],
+                             ["conflict", "conflict"])
+            self.assertFalse(seen)
+        finally:
+            fleet.close()
+
+    def test_malformed_bootstrap_is_refused_without_worker_start(self):
+        for roots in ((row("a"), row("b", path="c:\\FIXTURES\\a")),
+                      (row("a"), row("a")),
+                      (row("a"), row("b", factory="bad")),
+                      tuple(row("a") for _ in range(129)),
+                      [row("a")]):
+            with self.subTest(roots=str(type(roots))):
+                with self.assertRaises(ValueError):
+                    FleetSession(roots, Path("C:/synthetic"), lambda *a: None)
+
+    def test_stale_state_and_noncurrent_errors_never_become_ready(self):
+        fleet = FleetSession((row("a", "stale"),),
+                             Path("C:/synthetic"),
+                             lambda *a: WorkerResult("unreachable"))
+        try:
+            fleet.poll(time.monotonic())
+            wait_until(fleet, lambda: fleet.scheduler.active_count == 0)
+            self.assertEqual(fleet.states(time.monotonic())[0][2], "unreachable")
+        finally:
+            fleet.close()
+
+
+if __name__ == "__main__":
+    unittest.main()
