@@ -294,28 +294,90 @@ def make_app(ascii_only=False):
 
 
 async def headless_smoke():
+    """Exercise selected Textual's actual event routing, not just model methods.
+
+    This is still FAST-CI-HEADLESS, never physical terminal evidence.
+    """
     from textual import events
     app = make_app()()
     async with app.run_test(size=(160, 48)) as pilot:
+        # Overlay dismissal must consume the pointer event rather than focus a tile.
         await pilot.press("m")
         if app.model.actions["menu_open"] != 1:
             raise AssertionError("menu key missing")
+        await pilot.click("#surface", offset=(2, 12))
+        if (app.model.actions["menu_dismiss_consumed"] != 1
+                or app.model.actions["tile_focus"] != 0):
+            raise AssertionError("outside overlay click leaked into a tile")
+        await pilot.press("m")
         await pilot.press("escape")
         if app.model.actions["menu_escape"] != 1:
             raise AssertionError("Escape overlay dismissal missing")
-        await pilot.press("i")
-        app.post_message(events.Paste("q\nctrl+p"))
+
+        # Real Pilot pointer events must reach the divider reducer. A move
+        # previews without mutation and a release is the sole commit point.
+        divider = app.model.frame.divider
+        if divider is None:
+            raise AssertionError("160x48 expected a movable divider")
+        await pilot.mouse_down("#surface", offset=(divider.x, 15))
+        await pilot.hover("#surface", offset=(divider.x + 12, 15))
+        if (app.model.drag is None or app.model.preview is None
+                or app.model.split.ratio != 0.5):
+            raise AssertionError("pointer drag preview committed before release")
+        await pilot.mouse_up("#surface", offset=(divider.x + 12, 15))
+        if (app.model.actions["divider_commit"] != 1
+                or app.model.split.ratio <= 0.5 or app.model.drag is not None):
+            raise AssertionError("pointer release did not commit divider")
+        committed = app.model.split.ratio
+
+        # Escape and focus loss must roll back an active preview. The late
+        # mouse-up after cancellation must never resurrect the transaction.
+        for cancel_kind in ("escape", "blur"):
+            divider = app.model.frame.divider
+            await pilot.mouse_down("#surface", offset=(divider.x, 15))
+            await pilot.hover("#surface", offset=(divider.x - 9, 15))
+            if cancel_kind == "escape":
+                await pilot.press("escape")
+            else:
+                app.post_message(events.AppBlur())
+                await pilot.pause()
+            await pilot.mouse_up("#surface", offset=(divider.x - 9, 15))
+            if app.model.drag is not None or app.model.split.ratio != committed:
+                raise AssertionError(f"{cancel_kind} failed to roll back capture")
+        if app.model.actions["divider_cancel"] != 2:
+            raise AssertionError("Escape/blur cancellations not both recorded")
+
+        # Shrinking from fleet layout into focused 80x24 also cancels capture.
+        divider = app.model.frame.divider
+        await pilot.mouse_down("#surface", offset=(divider.x, 15))
+        await pilot.hover("#surface", offset=(divider.x - 7, 15))
+        await pilot.resize_terminal(80, 24)
+        if ((app.model.width, app.model.height) != (80, 24)
+                or not app.model.frame.compact or app.model.drag is not None
+                or app.model.split.ratio != committed
+                or app.model.actions["divider_cancel"] != 3):
+            raise AssertionError("resize did not safely cancel drag")
+
+        # A paste with command-like text is data-only, whether armed or not.
+        app.post_message(events.Paste("q\nCtrl+P\nSENSITIVE-FIXTURE"))
         await pilot.pause()
-        if app.model.actions["paste_allowed"] != 1:
-            raise AssertionError("paste not treated as inert data")
+        if app.model.actions["paste_refused"] != 1:
+            raise AssertionError("unarmed paste was not refused")
+        await pilot.press("i")
+        app.post_message(events.Paste("q\nCtrl+P\nSENSITIVE-FIXTURE"))
+        await pilot.pause()
+        if (app.model.actions["paste_allowed"] != 1
+                or "SENSITIVE-FIXTURE" in render(app.model)
+                or "SENSITIVE-FIXTURE" in str(app.model.summary())):
+            raise AssertionError("paste data routed as command or leaked")
         await pilot.press("ctrl+t")
         if app.model.actions["recover"] != 1 or app.model.input_armed:
             raise AssertionError("recovery did not reset fixture")
-        await pilot.resize_terminal(80, 24)
-        if (app.model.width, app.model.height) != (80, 24):
-            raise AssertionError("layout resize not delivered")
+
     return {"evidence": "FAST-CI-HEADLESS", "physical_tui": False,
-            "actions": dict(app.model.actions)}
+            "actions": dict(app.model.actions),
+            "events": dict(app.model.events),
+            "input_to_visible_frame_p95_ms": None}
 
 
 def main(argv=None):
