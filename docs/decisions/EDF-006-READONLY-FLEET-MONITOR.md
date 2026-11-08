@@ -156,3 +156,19 @@ prohibit Python workspace stat calls; Windows tests use the actual trusted
 PowerShell child to reject missing workspaces. This reduces a pre-deadline
 hang path but does **not** prove physical disconnected-drive behavior,
 Windows process-launch latency or whole-system real-time guarantees.
+
+## Periodic portable registry reconciliation
+
+The running read-only Textual monitor now reloads the **portable manager
+registry metadata** automatically every 30 seconds, without traversing
+registered factory paths on the UI thread. This is a bounded attempt cadence,
+not a guarantee that an unavailable registry or root completes within 30 seconds.
+Pressing `r` still forces a fresh registry and root observation cycle.
+Automatic reloads instead preserve the latest matching root generation,
+its pending/in-flight observation and its 10-second retry clock; only new,
+relocated, re-keyed or newly unheld roots are queued. A failed registry read
+withdraws all visible registrations until an explicit or automatic recovery.
+No daemon, hidden host-local state, write or VM lifecycle operation is added.
+The pinned Textual headless smoke explicitly exercises automatic metadata
+reload without unnecessary worker supersession. Physical Windows Terminal
+latency, offline-volume timing and human usability remain unmeasured.

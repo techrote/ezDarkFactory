@@ -97,6 +97,55 @@ class FleetMonitorTests(unittest.TestCase):
             release.set()
             fleet.close()
 
+    def test_metadata_reload_preserves_unchanged_inflight_and_retry_clock(self):
+        started, release = threading.Event(), threading.Event()
+        serials = []
+        def collect(workspace, token, timeout):
+            serials.append(token.serial)
+            started.set()
+            release.wait(2)
+            return WorkerResult("current")
+        fleet = FleetSession((row("a"),), Path("C:/synthetic"), collect)
+        try:
+            start = time.monotonic()
+            self.assertEqual(fleet.poll(start).launched, 1)
+            self.assertTrue(started.wait(.5))
+            due = fleet._next_auto["enr_" + "a"*32]
+            fleet.reconcile((row("a"),), refresh_unchanged=False)
+            self.assertEqual(fleet.scheduler.pending_count, 0)
+            self.assertEqual(fleet.scheduler.active_count, 1)
+            self.assertEqual(fleet._next_auto["enr_" + "a"*32], due)
+            release.set()
+            wait_until(fleet, lambda: fleet.states(time.monotonic())[0][2] == "current")
+            self.assertEqual(serials, [1])
+        finally:
+            release.set()
+            fleet.close()
+
+    def test_metadata_reload_only_observes_new_or_changed_enrollments(self):
+        calls = []
+        def collect(workspace, token, timeout):
+            calls.append((token.enrollment, token.serial))
+            return WorkerResult("current")
+        fleet = FleetSession((row("a"), row("b")), Path("C:/synthetic"), collect)
+        try:
+            wait_until(fleet, lambda: all(
+                s[2] == "current" for s in fleet.states(time.monotonic())))
+            a = "enr_" + "a"*32
+            b = "enr_" + "b"*32
+            before_a = len([c for c in calls if c[0] == a])
+            fleet.reconcile((row("a"), row("b", path="D:/relocated-b"),
+                             row("c")), refresh_unchanged=False)
+            self.assertEqual([s[2] for s in fleet.states(time.monotonic())],
+                             ["current", "unknown", "unknown"])
+            wait_until(fleet, lambda: all(
+                s[2] == "current" for s in fleet.states(time.monotonic())))
+            self.assertEqual(len([c for c in calls if c[0] == a]), before_a)
+            self.assertEqual(len([c for c in calls if c[0] == b]), 2)
+            self.assertEqual(fleet.scheduler.active_count, 0)
+        finally:
+            fleet.close()
+
     def test_one_blocked_root_allows_peer_and_refresh(self):
         entered = threading.Event()
         release = threading.Event()

@@ -26,7 +26,8 @@ from edf006_worker_pump import ObservationPump, WorkerResult
 
 MAX_ROOTS = 128
 BOOTSTRAP_DEADLINE = 10.0
-AUTO_REFRESH_SECONDS = 10.0  # bounded retry cadence, not a completion SLA
+AUTO_REFRESH_SECONDS = 10.0  # bounded per-root retry cadence, not a completion SLA
+REGISTRY_RELOAD_SECONDS = 30.0  # metadata-only; independent of root observations
 
 
 class FleetSession:
@@ -87,7 +88,8 @@ class FleetSession:
         }
         return candidate, held
 
-    def reconcile(self, rows: tuple[StaticRoot, ...]) -> None:
+    def reconcile(self, rows: tuple[StaticRoot, ...], *,
+                  refresh_unchanged: bool = True) -> None:
         """Apply fresh portable registry metadata without resurrecting stale reads.
 
         Changed/removed roots invalidate generations. Old worker threads retain
@@ -96,7 +98,10 @@ class FleetSession:
         A corrupt refresh is rejected atomically, leaving the previous model
         available only until the owning application fail-closes the session.
         """
+        if type(refresh_unchanged) is not bool:
+            raise ValueError("invalid registry refresh policy")
         candidate, held = self._validate_rows(rows)
+        previous_auto = self._next_auto
         removed: set[str] = set()
         for enrollment, previous in tuple(self._rows.items()):
             current = candidate.get(enrollment)
@@ -110,11 +115,19 @@ class FleetSession:
                 self.scheduler.register(enrollment, row.factory_id, row.canonical_path)
         self._rows = candidate
         self._held = held
-        # Restart cadence only after this registry generation is validated.
-        # Held roots must not schedule read-only child processes.
-        self._next_auto = {key: None for key in candidate if key not in held}
+        # A metadata-only automatic reload must not cancel slow-but-valid
+        # observations or reset unchanged roots' retry clocks. Explicit r
+        # retains its previous force-refresh semantics.
+        self._next_auto = {
+            key: (previous_auto[key] if key in previous_auto and key not in removed
+                  else None)
+            for key in candidate if key not in held
+        }
         for enrollment in self._rows:
-            self.refresh(enrollment)
+            if (enrollment not in held
+                    and (refresh_unchanged or enrollment in removed
+                         or enrollment not in previous_auto)):
+                self.refresh(enrollment)
 
     def invalidate_registry(self) -> None:
         """Withdraw every old registration without releasing live worker slots.
@@ -188,6 +201,8 @@ def make_app(workspace: Path, *,
             self.fleet: FleetSession | None = None
             self.bootstrap_state = "starting"
             self._reload_pending = False
+            self._bootstrap_force_refresh = True
+            self._next_registry_reload = 0.0
             self.last_poll = None
 
         def compose(self) -> ComposeResult:
@@ -203,13 +218,17 @@ def make_app(workspace: Path, *,
             self.set_interval(0.05, self._tick)
             self._show()
 
-        def _request_bootstrap(self):
+        def _request_bootstrap(self, *, force_refresh=True):
             if self._loader_pool is None:
                 return
             if self._bootstrap is not None:
-                # Repeated r presses are coalesced; no unbounded task backlog.
-                self._reload_pending = True
+                # Only an explicit request queues a second scan; automatic
+                # cycles never build up behind a slow bounded loader.
+                if force_refresh:
+                    self._reload_pending = True
                 return
+            self._bootstrap_force_refresh = force_refresh
+            self._next_registry_reload = time.monotonic() + REGISTRY_RELOAD_SECONDS
             self.bootstrap_state = "refreshing" if self.fleet is not None else "starting"
             self._bootstrap = self._loader_pool.submit(
                 loader, workspace, timeout=BOOTSTRAP_DEADLINE
@@ -224,7 +243,9 @@ def make_app(workspace: Path, *,
                     if self.fleet is None:
                         self.fleet = FleetSession(rows, workspace, collector)
                     else:
-                        self.fleet.reconcile(rows)
+                        self.fleet.reconcile(
+                            rows, refresh_unchanged=self._bootstrap_force_refresh
+                        )
                     self.bootstrap_state = "ready"
                 except Exception:
                     # A failed/invalid new registry cannot leave old 'current'
@@ -235,6 +256,11 @@ def make_app(workspace: Path, *,
                 if self._reload_pending:
                     self._reload_pending = False
                     self._request_bootstrap()
+            # Automatic metadata-only reconciliation is independent of the
+            # per-root 10-second observation cadence and cannot block the UI.
+            if (self._bootstrap is None
+                    and time.monotonic() >= self._next_registry_reload):
+                self._request_bootstrap(force_refresh=False)
             if self.fleet is not None:
                 self.last_poll = self.fleet.poll(time.monotonic())
             self._show()
@@ -287,6 +313,7 @@ async def headless_smoke():
                           state, "synthetic", "synthetic")
 
     loads = [0]
+    calls = []
     def seed(path, timeout):
         assert timeout == BOOTSTRAP_DEADLINE
         loads[0] += 1
@@ -300,6 +327,7 @@ async def headless_smoke():
 
     def collect(path, token, timeout):
         assert timeout == 10.0 and token.kind == "summary"
+        calls.append(token.enrollment)
         if token.enrollment.endswith("a" * 32):
             return WorkerResult("unreachable")
         return WorkerResult("current", ("Static identity, not READY",))
@@ -363,11 +391,26 @@ async def headless_smoke():
                 "READ ONLY" not in screen or
                 app.fleet.scheduler.active_count > 2):
             raise AssertionError("read-only UI or bounded worker state absent")
+        # Force the timer without sleeping 30 seconds. The real Textual tick
+        # reloads metadata, but unchanged roots must not be requeued.
+        observations_before = calls.count(row("d").enrollment_id)
+        app._next_registry_reload = 0.0
+        deadline = time.monotonic() + 5
+        while time.monotonic() < deadline:
+            await asyncio.sleep(.05)
+            await pilot.pause()
+            if loads[0] == 5 and app.bootstrap_state == "ready":
+                break
+        else:
+            raise AssertionError("periodic registry metadata reload did not execute")
+        if (calls.count(row("d").enrollment_id) != observations_before
+                or app.fleet.states(time.monotonic())[0][2] != "current"):
+            raise AssertionError("unchanged registry auto reload superseded observation")
     return {
         "schemaVersion": 1, "evidence": "FAST-CI-HEADLESS",
         "physical_tui": False, "live_instances_observed": False,
         "bootstrap": "synthetic", "peer_states": initial_states,
-        "registry_reload": "add-remove-refuse-recover",
+        "registry_reload": "add-remove-refuse-recover-auto",
         "input_to_visible_frame_p95_ms": None,
     }
 
