@@ -410,7 +410,8 @@ async def headless_smoke():
         "schemaVersion": 1, "evidence": "FAST-CI-HEADLESS",
         "physical_tui": False, "live_instances_observed": False,
         "bootstrap": "synthetic", "peer_states": initial_states,
-        "registry_reload": "add-remove-refuse-recover-auto",
+        "registry_reload": "add-remove-refuse-recover",
+        "periodic_registry_reload": "unchanged-preserved",
         "input_to_visible_frame_p95_ms": None,
     }
 

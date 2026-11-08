@@ -55,7 +55,8 @@ try {
         $monitor.live_instances_observed -or $monitor.input_to_visible_frame_p95_ms -ne $null -or
         $monitor.bootstrap -cne 'synthetic' -or
         (@($monitor.peer_states) -join ',') -cne 'unreachable,current,conflict' -or
-        $monitor.registry_reload -cne 'add-remove-refuse-recover') {
+        $monitor.registry_reload -cne 'add-remove-refuse-recover' -or
+        $monitor.periodic_registry_reload -cne 'unchanged-preserved') {
         throw 'EDF-006 fleet monitor reported invalid synthetic evidence.'
     }
     Write-Host ('EDF-006 read-only fleet monitor HEADLESS PASS: {0}' -f $monitorText)
